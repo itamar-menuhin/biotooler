@@ -47,7 +47,7 @@ def find_orf_candidates(
 
         >>> # Multiple starts and stops
         >>> find_orf_candidates("ATGAAATAGATGCCCTAGTAA")
-        [(0, 9), (0, 18), (9, 18)]
+        [(0, 9), (0, 18), (0, 21), (9, 18), (9, 21)]
 
         >>> # RNA example (U converted to T)
         >>> find_orf_candidates("AUGUGUUAA")
