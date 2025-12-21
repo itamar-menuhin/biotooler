@@ -143,15 +143,16 @@ def _validate_sequence(seq: str, molecule_type: str, allow_ambiguous: bool) -> N
     if molecule_type == "DNA":
         valid_chars = set("ACGT")
         if allow_ambiguous:
-            valid_chars.update("NRYWSMKHBVD")  # IUPAC ambiguous DNA codes
+            valid_chars.update("NRYWSMKHBVD")  # IUPAC ambiguous nucleotide codes
     elif molecule_type == "RNA":
         valid_chars = set("ACGU")
         if allow_ambiguous:
-            valid_chars.update("NRYWSMKHBVD")  # IUPAC ambiguous RNA codes
+            valid_chars.update("NRYWSMKHBVD")  # IUPAC ambiguous nucleotide codes
     else:  # protein
         valid_chars = set("ACDEFGHIKLMNPQRSTVWY")
         if allow_ambiguous:
-            valid_chars.update("XBZJUO*")  # X=unknown, B=Asx, Z=Glx, J=Xle, U=Sec, O=Pyl, *=stop
+            # X=unknown, B=Asx, Z=Glx, J=Leu/Ile, U=Sec, O=Pyl, *=stop
+            valid_chars.update("XBZJUO*")
 
     for i, char in enumerate(seq):
         if char not in valid_chars:
