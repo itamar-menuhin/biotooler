@@ -201,3 +201,41 @@ class TestFindOrfCandidates:
         seq = "ATGAAATAA"
         start, end = result[0]
         assert seq[start:end] == "ATGAAATAA"
+
+    def test_rejects_protein_seqrecord(self):
+        """Test that protein SeqRecord raises ValueError."""
+        import pytest
+
+        from biotooler.core.record import coerce_record
+
+        # Create a protein SeqRecord
+        protein_record = coerce_record("MKLVLS", "protein", id="test")
+
+        # Should raise ValueError
+        with pytest.raises(ValueError, match="DNA/RNA sequences"):
+            find_orf_candidates(protein_record)
+
+    def test_accepts_dna_seqrecord(self):
+        """Test that DNA SeqRecord is accepted."""
+        from biotooler.core.record import coerce_record
+
+        # Create a DNA SeqRecord
+        dna_record = coerce_record("ATGAAATAA", "DNA", id="test")
+        result = find_orf_candidates(dna_record)
+        assert result == [(0, 9)]
+
+    def test_accepts_rna_seqrecord(self):
+        """Test that RNA SeqRecord is accepted."""
+        from biotooler.core.record import coerce_record
+
+        # Create an RNA SeqRecord
+        rna_record = coerce_record("AUGUGUUAA", "RNA", id="test")
+        result = find_orf_candidates(rna_record)
+        assert result == [(0, 9)]
+
+    def test_accepts_seqrecord_without_molecule_type(self):
+        """Test that SeqRecord without molecule_type annotation is accepted."""
+        # SeqRecord without molecule_type should work fine
+        record = SeqRecord(Seq("ATGAAATAA"), id="test")
+        result = find_orf_candidates(record)
+        assert result == [(0, 9)]

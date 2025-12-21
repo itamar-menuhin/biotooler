@@ -7,6 +7,8 @@ candidates in a DNA or RNA sequence by finding start and stop codon pairs.
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
+from biotooler.core.record import get_molecule_type
+
 
 def find_orf_candidates(
     seq_or_record: str | Seq | SeqRecord,
@@ -34,6 +36,9 @@ def find_orf_candidates(
         - Only pairs where stop_idx > start_idx and (stop_idx - start_idx) % 3 == 0
         - Sorted by start position, then by end position
 
+    Raises:
+        ValueError: If the input is a SeqRecord with molecule_type annotation set to "protein"
+
     Examples:
         >>> from Bio.Seq import Seq
         >>> # Simple example with one ORF
@@ -52,8 +57,16 @@ def find_orf_candidates(
         >>> find_orf_candidates("AAACCCGGG")
         []
     """
-    # Extract sequence string
+    # Extract sequence string and validate molecule type
     if isinstance(seq_or_record, SeqRecord):
+        # Check if this is a protein sequence
+        if "molecule_type" in seq_or_record.annotations:
+            mol_type = get_molecule_type(seq_or_record)
+            if mol_type.upper() == "PROTEIN":
+                raise ValueError(
+                    "ORF candidate finding is only supported for DNA/RNA sequences, "
+                    "not protein sequences"
+                )
         seq_str = str(seq_or_record.seq)
     elif isinstance(seq_or_record, Seq):
         seq_str = str(seq_or_record)
