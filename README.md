@@ -33,8 +33,8 @@ It works with DNA, RNA, and protein sequences without any restrictions on step o
 The function uses internal caching to avoid repeatedly converting sequence objects to strings.
 
 **Important:** `iter_windows` is purely generic and does NOT enforce any codon-specific restrictions
-(such as step or window_size being multiples of 3). For codon-specific or ORF windowing with such
-restrictions, use `iter_orf_codon_windows` (planned for Ticket 5).
+(such as step or window_size being multiples of 3). For codon-specific ORF windowing with such
+restrictions, use `iter_orf_codon_windows` from `biotooler.core.windowing`.
 
 ```python
 from Bio.SeqRecord import SeqRecord
@@ -79,6 +79,43 @@ windows = list(iter_windows(dna_record2, window_size=10, step=4))
 record = SeqRecord(Seq("ACGTACG"), id="seq3")
 windows = list(iter_windows(record, window_size=4, step=2, drop_partial=False))
 # Last window will be "CG" even though it's smaller than window_size
+```
+
+### ORF Codon Windows
+
+For analyzing features across codon-aligned windows within an ORF, use `iter_orf_codon_windows` 
+and `FeatureSet.compute_orf_windows`. This enforces that step_nt is a multiple of 3 and produces
+wide-format output with one row per record.
+
+```python
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from biotooler.core.windowing import iter_orf_codon_windows
+from biotooler.features import FeatureSet
+
+# Define a feature computation function
+def compute_gc_content(record):
+    seq = str(record.seq)
+    gc_count = seq.count('G') + seq.count('C')
+    return {"gc_content": gc_count / len(seq) if seq else 0.0}
+
+# Create a FeatureSet
+fs = FeatureSet(compute_gc_content, name="gc")
+
+# Compute features over ORF windows (wide format output)
+record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
+result = fs.compute_orf_windows(
+    record,
+    orf=(0, 15),  # Explicit ORF coordinates
+    window_nt=9,  # 3 codons per window
+    step_nt=3     # Step by 1 codon (must be multiple of 3)
+)
+
+# Result is a single-row DataFrame with columns:
+# record_id, orf_start, orf_end, gc.gc_content_0, gc.gc_content_3, gc.gc_content_6
+print(result.shape)  # (1, 6)
+print(result.columns.tolist())
+# ['record_id', 'orf_start', 'orf_end', 'gc.gc_content_0', 'gc.gc_content_3', 'gc.gc_content_6']
 ```
 
 ### Sequence Utilities
