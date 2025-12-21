@@ -201,7 +201,7 @@ class TestCoerceRecord:
             "DNA",
             id="seq1",
             description="Test sequence with whitespace and ambiguous character",
-            allow_ambiguous=True
+            allow_ambiguous=True,
         )
         assert str(record.seq) == "ACGTN"
         assert record.id == "seq1"
@@ -243,12 +243,7 @@ class TestInvalidSequenceError:
 
     def test_error_attributes(self):
         """Test that InvalidSequenceError stores attributes correctly."""
-        error = InvalidSequenceError(
-            "Test error",
-            char="X",
-            index=5,
-            molecule_type="DNA"
-        )
+        error = InvalidSequenceError("Test error", char="X", index=5, molecule_type="DNA")
         assert str(error) == "Test error"
         assert error.char == "X"
         assert error.index == 5

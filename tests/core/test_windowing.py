@@ -48,8 +48,8 @@ class TestIterWindows:
         assert len(windows) == 4
         assert str(windows[0].seq) == "ACGT"  # 0-4
         assert str(windows[1].seq) == "GTAC"  # 2-6
-        assert str(windows[2].seq) == "ACG"   # 4-7 (partial)
-        assert str(windows[3].seq) == "G"     # 6-7 (partial)
+        assert str(windows[2].seq) == "ACG"  # 4-7 (partial)
+        assert str(windows[3].seq) == "G"  # 6-7 (partial)
 
     def test_window_metadata_parent_id(self):
         """Test that parent_id is set correctly in window annotations."""
@@ -250,3 +250,71 @@ class TestIterWindows:
         # Second consumption should yield nothing
         windows2 = list(iterator)
         assert len(windows2) == 0
+
+    def test_iter_windows_protein_step_1_ok(self):
+        """Test that iter_windows works with protein sequences using step=1."""
+        # Create a protein sequence
+        protein_record = SeqRecord(Seq("MKALVSWGR"), id="protein1")
+        protein_record.annotations["molecule_type"] = "protein"
+
+        # Extract overlapping windows with step=1
+        windows = list(iter_windows(protein_record, window_size=5, step=1))
+
+        # Should get 5 windows: positions 0, 1, 2, 3, 4
+        assert len(windows) == 5
+
+        # Verify each window
+        assert str(windows[0].seq) == "MKALV"
+        assert windows[0].annotations["start"] == 0
+        assert windows[0].annotations["end"] == 5
+
+        assert str(windows[1].seq) == "KALVS"
+        assert windows[1].annotations["start"] == 1
+        assert windows[1].annotations["end"] == 6
+
+        assert str(windows[2].seq) == "ALVSW"
+        assert windows[2].annotations["start"] == 2
+        assert windows[2].annotations["end"] == 7
+
+        assert str(windows[3].seq) == "LVSWG"
+        assert windows[3].annotations["start"] == 3
+        assert windows[3].annotations["end"] == 8
+
+        assert str(windows[4].seq) == "VSWGR"
+        assert windows[4].annotations["start"] == 4
+        assert windows[4].annotations["end"] == 9
+
+        # Verify molecule_type is copied to windows
+        for window in windows:
+            assert window.annotations["molecule_type"] == "protein"
+
+    def test_iter_windows_step_not_multiple_of_3_ok_for_dna(self):
+        """Test that iter_windows accepts step not multiple of 3 for DNA sequences."""
+        # Create a DNA sequence (20 bases)
+        dna_record = SeqRecord(Seq("ACGTACGTACGTACGTACGT"), id="dna1")
+        dna_record.annotations["molecule_type"] = "DNA"
+
+        # Use window_size=10, step=4 (not multiple of 3)
+        # This should NOT raise an error in generic windowing
+        windows = list(iter_windows(dna_record, window_size=10, step=4))
+
+        # Positions: 0, 4, 8, 12, 16
+        # 0-10 (len=10), 4-14 (len=10), 8-18 (len=10), 12-22 exceeds length
+        # With drop_partial=True, we keep full windows only
+        assert len(windows) == 3
+
+        assert str(windows[0].seq) == "ACGTACGTAC"
+        assert windows[0].annotations["start"] == 0
+        assert windows[0].annotations["end"] == 10
+
+        assert str(windows[1].seq) == "ACGTACGTAC"
+        assert windows[1].annotations["start"] == 4
+        assert windows[1].annotations["end"] == 14
+
+        assert str(windows[2].seq) == "ACGTACGTAC"
+        assert windows[2].annotations["start"] == 8
+        assert windows[2].annotations["end"] == 18
+
+        # Verify molecule_type is copied to windows
+        for window in windows:
+            assert window.annotations["molecule_type"] == "DNA"

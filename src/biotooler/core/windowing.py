@@ -21,10 +21,15 @@ def iter_windows(
     string once and slicing it for each window. Window metadata is stored in each
     window's annotations.
 
+    This is a generic windowing function that works with DNA, RNA, and protein sequences.
+    It does NOT enforce any restrictions on step or window_size being multiples of 3.
+    For codon-specific or ORF windowing with such restrictions, use iter_orf_codon_windows
+    (see Ticket 5).
+
     Args:
-        record: The SeqRecord to extract windows from
-        window_size: Size of each window (must be positive)
-        step: Step size between windows (must be positive)
+        record: The SeqRecord to extract windows from (DNA, RNA, or protein)
+        window_size: Size of each window in residues/bases (must be positive, no restrictions)
+        step: Step size between windows in residues/bases (must be positive, no restrictions)
         drop_partial: If True, drops the last window if it's smaller than window_size.
                      If False, includes partial windows at the end.
 
@@ -42,6 +47,7 @@ def iter_windows(
     Examples:
         >>> from Bio.Seq import Seq
         >>> from Bio.SeqRecord import SeqRecord
+        >>> # DNA sequence with step=2
         >>> record = SeqRecord(Seq("ACGTACGT"), id="seq1")
         >>> windows = list(iter_windows(record, window_size=4, step=2))
         >>> len(windows)
@@ -52,6 +58,16 @@ def iter_windows(
         0
         >>> windows[0].annotations["end"]
         4
+
+        >>> # Protein sequence with step=1 (sliding window)
+        >>> protein_record = SeqRecord(Seq("MKALVSWGR"), id="protein1")
+        >>> protein_windows = list(iter_windows(protein_record, window_size=5, step=1))
+        >>> len(protein_windows)
+        5
+        >>> str(protein_windows[0].seq)
+        'MKALV'
+        >>> str(protein_windows[1].seq)
+        'KALVS'
 
         >>> # With drop_partial=False
         >>> record = SeqRecord(Seq("ACGTACG"), id="seq1")
