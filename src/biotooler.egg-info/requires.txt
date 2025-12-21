@@ -1,0 +1,8 @@
+biopython
+numpy
+pandas
+
+[dev]
+pytest
+ruff
+pyright

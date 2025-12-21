@@ -1,3 +1,17 @@
+Metadata-Version: 2.4
+Name: biotooler
+Version: 0.1.0
+Summary: A Python package for bioinformatics tools
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: biopython
+Requires-Dist: numpy
+Requires-Dist: pandas
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: ruff; extra == "dev"
+Requires-Dist: pyright; extra == "dev"
+
 # biotooler
 
 A Python package for bioinformatics tools.
