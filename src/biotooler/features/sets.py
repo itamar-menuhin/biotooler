@@ -175,17 +175,67 @@ class FeatureSet:
         all_feature_keys: set[str] = set()
 
         # Compute features for each window and add with window_start suffix
-        for window in windows:
-            window_start = window.annotations["window_start"]
+        for _feat_name, feat_fn in self._features.items():
+            # Check if feature supports incremental computation (duck-typing)
+            has_incremental = (
+                hasattr(feat_fn, "init_state")
+                and hasattr(feat_fn, "step_state")
+                and hasattr(feat_fn, "emit")
+            )
 
-            # Compute all features for this window
-            for _feat_name, feat_fn in self._features.items():
-                features = feat_fn(window)
-                for key, value in features.items():
-                    # Create column name: {name}.{feature_key}_{window_start}
-                    col_name = f"{self.name}.{key}_{window_start}"
-                    feature_data[col_name] = value
-                    all_feature_keys.add(key)
+            if has_incremental:
+                # Use incremental path
+                state = None
+                prev_window_start = 0
+                prev_window_end = 0
+
+                for window in windows:
+                    window_start = window.annotations["window_start"]
+                    window_end = window.annotations["window_end"]
+
+                    if state is None:
+                        # First window: initialize state
+                        state = feat_fn.init_state(  # type: ignore[union-attr]
+                            record,
+                            orf=resolved_orf,
+                            window_start=window_start,
+                            window_end=window_end,
+                        )
+                    else:
+                        # Subsequent windows: update state incrementally
+                        # out: bases leaving the window (from prev_start to curr_start)
+                        # in: bases entering the window (from prev_end to curr_end)
+                        out_start = prev_window_start
+                        out_end = window_start
+                        in_start = prev_window_end
+                        in_end = window_end
+
+                        feat_fn.step_state(  # type: ignore[union-attr]
+                            state,
+                            out_start=out_start,
+                            out_end=out_end,
+                            in_start=in_start,
+                            in_end=in_end,
+                        )
+
+                    prev_window_start = window_start
+                    prev_window_end = window_end
+
+                    # Emit features for this window
+                    features = feat_fn.emit(state)  # type: ignore[union-attr]
+                    for key, value in features.items():
+                        col_name = f"{self.name}.{key}_{window_start}"
+                        feature_data[col_name] = value
+                        all_feature_keys.add(key)
+            else:
+                # Use fallback path for non-incremental features
+                for window in windows:
+                    window_start = window.annotations["window_start"]
+                    features = feat_fn(window)
+                    for key, value in features.items():
+                        col_name = f"{self.name}.{key}_{window_start}"
+                        feature_data[col_name] = value
+                        all_feature_keys.add(key)
 
         # Create single-row DataFrame
         df = pd.DataFrame([feature_data])
