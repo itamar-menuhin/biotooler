@@ -196,14 +196,20 @@ class FeatureSet:
 
         # 2. Feature columns sorted by (feature_key, window_start numeric)
         feature_cols = [c for c in df.columns if c not in metadata_cols]
-        feature_cols.sort(
-            key=lambda col: (
-                # Extract feature key (everything before the last underscore)
-                col.rsplit("_", 1)[0],
-                # Extract window_start as integer (after the last underscore)
-                int(col.rsplit("_", 1)[1]),
-            )
-        )
+
+        # Sort with error handling for malformed column names
+        def sort_key(col: str) -> tuple[str, int]:
+            parts = col.rsplit("_", 1)
+            if len(parts) != 2:
+                # No underscore found - sort by column name only
+                return (col, 0)
+            try:
+                return (parts[0], int(parts[1]))
+            except ValueError:
+                # Can't parse as int - sort by full name
+                return (col, 0)
+
+        feature_cols.sort(key=sort_key)
 
         # Reorder columns
         ordered_cols = metadata_cols + feature_cols
