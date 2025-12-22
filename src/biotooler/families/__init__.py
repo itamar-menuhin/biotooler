@@ -14,5 +14,10 @@ Note: This module does NOT import any family modules to keep imports lightweight
 Heavy optional dependencies (e.g., codonbias) are only loaded when explicitly imported.
 """
 
-__all__: list[str] = []
+from biotooler.families.registry import (
+    get_family_meta,
+    get_install_extras,
+    list_families,
+)
 
+__all__ = ["list_families", "get_family_meta", "get_install_extras"]
