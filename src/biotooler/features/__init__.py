@@ -9,7 +9,7 @@ from biotooler.features.sets import FeatureSet
 
 # Type checking import - doesn't execute at runtime
 if TYPE_CHECKING:
-    from biotooler.features.codon_bias import CodonBiasFeature
+    from biotooler.families.codon_bias import CodonBiasFeature
 
 
 def __dir__():
@@ -24,7 +24,7 @@ def __getattr__(name):
     dependency) until it's actually used.
     """
     if name == "CodonBiasFeature":
-        from biotooler.features.codon_bias import CodonBiasFeature
+        from biotooler.families.codon_bias import CodonBiasFeature
 
         return CodonBiasFeature
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
