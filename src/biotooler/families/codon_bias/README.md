@@ -274,7 +274,6 @@ Dictionary mapping feature names to scalar float values:
 
 - **Official documentation**: https://codon-bias.readthedocs.io/en/latest/
 - **PyPI package**: https://pypi.org/project/codon-bias/
-- **GitHub repository**: https://github.com/Benjamin-Lee/CodonBias
 - **API reference**: https://codon-bias.readthedocs.io/en/latest/api.html
 
 ## Examples
