@@ -600,8 +600,9 @@ class TestComputeWindowIndexArrays:
 
     def test_array_dtypes(self):
         """Test that returned arrays are numpy arrays."""
-        from biotooler.core.windowing import compute_window_index_arrays
         import numpy as np
+
+        from biotooler.core.windowing import compute_window_index_arrays
 
         arrays = compute_window_index_arrays(
             15, window_size=9, step=3, position_space="codon", output_space="codon"
