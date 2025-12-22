@@ -24,6 +24,12 @@ FAMILIES: dict[str, dict[str, Any]] = {
         "owner": "@itamar-menuhin",
         "heavy": True,  # Has heavy optional dependencies
     },
+    "protparam": {
+        "summary": "Protein physicochemical parameters using Bio.SeqUtils.ProtParam",
+        "extra": None,  # No extra dependencies needed
+        "owner": "@itamar-menuhin",
+        "heavy": False,  # No heavy optional dependencies
+    },
 }
 
 
