@@ -293,9 +293,15 @@ class BasicStatsFeature:
         base_alphabet = alphabet.rstrip("N")  # Remove N if present
         if base_alphabet in (DNA_ALPHABET, RNA_ALPHABET):
             if length > 0:
-                g_idx = alphabet.index("G")
-                c_idx = alphabet.index("C")
-                gc_count = int(counts[g_idx]) + int(counts[c_idx])
+                # Safely get indices (G and C should always be in alphabet, but be defensive)
+                try:
+                    g_idx = alphabet.index("G")
+                    c_idx = alphabet.index("C")
+                    gc_count = int(counts[g_idx]) + int(counts[c_idx])
+                except ValueError:
+                    # Fallback if G or C not in alphabet
+                    # (shouldn't happen with current _detect_alphabet)
+                    gc_count = 0
                 result["gc_fraction"] = float(gc_count) / length
             else:
                 result["gc_fraction"] = 0.0

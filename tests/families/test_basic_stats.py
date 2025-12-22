@@ -67,7 +67,7 @@ class TestBasicStatsBaseline:
         assert result["count_g"] == 2
         assert result["count_t"] == 2
         assert result["count_n"] == 2
-        # GC fraction should exclude N
+        # GC fraction is (G+C)/total_length, N is counted in length but not as G or C
         assert result["gc_fraction"] == 0.4  # (2+2)/10
 
     def test_high_gc_content(self):
