@@ -3,6 +3,21 @@
 import sys
 
 
+def _clear_modules(*prefixes: str) -> None:
+    """Helper to clear modules with given prefixes from sys.modules.
+
+    Args:
+        prefixes: Module name prefixes to clear (e.g., "codonbias", "biotooler")
+    """
+    modules_to_clear = [
+        module
+        for module in list(sys.modules.keys())
+        if any(module.startswith(prefix) for prefix in prefixes)
+    ]
+    for module in modules_to_clear:
+        del sys.modules[module]
+
+
 def test_import_biotooler_fast():
     """Test that importing biotooler does not import heavy optional dependencies.
 
@@ -11,15 +26,7 @@ def test_import_biotooler_fast():
     be imported when their specific features are explicitly used.
     """
     # Clear any previously imported modules that we want to test
-    modules_to_clear = []
-    for module in list(sys.modules.keys()):
-        if (module.startswith("biotooler") or
-            module.startswith("codonbias")):
-            modules_to_clear.append(module)
-
-    for module in modules_to_clear:
-        if module in sys.modules:
-            del sys.modules[module]
+    _clear_modules("biotooler", "codonbias")
 
     # Import biotooler and biotooler.features
     import biotooler
@@ -56,14 +63,7 @@ def test_import_codon_bias_feature_loads_codonbias():
     the codonbias dependency should be loaded.
     """
     # Clear any previously imported modules
-    modules_to_clear = []
-    for module in list(sys.modules.keys()):
-        if module.startswith("codonbias") or module.startswith("biotooler.families.codon_bias"):
-            modules_to_clear.append(module)
-
-    for module in modules_to_clear:
-        if module in sys.modules:
-            del sys.modules[module]
+    _clear_modules("codonbias", "biotooler.families.codon_bias")
 
     # Now import CodonBiasFeature
     from biotooler.families.codon_bias import CodonBiasFeature
@@ -78,15 +78,7 @@ def test_import_codon_bias_feature_loads_codonbias():
 def test_lazy_import_through_features_module():
     """Test that lazy import through features module works correctly."""
     # Clear any previously imported modules
-    modules_to_clear = []
-    for module in list(sys.modules.keys()):
-        if module.startswith("codonbias") or module.startswith("biotooler.families.codon_bias"):
-            modules_to_clear.append(module)
-    modules_to_clear.extend(["biotooler.features"])
-
-    for module in modules_to_clear:
-        if module in sys.modules:
-            del sys.modules[module]
+    _clear_modules("codonbias", "biotooler.families.codon_bias", "biotooler.features")
 
     # Import biotooler.features
     import biotooler.features
