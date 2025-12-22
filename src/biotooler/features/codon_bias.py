@@ -207,9 +207,9 @@ class CodonBiasFeature:
     def emit(self, state: dict) -> dict[str, float]:
         """Emit feature values from current state.
 
-        For models with accessible weights, computes scores using codonbias.utils
-        functions. For models without accessible weights, falls back to baseline
-        get_score() on the current window sequence.
+        Attempts incremental computation using codonbias.utils functions when weights
+        are available. Falls back to baseline get_score() if incremental fails or
+        weights are unavailable.
 
         Args:
             state: The state object
@@ -221,36 +221,42 @@ class CodonBiasFeature:
         codon_counts = state["codon_counts"]
         model_data = state["model_data"]
 
+        # Get window position for baseline fallback
+        record = state["record"]
+        orf = state["orf"]
+        orf_start = orf[0]
+        window_start = state["window_start"]
+        window_end = state["window_end"]
+        abs_start = orf_start + window_start
+        abs_end = orf_start + window_end
+
         for name, model, weights_info in zip(
             self.names, self.models, model_data, strict=True
         ):
+            # Try incremental computation first if weights are available
+            score = None
             if weights_info["has_weights"]:
-                # Use incremental computation with weights
-                weights = weights_info["weights"]
-                weight_type = weights_info["type"]
+                try:
+                    weights = weights_info["weights"]
+                    weight_type = weights_info["type"]
 
-                if weight_type == "log":
-                    # Use geometric mean for log weights
-                    score = codonbias.utils.geomean(weights, codon_counts)
-                else:
-                    # Use arithmetic mean for regular weights
-                    score = codonbias.utils.mean(weights, codon_counts)
+                    if weight_type == "log":
+                        # Use geometric mean for log weights
+                        score = codonbias.utils.geomean(weights, codon_counts)
+                    else:
+                        # Use arithmetic mean for regular weights
+                        score = codonbias.utils.mean(weights, codon_counts)
+                except Exception:
+                    # Incremental computation failed - will use baseline fallback
+                    score = None
 
-                result[name] = float(score)
-            else:
-                # Fall back to baseline: get window sequence and call get_score
-                record = state["record"]
-                orf = state["orf"]
-                orf_start = orf[0]
-                window_start = state["window_start"]
-                window_end = state["window_end"]
-
-                abs_start = orf_start + window_start
-                abs_end = orf_start + window_end
+            # Fall back to baseline if incremental failed or unavailable
+            if score is None:
                 seq_str = get_seq_str(record)[abs_start:abs_end]
                 seq_str = _convert_rna_to_dna(seq_str)
                 score = model.get_score(seq_str)
-                result[name] = float(score)
+
+            result[name] = float(score)
 
         return result
 
@@ -287,61 +293,72 @@ def _convert_rna_to_dna(seq_str: str) -> str:
 def _try_get_weights(
     model: codonbias.scores.ScalarScore,
 ) -> dict:
-    """Try to extract weights from a codonbias model.
+    """Try to extract weights from a codonbias model for incremental computation.
+
+    This function attempts to get weights for optimized incremental computation,
+    but incremental mode is purely optional. If weights cannot be obtained, the
+    feature will automatically fall back to baseline per-window get_score() calls.
 
     Attempts to get weights in this order:
-    1. model.log_weights (preferred) -> use with geomean
-    2. model.weights -> use with mean
-    3. model.get_weights() if exists -> use with mean
-    4. None -> fallback to baseline mode
+    1. model.log_weights (preferred) -> use with codonbias.utils.geomean
+    2. model.weights -> use with codonbias.utils.mean
+    3. model.get_weights() if callable -> use with codonbias.utils.mean
 
     Args:
         model: A codonbias ScalarScore model
 
     Returns:
         Dictionary with keys:
-        - has_weights: bool indicating if weights were found
+        - has_weights: bool indicating if weights were obtained
         - weights: pandas Series of weights (or None)
         - type: "log" or "linear" (or None)
     """
-    # Try log_weights first
-    if hasattr(model, "log_weights"):
-        log_weights = getattr(model, "log_weights", None)
-        if log_weights is not None:
-            return {
-                "has_weights": True,
-                "weights": log_weights,
-                "type": "log",
-            }
+    # Try log_weights first (wrapped in try-except for safety)
+    try:
+        if hasattr(model, "log_weights"):
+            log_weights = getattr(model, "log_weights", None)
+            if log_weights is not None:
+                return {
+                    "has_weights": True,
+                    "weights": log_weights,
+                    "type": "log",
+                }
+    except Exception:
+        pass
 
     # Try weights
-    if hasattr(model, "weights"):
-        weights = getattr(model, "weights", None)
-        if weights is not None:
-            return {
-                "has_weights": True,
-                "weights": weights,
-                "type": "linear",
-            }
+    try:
+        if hasattr(model, "weights"):
+            weights = getattr(model, "weights", None)
+            if weights is not None:
+                return {
+                    "has_weights": True,
+                    "weights": weights,
+                    "type": "linear",
+                }
+    except Exception:
+        pass
 
     # Try get_weights() method
-    if hasattr(model, "get_weights"):
-        get_weights_method = getattr(model, "get_weights", None)
-        if get_weights_method is not None and callable(get_weights_method):
-            try:
-                weights = get_weights_method()
-                # Check if it returns a valid weights structure
-                if weights is not None:
-                    return {
-                        "has_weights": True,
-                        "weights": weights,
-                        "type": "linear",
-                    }
-            except (TypeError, AttributeError, ValueError):
-                # get_weights() may require arguments or fail for other reasons
-                pass
+    try:
+        if hasattr(model, "get_weights"):
+            get_weights_method = getattr(model, "get_weights", None)
+            if get_weights_method is not None and callable(get_weights_method):
+                try:
+                    weights = get_weights_method()
+                    # Check if it returns a valid weights structure
+                    if weights is not None:
+                        return {
+                            "has_weights": True,
+                            "weights": weights,
+                            "type": "linear",
+                        }
+                except (TypeError, AttributeError, ValueError):
+                    pass
+    except Exception:
+        pass
 
-    # No accessible weights - must use fallback
+    # No accessible weights - will use baseline fallback
     return {
         "has_weights": False,
         "weights": None,
