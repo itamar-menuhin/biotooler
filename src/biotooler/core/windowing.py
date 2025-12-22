@@ -250,7 +250,7 @@ def compute_window_indices(
     step: int,
     *,
     drop_partial: bool = True,
-    position_space: str = "nucleotide",
+    position_space: str,
     start_offset: int = 0,
 ) -> list[tuple[int, int]]:
     """Compute window start/end index pairs for sliding windows.
@@ -354,7 +354,7 @@ def compute_window_index_arrays(
     step: int,
     *,
     drop_partial: bool = True,
-    position_space: str = "nucleotide",
+    position_space: str,
     start_offset: int = 0,
     output_space: str | None = None,
 ) -> list[np.ndarray]:
