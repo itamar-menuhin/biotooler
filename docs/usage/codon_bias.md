@@ -61,6 +61,8 @@ print(result.keys())
 
 The `from_reference` class method provides a convenient way to build codon bias features from a shared reference sequence set. This is particularly useful when working with organism-specific reference sequences.
 
+> **See the [Reference Workflow Guide](./reference_workflow.md) for a comprehensive tutorial on using `ReferenceSequenceSet` across biotooler, including loading from files, translation parameters, and complete workflows.**
+
 ### Basic Usage with ReferenceSequenceSet
 
 ```python
@@ -442,6 +444,7 @@ print(f"FOP: {result['FOP']:.2%}")  # Display as percentage
 
 ## See Also
 
+- [Reference Workflow Guide](./reference_workflow.md) for comprehensive tutorial on using `ReferenceSequenceSet`
 - [codon-bias package documentation](https://pypi.org/project/codon-bias/)
 - [ORF Windows](./orf_windows.md) for general windowing concepts
 - [Feature Sets](../README.md#feature-sets) for feature computation patterns
