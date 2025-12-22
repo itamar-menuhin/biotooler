@@ -11,6 +11,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+chimera = [
+    "pychimera @ git+https://github.com/CompSynthBio/pyChimera",
+]
 codon_bias = [
     "codon-bias",
 ]
