@@ -483,7 +483,9 @@ class ReferenceSequenceSet:
                         f"Existing: '{new_cds[seq_id][:20]}...', "
                         f"Provided: '{new_seq[:20]}...'"
                     )
-            new_cds[seq_id] = new_seq
+                # If sequences match (after normalization), keep the existing one
+            else:
+                new_cds[seq_id] = new_seq
 
         return self.__class__(new_cds, self.proteins, self.genetic_code_table)
 
@@ -544,13 +546,16 @@ class ReferenceSequenceSet:
 
             if other.proteins is not None:
                 for seq_id, other_seq in other.proteins.items():
-                    if seq_id in new_proteins and new_proteins[seq_id] != other_seq:
-                        raise ValueError(
-                            f"Protein sequence '{seq_id}' exists in both sets "
-                            f"with different sequences. "
-                            f"This: '{new_proteins[seq_id][:20]}...', "
-                            f"Other: '{other_seq[:20]}...'"
-                        )
-                    new_proteins[seq_id] = other_seq
+                    if seq_id in new_proteins:
+                        if new_proteins[seq_id] != other_seq:
+                            raise ValueError(
+                                f"Protein sequence '{seq_id}' exists in both sets "
+                                f"with different sequences. "
+                                f"This: '{new_proteins[seq_id][:20]}...', "
+                                f"Other: '{other_seq[:20]}...'"
+                            )
+                        # If sequences match, keep the existing one
+                    else:
+                        new_proteins[seq_id] = other_seq
 
         return self.__class__(new_cds, new_proteins, self.genetic_code_table)
