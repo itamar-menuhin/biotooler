@@ -118,6 +118,49 @@ print(result.columns.tolist())
 # ['record_id', 'orf_start', 'orf_end', 'gc.gc_content_0', 'gc.gc_content_3', 'gc.gc_content_6']
 ```
 
+### Codon Bias Features
+
+The `CodonBiasFeature` class wraps the external [codon-bias](https://pypi.org/project/codon-bias/) 
+package to compute codon usage bias metrics like CAI, ENC, FOP, and others. It supports both 
+baseline and incremental (rolling) window computation.
+
+```python
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from codonbias.scores import CodonAdaptationIndex, EffectiveNumberOfCodons
+from biotooler.features import CodonBiasFeature, FeatureSet
+
+# Create codonbias models
+ref_seq = "ATGATGATGATGATGATGATGATG"  # Reference for CAI
+cai = CodonAdaptationIndex(ref_seq)
+enc = EffectiveNumberOfCodons()  # ENC doesn't need a reference
+
+# Create feature with multiple models
+feature = CodonBiasFeature([cai, enc], names=["CAI", "ENC"])
+
+# Compute on full sequence
+record = SeqRecord(Seq("ATGATGATGATGATGATG"), id="test")
+result = feature(record)
+print(result)
+# {'CAI': 1.0, 'ENC': 61.0}
+
+# Compute on windows (wide format output with suffixes like CAI_0, CAI_3, ENC_0, ENC_6)
+fs = FeatureSet(feature, name="cb")
+test_seq = "ATGATGATGATGATGATGATGATGATGATG"  # 10 codons
+windowed = fs.compute_orf_windows(
+    SeqRecord(Seq(test_seq), id="test"),
+    orf=(0, 30),
+    window_nt=9,   # 3 codons per window
+    step_nt=3      # Step by 1 codon
+)
+print(windowed.columns.tolist())
+# ['record_id', 'orf_start', 'orf_end', 'cb.CAI_0', 'cb.CAI_3', 'cb.CAI_6', ..., 
+#  'cb.ENC_0', 'cb.ENC_3', 'cb.ENC_6', ...]
+```
+
+For more details on codon bias features, see the [Codon Bias documentation](docs/usage/codon_bias.md).
+
+
 ### Sequence Utilities
 
 The package provides efficient sequence string/bytes extraction with caching:
