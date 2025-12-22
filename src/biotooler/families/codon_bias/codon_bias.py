@@ -1,12 +1,16 @@
 """Codon usage bias feature computation using codonbias package."""
 
+import inspect
 from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from Bio.SeqRecord import SeqRecord
 
 from biotooler.core.lazy_import import lazy_import
 from biotooler.core.seq_utils import get_seq_str
+
+if TYPE_CHECKING:
+    from biotooler.core.reference_sequences import ReferenceSequenceSet
 
 # Lazy import codonbias modules
 codonbias = lazy_import(  # type: ignore[misc]
@@ -76,6 +80,117 @@ class CodonBiasFeature:
                     f"({len(self.models)})"
                 )
             self.names = list(names) if not isinstance(names, list) else names
+
+    @classmethod
+    def from_reference(
+        cls,
+        reference_set: "ReferenceSequenceSet",
+        scores: Sequence[str | type | Any],
+        *,
+        names: Sequence[str] | None = None,
+        score_kwargs: dict[str, dict[str, Any]] | None = None,
+    ) -> "CodonBiasFeature":
+        """Create CodonBiasFeature from a ReferenceSequenceSet.
+
+        This factory method builds codon bias score models from a shared reference
+        sequence set, automatically handling reference sequence requirements.
+
+        Args:
+            reference_set: ReferenceSequenceSet containing CDS sequences
+            scores: Sequence of score identifiers, which can be:
+                - Abbreviations like "CAI", "ENC", "FOP"
+                - Class names like "CodonAdaptationIndex"
+                - Class objects like CodonAdaptationIndex
+                - Already instantiated score objects
+            names: Optional custom names for the scores (defaults to abbreviations or class names)
+            score_kwargs: Optional dict mapping score identifiers to their constructor kwargs
+                Example: {"CAI": {"genetic_code": 11}, "ENC": {"bg_correction": True}}
+
+        Returns:
+            CodonBiasFeature instance with instantiated score models
+
+        Raises:
+            ValueError: If reference_set has no CDS sequences when required by a score
+            ValueError: If a score identifier cannot be resolved
+            TypeError: If a score constructor fails
+
+        Examples:
+            >>> from biotooler.core.reference_sequences import ReferenceSequenceSet
+            >>> ref_set = ReferenceSequenceSet(cds={"gene1": "ATGATGATG", "gene2": "ATGATGATG"})
+            >>> # Using abbreviations
+            >>> feature = CodonBiasFeature.from_reference(ref_set, ["CAI", "ENC"])
+            >>> # Using class objects with kwargs
+            >>> from codonbias.scores import CodonAdaptationIndex
+            >>> feature = CodonBiasFeature.from_reference(
+            ...     ref_set,
+            ...     [CodonAdaptationIndex, "ENC"],
+            ...     names=["CAI", "ENC"],
+            ...     score_kwargs={"CAI": {"genetic_code": 11}}
+            ... )
+        """
+        # Check if reference_set has CDS sequences
+        if not reference_set.cds:
+            raise ValueError(
+                "ReferenceSequenceSet must contain CDS sequences to build codon bias models"
+            )
+
+        # Get concatenated reference sequences for models that need ref_seq
+        ref_seq_strings = reference_set.cds_strings()
+        concatenated_ref_seq = "".join(ref_seq_strings)
+
+        # Resolve score identifiers and instantiate models
+        models = []
+        resolved_names = []
+
+        for score_id in scores:
+            # Resolve the score class
+            score_class = _resolve_score_identifier(score_id)
+
+            # Check if it's already an instance
+            if not inspect.isclass(score_class):
+                # Already instantiated
+                models.append(score_class)
+                resolved_names.append(type(score_class).__name__)
+                continue
+
+            # Get kwargs for this score if provided
+            kwargs = {}
+            if score_kwargs:
+                # Try to match by various identifiers in order of specificity:
+                # 1. Original score_id (as provided by user)
+                # 2. Class name (e.g., "CodonAdaptationIndex")
+                # 3. Abbreviation (e.g., "CAI")
+                for key in [score_id, score_class.__name__,
+                           _get_score_abbreviation(score_class.__name__)]:
+                    if isinstance(key, str) and key in score_kwargs:
+                        kwargs = score_kwargs[key].copy()
+                        break
+
+            # Check if the score class accepts ref_seq parameter
+            sig = inspect.signature(score_class.__init__)
+            if "ref_seq" in sig.parameters:
+                # Pass the concatenated reference sequence
+                kwargs["ref_seq"] = concatenated_ref_seq
+
+            # Instantiate the score
+            try:
+                model = score_class(**kwargs)
+                models.append(model)
+                resolved_names.append(score_class.__name__)
+            except TypeError as e:
+                raise TypeError(
+                    f"Failed to instantiate {score_class.__name__}: {e}"
+                ) from e
+
+        # Use provided names or resolved names
+        if names is None:
+            # Use abbreviations where possible, otherwise class names
+            names = [
+                _get_score_abbreviation(name) if _get_score_abbreviation(name) else name
+                for name in resolved_names
+            ]
+
+        return cls(models, names=names)
 
     def __call__(self, record: SeqRecord) -> dict[str, float]:
         """Compute codon bias scores for the entire sequence.
@@ -372,3 +487,73 @@ def _try_get_weights(
         "weights": None,
         "type": None,
     }
+
+
+def _resolve_score_identifier(score_id: str | type | Any) -> type | Any:
+    """Resolve a score identifier to a score class or instance.
+
+    Args:
+        score_id: Score identifier (abbreviation, class name, class object, or instance)
+
+    Returns:
+        Score class or instance
+
+    Raises:
+        ValueError: If the identifier cannot be resolved
+    """
+    # If it's already a class or instance, return it
+    if inspect.isclass(score_id) or not isinstance(score_id, str):
+        return score_id
+
+    # Define abbreviation mapping
+    # Note: Some scores have alternative abbreviations commonly used in literature:
+    # - DCBS (Distance from CBS) is an alternative name for RCBS
+    # - CPS (Codon Pair Score) is an alternative name for CPB
+    abbreviation_map = {
+        "CAI": "CodonAdaptationIndex",
+        "ENC": "EffectiveNumberOfCodons",
+        "FOP": "FrequencyOfOptimalCodons",
+        "RSCU": "RelativeSynonymousCodonUsage",
+        "RCBS": "RelativeCodonBiasScore",
+        "DCBS": "RelativeCodonBiasScore",  # Alternative name for RCBS
+        "tAI": "TrnaAdaptationIndex",
+        "nTE": "NormalizedTranslationalEfficiency",
+        "CPB": "CodonPairBias",
+        "CPS": "CodonPairBias",  # Alternative name for CPB
+    }
+
+    # Try to resolve as abbreviation
+    class_name = abbreviation_map.get(score_id, score_id)
+
+    # Try to get the class from codonbias.scores
+    try:
+        score_class = getattr(codonbias.scores, class_name)  # type: ignore[attr-defined]
+        return score_class
+    except AttributeError:
+        raise ValueError(
+            f"Cannot resolve score identifier '{score_id}'. "
+            f"Expected one of: {', '.join(abbreviation_map.keys())}, "
+            f"a codonbias.scores class name, or a class object."
+        ) from None
+
+
+def _get_score_abbreviation(class_name: str) -> str:
+    """Get the abbreviation for a score class name.
+
+    Args:
+        class_name: Score class name
+
+    Returns:
+        Abbreviation if known, otherwise empty string
+    """
+    name_to_abbrev = {
+        "CodonAdaptationIndex": "CAI",
+        "EffectiveNumberOfCodons": "ENC",
+        "FrequencyOfOptimalCodons": "FOP",
+        "RelativeSynonymousCodonUsage": "RSCU",
+        "RelativeCodonBiasScore": "RCBS",
+        "TrnaAdaptationIndex": "tAI",
+        "NormalizedTranslationalEfficiency": "nTE",
+        "CodonPairBias": "CPB",
+    }
+    return name_to_abbrev.get(class_name, "")
