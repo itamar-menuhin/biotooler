@@ -25,6 +25,7 @@ class ReferenceSequenceSet:
         cds: dict[str, str],
         proteins: dict[str, str] | None = None,
         genetic_code_table: int | str = 1,
+        name: str | None = None,
     ):
         """Initialize ReferenceSequenceSet with CDS and optional protein sequences.
 
@@ -32,10 +33,12 @@ class ReferenceSequenceSet:
             cds: Dictionary mapping sequence IDs to CDS sequences
             proteins: Optional dictionary mapping sequence IDs to protein sequences
             genetic_code_table: Genetic code table ID (int) or name (str) for translation
+            name: Optional name identifier for this reference set
         """
         self.cds = cds
         self.proteins = proteins
         self.genetic_code_table = genetic_code_table
+        self.name = name
         self._cds_strings_cache: list[str] | None = None
         self._cds_validated_multiple_of_three: bool = False
         self._protein_strings_cache: list[str] | None = None
@@ -47,6 +50,7 @@ class ReferenceSequenceSet:
         cds_fasta_path: Path | str,
         protein_fasta_path: Path | str | None = None,
         genetic_code_table: int | str = 1,
+        name: str | None = None,
     ) -> Self:
         """Construct ReferenceSequenceSet from FASTA file(s).
 
@@ -54,6 +58,7 @@ class ReferenceSequenceSet:
             cds_fasta_path: Path to FASTA file containing CDS sequences
             protein_fasta_path: Optional path to FASTA file containing protein sequences
             genetic_code_table: Genetic code table ID (int) or name (str) for translation
+            name: Optional name identifier for this reference set
 
         Returns:
             ReferenceSequenceSet instance
@@ -92,7 +97,7 @@ class ReferenceSequenceSet:
             if not proteins_dict:
                 raise ValueError(f"Protein FASTA file is empty: {protein_path}")
 
-        return cls(cds_dict, proteins_dict, genetic_code_table)
+        return cls(cds_dict, proteins_dict, genetic_code_table, name)
 
     @classmethod
     def from_csv(
@@ -102,6 +107,7 @@ class ReferenceSequenceSet:
         cds_column: str,
         protein_column: str | None = None,
         genetic_code_table: int | str = 1,
+        name: str | None = None,
     ) -> Self:
         """Construct ReferenceSequenceSet from CSV file.
 
@@ -111,6 +117,7 @@ class ReferenceSequenceSet:
             cds_column: Name of column containing CDS sequences
             protein_column: Optional name of column containing protein sequences
             genetic_code_table: Genetic code table ID (int) or name (str) for translation
+            name: Optional name identifier for this reference set
 
         Returns:
             ReferenceSequenceSet instance
@@ -182,7 +189,7 @@ class ReferenceSequenceSet:
                     )
                 proteins_dict[seq_id] = str(protein_value)
 
-        return cls(cds_dict, proteins_dict, genetic_code_table)
+        return cls(cds_dict, proteins_dict, genetic_code_table, name)
 
     def cds_strings(self, require_multiple_of_three: bool = True) -> list[str]:
         """Get normalized CDS strings.
