@@ -11,11 +11,11 @@ class PositionSpace(Enum):
     """Position space for per-position feature computation.
 
     Attributes:
-        NUCLEOTIDE: Features computed per nucleotide position
+        RESIDUE: Features computed per residue position (nucleotide or amino acid)
         CODON: Features computed per codon position
     """
 
-    NUCLEOTIDE = "nucleotide"
+    RESIDUE = "residue"
     CODON = "codon"
 
 

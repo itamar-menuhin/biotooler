@@ -17,7 +17,7 @@ This is an **additive change** - existing scalar features continue to work as be
 
 The `PositionSpace` enum defines the granularity at which per-position values are computed:
 
-- `PositionSpace.NUCLEOTIDE`: Features are computed per nucleotide position
+- `PositionSpace.RESIDUE`: Features are computed per residue position (nucleotide or amino acid)
 - `PositionSpace.CODON`: Features are computed per codon position (groups of 3 nucleotides)
 
 ### AggregationSpec
@@ -63,7 +63,7 @@ class GCContentFeature:
 
     @property
     def position_space(self) -> PositionSpace:
-        return PositionSpace.NUCLEOTIDE
+        return PositionSpace.RESIDUE
 
     @property
     def vector_keys(self) -> dict[str, AggregationSpec]:
@@ -75,7 +75,7 @@ class GCContentFeature:
     def compute_vector(
         self, record: SeqRecord, **kwargs
     ) -> dict[str, np.ndarray]:
-        """Compute per-nucleotide GC indicator."""
+        """Compute per-residue GC indicator."""
         seq = str(record.seq).upper()
         gc_vector = np.array([1.0 if base in "GC" else 0.0 for base in seq])
         return {

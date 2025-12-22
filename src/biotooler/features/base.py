@@ -108,7 +108,7 @@ class PositionalFeature(Protocol):
     2. Aggregate per-position values into windows using specified aggregation functions
 
     This protocol requires:
-    - position_space: The space in which positions are computed (NUCLEOTIDE or CODON)
+    - position_space: The space in which positions are computed (RESIDUE or CODON)
     - vector_keys: Mapping of feature keys to their aggregation specifications
     - compute_vector: Method to compute per-position feature values
 
@@ -116,7 +116,7 @@ class PositionalFeature(Protocol):
         >>> class GCContentFeature:
         ...     @property
         ...     def position_space(self):
-        ...         return PositionSpace.NUCLEOTIDE
+        ...         return PositionSpace.RESIDUE
         ...
         ...     @property
         ...     def vector_keys(self):
@@ -130,10 +130,10 @@ class PositionalFeature(Protocol):
 
     @property
     def position_space(self) -> PositionSpace:
-        """The position space for this feature (NUCLEOTIDE or CODON).
+        """The position space for this feature (RESIDUE or CODON).
 
         Returns:
-            PositionSpace indicating whether features are computed per nucleotide or codon
+            PositionSpace indicating whether features are computed per residue or codon
         """
         ...
 

@@ -11,13 +11,13 @@ from biotooler.features.aggregation import (
 )
 
 
-class ToyNucleotideFeature:
-    """A toy positional feature that computes GC content per nucleotide."""
+class ToyResidueFeature:
+    """A toy positional feature that computes GC content per residue."""
 
     @property
     def position_space(self) -> PositionSpace:
-        """Return NUCLEOTIDE position space."""
-        return PositionSpace.NUCLEOTIDE
+        """Return RESIDUE position space."""
+        return PositionSpace.RESIDUE
 
     @property
     def vector_keys(self) -> dict[str, AggregationSpec]:
@@ -30,7 +30,7 @@ class ToyNucleotideFeature:
     def compute_vector(
         self, record: SeqRecord, **kwargs
     ) -> dict[str, np.ndarray]:
-        """Compute per-nucleotide GC indicator (1.0 for G/C, 0.0 otherwise)."""
+        """Compute per-residue GC indicator (1.0 for G/C, 0.0 otherwise)."""
         seq = str(record.seq).upper()
         gc_vector = np.array([1.0 if b in "GC" else 0.0 for b in seq])
         return {
@@ -76,13 +76,13 @@ class ToyCodonFeature:
 class TestPositionalFeature:
     """Tests for PositionalFeature protocol implementation."""
 
-    def test_toy_nucleotide_feature_has_required_properties(self):
-        """Test that toy nucleotide feature has required protocol properties."""
-        feature = ToyNucleotideFeature()
+    def test_toy_residue_feature_has_required_properties(self):
+        """Test that toy residue feature has required protocol properties."""
+        feature = ToyResidueFeature()
 
         # Check position_space property
         assert hasattr(feature, "position_space")
-        assert feature.position_space == PositionSpace.NUCLEOTIDE
+        assert feature.position_space == PositionSpace.RESIDUE
 
         # Check vector_keys property
         assert hasattr(feature, "vector_keys")
@@ -103,9 +103,9 @@ class TestPositionalFeature:
         assert "start_with_a" in feature.vector_keys
         assert callable(feature.compute_vector)
 
-    def test_compute_vector_nucleotide_feature(self):
-        """Test compute_vector returns correct per-nucleotide values."""
-        feature = ToyNucleotideFeature()
+    def test_compute_vector_residue_feature(self):
+        """Test compute_vector returns correct per-residue values."""
+        feature = ToyResidueFeature()
         record = SeqRecord(Seq("ACGTGCTA"), id="test")
 
         result = feature.compute_vector(record)
@@ -225,9 +225,9 @@ class TestAggregationHelper:
 class TestWindowAggregation:
     """Tests for aggregating per-position values into windows."""
 
-    def test_aggregate_nucleotide_window(self):
-        """Test aggregating nucleotide features over a window."""
-        feature = ToyNucleotideFeature()
+    def test_aggregate_residue_window(self):
+        """Test aggregating residue features over a window."""
+        feature = ToyResidueFeature()
         record = SeqRecord(Seq("ACGTGCTA"), id="test")
 
         # Compute per-position values
@@ -243,6 +243,7 @@ class TestWindowAggregation:
         aggregated = spec.aggregation_fn(window_values)
 
         # Expected: [0,1,1,0] -> mean = 0.5
+        assert aggregated == 0.5
         assert aggregated == 0.5
 
     def test_aggregate_codon_window(self):
@@ -268,7 +269,7 @@ class TestWindowAggregation:
 
     def test_aggregate_multiple_windows(self):
         """Test aggregating multiple overlapping windows."""
-        feature = ToyNucleotideFeature()
+        feature = ToyResidueFeature()
         record = SeqRecord(Seq("GCGCATAT"), id="test")
 
         # Compute per-position values
@@ -295,14 +296,14 @@ class TestPositionSpace:
 
     def test_position_space_values(self):
         """Test PositionSpace enum has expected values."""
-        assert PositionSpace.NUCLEOTIDE.value == "nucleotide"
+        assert PositionSpace.RESIDUE.value == "residue"
         assert PositionSpace.CODON.value == "codon"
 
     def test_position_space_comparison(self):
         """Test PositionSpace enum comparison."""
-        feature1 = ToyNucleotideFeature()
+        feature1 = ToyResidueFeature()
         feature2 = ToyCodonFeature()
 
-        assert feature1.position_space == PositionSpace.NUCLEOTIDE
+        assert feature1.position_space == PositionSpace.RESIDUE
         assert feature2.position_space == PositionSpace.CODON
         assert feature1.position_space != feature2.position_space
