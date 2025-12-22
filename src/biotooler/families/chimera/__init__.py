@@ -1,6 +1,6 @@
 """Chimera feature family for biotooler.
 
-Feature family for chimeric protein structure analysis using pyChimera.
+Protein structure analysis using pyChimera interface to UCSF Chimera.
 """
 
 from typing import TYPE_CHECKING
@@ -15,7 +15,7 @@ FAMILY_META = {
     "name": "chimera",
     "extra": "chimera",  # pip install biotooler[chimera]
     "owner": "@itamar-menuhin",  # GitHub username or team for CODEOWNERS
-    "summary": "Chimeric protein structure analysis using pyChimera",
+    "summary": "Protein structure analysis using pyChimera interface to UCSF Chimera",
 }
 
 

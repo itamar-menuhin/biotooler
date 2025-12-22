@@ -21,5 +21,5 @@ def require_chimera_dep():
     return lazy_import(
         "pyChimera",
         extra="chimera",
-        purpose="computing chimeric protein structure features",
+        purpose="computing protein structure features",
     )

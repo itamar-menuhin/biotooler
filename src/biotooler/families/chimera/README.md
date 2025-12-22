@@ -2,24 +2,27 @@
 
 ## What this family provides
 
-The chimera family provides feature computation for analyzing chimeric protein structures using pyChimera. PyChimera is a Python interface to UCSF Chimera, enabling programmatic access to molecular visualization and analysis capabilities. This family is currently scaffolded and structured for future implementation of features related to protein structure analysis, chimeric protein characterization, and structural bioinformatics.
+The chimera family provides feature computation for analyzing protein structures using pyChimera. PyChimera is a Python interface to UCSF Chimera, enabling programmatic access to molecular visualization and analysis capabilities. This family is currently scaffolded and structured for future implementation of features related to protein structure analysis and structural bioinformatics.
 
 ## Intuition
 
-Chimeric proteins are fusion proteins created by joining two or more genes that originally coded for separate proteins. They occur naturally through genetic recombination, horizontal gene transfer, or can be engineered for research and therapeutic purposes. Understanding the structural properties of chimeric proteins is crucial for:
+Protein structure analysis is fundamental to understanding protein function, interactions, and behavior. UCSF Chimera (and its successor ChimeraX) provides powerful tools for molecular structure visualization and analysis. PyChimera enables programmatic access to these capabilities, making it possible to automate structural analysis workflows.
 
-1. **Protein engineering**: Designing functional fusion proteins with desired properties
-2. **Drug development**: Creating therapeutic proteins like antibody-drug conjugates
-3. **Structural biology**: Understanding how protein domains interact and fold together
-4. **Evolutionary biology**: Identifying and analyzing naturally occurring gene fusions
+This family aims to leverage pyChimera to compute structural features for protein sequences, enabling:
 
-UCSF Chimera (and its successor ChimeraX) provides powerful tools for molecular structure visualization and analysis. PyChimera enables programmatic access to these capabilities, making it possible to automate structural analysis workflows. Future implementations of this family will leverage pyChimera to compute structural features such as:
+1. **Structural characterization**: Analyzing secondary structure content, surface properties, and geometric features
+2. **Quality assessment**: Evaluating structure quality through metrics like Ramachandran statistics
+3. **Functional annotation**: Inferring functional properties from structural features
+4. **Comparative analysis**: Computing features across multiple structures for comparative studies
+5. **High-throughput analysis**: Automating structural feature extraction for large-scale studies
 
-- Interface analysis between fused domains
+Future implementations of this family will leverage pyChimera to compute structural features such as:
+
 - Secondary structure composition and transitions
-- Surface area and accessibility calculations
+- Solvent accessible surface area calculations
+- Contact maps and distance matrices
 - Structural stability metrics
-- Domain boundary identification
+- Geometric and topological descriptors
 
 ## Mathematical formulation
 
@@ -74,7 +77,7 @@ Currently returns empty dictionary (stub). Future implementations will return:
 
 ## Upstream library links
 
-- pyChimera GitHub: https://github.com/insilichem/pychimera
+- pyChimera GitHub: https://github.com/CompSynthBio/pyChimera
 - UCSF Chimera homepage: https://www.cgl.ucsf.edu/chimera/
 - UCSF ChimeraX homepage: https://www.cgl.ucsf.edu/chimerax/
 
@@ -140,11 +143,11 @@ print(result)
 
 - Implement core structural feature computation
 - Add support for multiple structure file formats
-- Implement domain boundary detection
-- Add interface analysis for chimeric proteins
 - Support batch processing of multiple structures
 - Add visualization output capabilities
 - Integrate with structure prediction tools (AlphaFold, RoseTTAFold)
+- Interface analysis capabilities (useful for protein-protein interactions and fusion proteins)
+- Domain boundary detection algorithms
 
 ### Testing strategy
 

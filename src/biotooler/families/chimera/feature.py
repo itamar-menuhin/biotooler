@@ -1,6 +1,6 @@
-"""ChimeraFeature implementation for chimeric protein structure analysis.
+"""ChimeraFeature implementation for protein structure analysis.
 
-Feature family for analyzing chimeric protein structures using pyChimera.
+Protein structure feature computation using pyChimera interface to UCSF Chimera.
 """
 
 from Bio.SeqRecord import SeqRecord
@@ -10,16 +10,16 @@ from biotooler.core.types import Scalar
 
 # Lazy import pyChimera at module level - will raise ImportError if not installed
 pychimera = lazy_import(  # type: ignore[misc]
-    "pychimera", extra="chimera", purpose="computing chimeric protein structure features"
+    "pychimera", extra="chimera", purpose="computing protein structure features"
 )
 
 
 class ChimeraFeature:
-    """Feature that computes chimeric protein structure metrics using pyChimera.
+    """Feature that computes protein structure metrics using pyChimera.
 
-    This feature wraps pyChimera functionality to analyze chimeric protein structures
-    and compute structural features. The feature is currently a stub and will be
-    implemented in future versions.
+    This feature wraps pyChimera functionality to analyze protein structures
+    and compute structural features using UCSF Chimera. The feature is currently
+    a stub and will be implemented in future versions.
 
     The pyChimera dependency is lazily loaded only when the feature module is imported
     to keep family-level imports lightweight.
