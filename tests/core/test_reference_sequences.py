@@ -591,3 +591,417 @@ class TestIntegration:
         # Second call to protein_strings should use cache
         proteins2 = ref_set.protein_strings()
         assert proteins is proteins2
+
+
+class TestValidate:
+    """Tests for validate method."""
+
+    def test_validate_cds_success(self):
+        """Test successful CDS validation."""
+        cds = {"seq1": "ATGAAATAA", "seq2": "ATGGGGTGA"}
+        ref_set = ReferenceSequenceSet(cds)
+        # Should not raise
+        ref_set.validate(kind="cds")
+
+    def test_validate_cds_empty_sequence(self):
+        """Test that empty CDS sequences raise error."""
+        cds = {"seq1": "ATGAAATAA", "seq2": ""}
+        ref_set = ReferenceSequenceSet(cds)
+        with pytest.raises(ValueError, match="CDS sequence 'seq2' is empty"):
+            ref_set.validate(kind="cds")
+
+    def test_validate_cds_whitespace_only(self):
+        """Test that whitespace-only CDS sequences raise error."""
+        cds = {"seq1": "ATGAAATAA", "seq2": "   "}
+        ref_set = ReferenceSequenceSet(cds)
+        with pytest.raises(ValueError, match="CDS sequence 'seq2' is empty"):
+            ref_set.validate(kind="cds")
+
+    def test_validate_cds_not_multiple_of_three(self):
+        """Test that CDS not multiple of 3 raises error."""
+        cds = {"seq1": "ATGAAATA"}  # Length 8
+        ref_set = ReferenceSequenceSet(cds)
+        with pytest.raises(ValueError, match=r"seq1.*length 8.*not a multiple of 3"):
+            ref_set.validate(kind="cds")
+
+    def test_validate_protein_success(self):
+        """Test successful protein validation."""
+        cds = {"seq1": "ATGAAATAA"}
+        proteins = {"seq1": "MK*"}
+        ref_set = ReferenceSequenceSet(cds, proteins)
+        # Should not raise
+        ref_set.validate(kind="protein")
+
+    def test_validate_protein_empty_sequence(self):
+        """Test that empty protein sequences raise error."""
+        cds = {"seq1": "ATGAAATAA", "seq2": "ATGGGGTGA"}
+        proteins = {"seq1": "MK*", "seq2": ""}
+        ref_set = ReferenceSequenceSet(cds, proteins)
+        with pytest.raises(ValueError, match="Protein sequence 'seq2' is empty"):
+            ref_set.validate(kind="protein")
+
+    def test_validate_protein_internal_stop(self):
+        """Test that internal stops in proteins raise error."""
+        cds = {"seq1": "ATGAAATAA"}
+        proteins = {"seq1": "M*K"}  # Internal stop
+        ref_set = ReferenceSequenceSet(cds, proteins)
+        with pytest.raises(ValueError, match=r"seq1.*internal stop.*position 1"):
+            ref_set.validate(kind="protein")
+
+    def test_validate_both_success(self):
+        """Test successful validation of both CDS and proteins."""
+        cds = {"seq1": "ATGAAATAA", "seq2": "ATGGGGTGA"}
+        proteins = {"seq1": "MK*", "seq2": "MG*"}
+        ref_set = ReferenceSequenceSet(cds, proteins)
+        # Should not raise
+        ref_set.validate(kind="both")
+
+    def test_validate_both_default(self):
+        """Test that default kind is 'both'."""
+        cds = {"seq1": "ATGAAATAA"}
+        ref_set = ReferenceSequenceSet(cds)
+        # Should not raise (validates both CDS and translated proteins)
+        ref_set.validate()
+
+    def test_validate_invalid_kind(self):
+        """Test that invalid kind raises error."""
+        cds = {"seq1": "ATGAAATAA"}
+        ref_set = ReferenceSequenceSet(cds)
+        with pytest.raises(ValueError, match="Invalid kind 'invalid'"):
+            ref_set.validate(kind="invalid")
+
+
+class TestWithProteins:
+    """Tests for with_proteins method."""
+
+    def test_with_proteins_add_new(self):
+        """Test adding new proteins to CDS-only set."""
+        cds = {"seq1": "ATGAAATAA", "seq2": "ATGGGGTGA"}
+        ref_set = ReferenceSequenceSet(cds)
+
+        new_proteins = {"seq1": "MK*", "seq2": "MG*"}
+        result = ref_set.with_proteins(new_proteins)
+
+        # Should return new instance
+        assert result is not ref_set
+        assert result.proteins == new_proteins
+        assert result.cds == cds
+        assert result.genetic_code_table == ref_set.genetic_code_table
+
+    def test_with_proteins_merge_with_existing(self):
+        """Test merging new proteins with existing proteins."""
+        cds = {"seq1": "ATGAAATAA", "seq2": "ATGGGGTGA", "seq3": "ATGCCCTAG"}
+        proteins = {"seq1": "MK*"}
+        ref_set = ReferenceSequenceSet(cds, proteins)
+
+        new_proteins = {"seq2": "MG*", "seq3": "MP*"}
+        result = ref_set.with_proteins(new_proteins)
+
+        assert result.proteins == {"seq1": "MK*", "seq2": "MG*", "seq3": "MP*"}
+
+    def test_with_proteins_duplicate_same_sequence(self):
+        """Test that providing same sequence for existing ID is allowed."""
+        cds = {"seq1": "ATGAAATAA"}
+        proteins = {"seq1": "MK*"}
+        ref_set = ReferenceSequenceSet(cds, proteins)
+
+        # Should not raise
+        result = ref_set.with_proteins({"seq1": "MK*"})
+        assert result.proteins == proteins
+
+    def test_with_proteins_duplicate_different_sequence(self):
+        """Test that different sequence for existing ID raises error."""
+        cds = {"seq1": "ATGAAATAA"}
+        proteins = {"seq1": "MK*"}
+        ref_set = ReferenceSequenceSet(cds, proteins)
+
+        with pytest.raises(
+            ValueError,
+            match=r"Protein sequence 'seq1' already exists with a different sequence",
+        ):
+            ref_set.with_proteins({"seq1": "MKK*"})
+
+    def test_with_proteins_empty_sequence(self):
+        """Test that empty protein sequence raises error."""
+        cds = {"seq1": "ATGAAATAA"}
+        ref_set = ReferenceSequenceSet(cds)
+
+        with pytest.raises(ValueError, match="Provided protein sequence 'seq1' is empty"):
+            ref_set.with_proteins({"seq1": ""})
+
+    def test_with_proteins_whitespace_only(self):
+        """Test that whitespace-only protein sequence raises error."""
+        cds = {"seq1": "ATGAAATAA"}
+        ref_set = ReferenceSequenceSet(cds)
+
+        with pytest.raises(ValueError, match="Provided protein sequence 'seq1' is empty"):
+            ref_set.with_proteins({"seq1": "   "})
+
+    def test_with_proteins_original_unchanged(self):
+        """Test that original set is unchanged."""
+        cds = {"seq1": "ATGAAATAA"}
+        ref_set = ReferenceSequenceSet(cds)
+
+        result = ref_set.with_proteins({"seq1": "MK*"})
+
+        # Original should be unchanged
+        assert ref_set.proteins is None
+        assert result.proteins is not None
+
+
+class TestExtendCds:
+    """Tests for extend_cds method."""
+
+    def test_extend_cds_add_new(self):
+        """Test adding new CDS sequences."""
+        cds = {"seq1": "ATGAAATAA"}
+        ref_set = ReferenceSequenceSet(cds)
+
+        new_cds = {"seq2": "ATGGGGTGA", "seq3": "ATGCCCTAG"}
+        result = ref_set.extend_cds(new_cds)
+
+        # Should return new instance
+        assert result is not ref_set
+        assert result.cds == {"seq1": "ATGAAATAA", "seq2": "ATGGGGTGA", "seq3": "ATGCCCTAG"}
+        assert result.proteins == ref_set.proteins
+
+    def test_extend_cds_duplicate_same_sequence(self):
+        """Test that providing same sequence for existing ID is allowed."""
+        cds = {"seq1": "ATGAAATAA"}
+        ref_set = ReferenceSequenceSet(cds)
+
+        # Should not raise (same sequence)
+        result = ref_set.extend_cds({"seq1": "ATGAAATAA"})
+        assert result.cds == cds
+
+    def test_extend_cds_duplicate_same_sequence_normalized(self):
+        """Test that normalized sequences are considered the same."""
+        cds = {"seq1": "ATGAAATAA"}
+        ref_set = ReferenceSequenceSet(cds)
+
+        # Should not raise (lowercase and U->T normalization)
+        result = ref_set.extend_cds({"seq1": "augaaauaa"})
+        assert result.cds == {"seq1": "ATGAAATAA"}
+
+    def test_extend_cds_duplicate_different_sequence(self):
+        """Test that different sequence for existing ID raises error."""
+        cds = {"seq1": "ATGAAATAA"}
+        ref_set = ReferenceSequenceSet(cds)
+
+        with pytest.raises(
+            ValueError, match=r"CDS sequence 'seq1' already exists with a different sequence"
+        ):
+            ref_set.extend_cds({"seq1": "ATGGGGTGA"})
+
+    def test_extend_cds_empty_sequence(self):
+        """Test that empty CDS sequence raises error."""
+        cds = {"seq1": "ATGAAATAA"}
+        ref_set = ReferenceSequenceSet(cds)
+
+        with pytest.raises(ValueError, match="Provided CDS sequence 'seq2' is empty"):
+            ref_set.extend_cds({"seq2": ""})
+
+    def test_extend_cds_whitespace_only(self):
+        """Test that whitespace-only CDS sequence raises error."""
+        cds = {"seq1": "ATGAAATAA"}
+        ref_set = ReferenceSequenceSet(cds)
+
+        with pytest.raises(ValueError, match="Provided CDS sequence 'seq2' is empty"):
+            ref_set.extend_cds({"seq2": "   "})
+
+    def test_extend_cds_preserves_proteins(self):
+        """Test that extending CDS preserves protein sequences."""
+        cds = {"seq1": "ATGAAATAA"}
+        proteins = {"seq1": "MK*"}
+        ref_set = ReferenceSequenceSet(cds, proteins)
+
+        result = ref_set.extend_cds({"seq2": "ATGGGGTGA"})
+
+        assert result.proteins == proteins
+
+    def test_extend_cds_cache_invalidated(self):
+        """Test that cache is invalidated in new instance."""
+        cds = {"seq1": "ATGAAATAA"}
+        ref_set = ReferenceSequenceSet(cds)
+
+        # Populate cache
+        ref_set.cds_strings()
+
+        # Extend
+        result = ref_set.extend_cds({"seq2": "ATGGGGTGA"})
+
+        # New instance should have empty cache
+        assert result._cds_strings_cache is None
+
+    def test_extend_cds_original_unchanged(self):
+        """Test that original set is unchanged."""
+        cds = {"seq1": "ATGAAATAA"}
+        ref_set = ReferenceSequenceSet(cds)
+
+        result = ref_set.extend_cds({"seq2": "ATGGGGTGA"})
+
+        # Original should be unchanged
+        assert ref_set.cds == {"seq1": "ATGAAATAA"}
+        assert result.cds == {"seq1": "ATGAAATAA", "seq2": "ATGGGGTGA"}
+
+
+class TestMerge:
+    """Tests for merge method."""
+
+    def test_merge_disjoint_sets(self):
+        """Test merging sets with no overlapping IDs."""
+        cds1 = {"seq1": "ATGAAATAA"}
+        ref_set1 = ReferenceSequenceSet(cds1)
+
+        cds2 = {"seq2": "ATGGGGTGA"}
+        ref_set2 = ReferenceSequenceSet(cds2)
+
+        result = ref_set1.merge(ref_set2)
+
+        assert result.cds == {"seq1": "ATGAAATAA", "seq2": "ATGGGGTGA"}
+        assert result is not ref_set1
+        assert result is not ref_set2
+
+    def test_merge_preserves_order(self):
+        """Test that merge preserves order with this instance first."""
+        cds1 = {"seq1": "ATGAAATAA", "seq2": "ATGGGGTGA"}
+        ref_set1 = ReferenceSequenceSet(cds1)
+
+        cds2 = {"seq3": "ATGCCCTAG"}
+        ref_set2 = ReferenceSequenceSet(cds2)
+
+        result = ref_set1.merge(ref_set2)
+
+        # Order should be seq1, seq2, seq3 (this instance first)
+        assert list(result.cds.keys()) == ["seq1", "seq2", "seq3"]
+
+    def test_merge_duplicate_same_sequence(self):
+        """Test that merging with same sequence for same ID is allowed."""
+        cds1 = {"seq1": "ATGAAATAA"}
+        ref_set1 = ReferenceSequenceSet(cds1)
+
+        cds2 = {"seq1": "ATGAAATAA"}
+        ref_set2 = ReferenceSequenceSet(cds2)
+
+        # Should not raise
+        result = ref_set1.merge(ref_set2)
+        assert result.cds == {"seq1": "ATGAAATAA"}
+
+    def test_merge_duplicate_same_sequence_normalized(self):
+        """Test that normalized sequences are considered the same."""
+        cds1 = {"seq1": "ATGAAATAA"}
+        ref_set1 = ReferenceSequenceSet(cds1)
+
+        cds2 = {"seq1": "augaaauaa"}
+        ref_set2 = ReferenceSequenceSet(cds2)
+
+        # Should not raise
+        result = ref_set1.merge(ref_set2)
+        assert result.cds == {"seq1": "ATGAAATAA"}
+
+    def test_merge_duplicate_different_sequence(self):
+        """Test that different sequences for same ID raise error."""
+        cds1 = {"seq1": "ATGAAATAA"}
+        ref_set1 = ReferenceSequenceSet(cds1)
+
+        cds2 = {"seq1": "ATGGGGTGA"}
+        ref_set2 = ReferenceSequenceSet(cds2)
+
+        with pytest.raises(
+            ValueError, match=r"CDS sequence 'seq1' exists in both sets with different sequences"
+        ):
+            ref_set1.merge(ref_set2)
+
+    def test_merge_with_proteins(self):
+        """Test merging sets that both have proteins."""
+        cds1 = {"seq1": "ATGAAATAA"}
+        proteins1 = {"seq1": "MK*"}
+        ref_set1 = ReferenceSequenceSet(cds1, proteins1)
+
+        cds2 = {"seq2": "ATGGGGTGA"}
+        proteins2 = {"seq2": "MG*"}
+        ref_set2 = ReferenceSequenceSet(cds2, proteins2)
+
+        result = ref_set1.merge(ref_set2)
+
+        assert result.proteins == {"seq1": "MK*", "seq2": "MG*"}
+
+    def test_merge_mixed_proteins(self):
+        """Test merging when only one set has proteins."""
+        cds1 = {"seq1": "ATGAAATAA"}
+        proteins1 = {"seq1": "MK*"}
+        ref_set1 = ReferenceSequenceSet(cds1, proteins1)
+
+        cds2 = {"seq2": "ATGGGGTGA"}
+        ref_set2 = ReferenceSequenceSet(cds2)
+
+        result = ref_set1.merge(ref_set2)
+
+        # Should preserve proteins from first set
+        assert result.proteins == {"seq1": "MK*"}
+
+    def test_merge_protein_conflict(self):
+        """Test that conflicting proteins raise error."""
+        cds1 = {"seq1": "ATGAAATAA"}
+        proteins1 = {"seq1": "MK*"}
+        ref_set1 = ReferenceSequenceSet(cds1, proteins1)
+
+        cds2 = {"seq1": "ATGAAATAA"}  # Same CDS
+        proteins2 = {"seq1": "MKK*"}  # Different protein
+        ref_set2 = ReferenceSequenceSet(cds2, proteins2)
+
+        with pytest.raises(
+            ValueError,
+            match=r"Protein sequence 'seq1' exists in both sets with different sequences",
+        ):
+            ref_set1.merge(ref_set2)
+
+    def test_merge_preserves_genetic_code(self):
+        """Test that merge preserves genetic code from first set."""
+        cds1 = {"seq1": "ATGAAATAA"}
+        ref_set1 = ReferenceSequenceSet(cds1, genetic_code_table=11)
+
+        cds2 = {"seq2": "ATGGGGTGA"}
+        ref_set2 = ReferenceSequenceSet(cds2, genetic_code_table=1)
+
+        result = ref_set1.merge(ref_set2)
+
+        assert result.genetic_code_table == 11
+
+    def test_merge_empty_cds_in_other(self):
+        """Test that empty CDS in other set raises error."""
+        cds1 = {"seq1": "ATGAAATAA"}
+        ref_set1 = ReferenceSequenceSet(cds1)
+
+        cds2 = {"seq2": ""}
+        ref_set2 = ReferenceSequenceSet(cds2)
+
+        with pytest.raises(ValueError, match="CDS sequence 'seq2' in other set is empty"):
+            ref_set1.merge(ref_set2)
+
+    def test_merge_empty_protein_in_other(self):
+        """Test that empty protein in other set raises error."""
+        cds1 = {"seq1": "ATGAAATAA"}
+        ref_set1 = ReferenceSequenceSet(cds1)
+
+        cds2 = {"seq2": "ATGGGGTGA"}
+        proteins2 = {"seq2": ""}
+        ref_set2 = ReferenceSequenceSet(cds2, proteins2)
+
+        with pytest.raises(ValueError, match="Protein sequence 'seq2' in other set is empty"):
+            ref_set1.merge(ref_set2)
+
+    def test_merge_original_unchanged(self):
+        """Test that original sets are unchanged."""
+        cds1 = {"seq1": "ATGAAATAA"}
+        ref_set1 = ReferenceSequenceSet(cds1)
+
+        cds2 = {"seq2": "ATGGGGTGA"}
+        ref_set2 = ReferenceSequenceSet(cds2)
+
+        result = ref_set1.merge(ref_set2)
+
+        # Originals should be unchanged
+        assert ref_set1.cds == {"seq1": "ATGAAATAA"}
+        assert ref_set2.cds == {"seq2": "ATGGGGTGA"}
+        assert result.cds == {"seq1": "ATGAAATAA", "seq2": "ATGGGGTGA"}

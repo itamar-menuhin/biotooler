@@ -26,6 +26,33 @@ record = coerce_record("ACGTACGT", "DNA", id="seq1", description="My sequence")
 print(record.seq)  # ACGTACGT
 ```
 
+### Reference Sequences
+
+The `ReferenceSequenceSet` class manages CDS and protein sequences with validation and helper methods.
+
+```python
+from biotooler.core.reference_sequences import ReferenceSequenceSet
+
+# Create from dictionaries
+cds = {"gene1": "ATGAAATAA", "gene2": "ATGGGGTGA"}
+ref_set = ReferenceSequenceSet(cds)
+
+# Validate sequences
+ref_set.validate(kind="cds")  # Checks length is multiple of 3, no empty sequences
+
+# Add proteins
+ref_set_with_proteins = ref_set.with_proteins({"gene1": "MK*", "gene2": "MG*"})
+
+# Extend with more CDS
+extended = ref_set.extend_cds({"gene3": "ATGCCCTAG"})
+
+# Merge two sets
+other_set = ReferenceSequenceSet({"gene4": "ATGTTTTAA"})
+merged = ref_set.merge(other_set)
+```
+
+For more details, see the [Reference Sequences documentation](docs/usage/reference_sequences.md).
+
 ### Sliding Windows
 
 The `iter_windows` function provides efficient, **generic** sliding-window extraction from sequences.

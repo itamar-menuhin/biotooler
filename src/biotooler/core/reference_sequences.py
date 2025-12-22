@@ -367,3 +367,202 @@ class ReferenceSequenceSet:
                     f"Protein sequence '{seq_id}' (index: {idx}) contains internal stop codon "
                     f"at position {stop_idx}"
                 )
+
+    def validate(self, kind: str = "both") -> None:
+        """Validate sequences based on specified kind.
+
+        Validates sequences without modifying the instance. Checks for empty sequences
+        and kind-specific constraints (CDS length multiple of 3, no internal stops in proteins).
+
+        Args:
+            kind: Type of validation to perform:
+                - "cds": Validate CDS sequences only (length multiple of 3, no empty)
+                - "protein": Validate protein sequences only (no internal stops, no empty)
+                - "both": Validate both CDS and protein sequences (default)
+
+        Raises:
+            ValueError: If kind is not one of "cds", "protein", or "both"
+            ValueError: If any sequence is empty
+            ValueError: If CDS validation fails (length not multiple of 3)
+            ValueError: If protein validation fails (internal stop codons)
+        """
+        if kind not in ("cds", "protein", "both"):
+            raise ValueError(
+                f"Invalid kind '{kind}'. Must be one of: 'cds', 'protein', 'both'"
+            )
+
+        # Validate CDS sequences
+        if kind in ("cds", "both"):
+            # Check for empty CDS sequences
+            for seq_id, seq in self.cds.items():
+                if not seq or not seq.strip():
+                    raise ValueError(f"CDS sequence '{seq_id}' is empty")
+
+            # Validate length is multiple of 3
+            self.cds_strings(require_multiple_of_three=True)
+
+        # Validate protein sequences
+        if kind in ("protein", "both"):
+            if self.proteins is not None:
+                # Check for empty protein sequences
+                for seq_id, seq in self.proteins.items():
+                    if not seq or not seq.strip():
+                        raise ValueError(f"Protein sequence '{seq_id}' is empty")
+
+            # Validate no internal stops (this will use provided proteins or translate CDS)
+            self.protein_strings(error_on_internal_stop=True)
+
+    def with_proteins(self, proteins: dict[str, str]) -> Self:
+        """Create a new ReferenceSequenceSet with updated protein sequences.
+
+        Returns a new instance with the provided proteins merged with or replacing
+        existing proteins. If a protein ID already exists with a different sequence,
+        raises an error (no silent changes).
+
+        Args:
+            proteins: Dictionary mapping sequence IDs to protein sequences.
+                Can include new proteins or replacements for existing ones.
+
+        Returns:
+            New ReferenceSequenceSet instance with updated proteins
+
+        Raises:
+            ValueError: If a protein ID exists with a different sequence
+            ValueError: If any provided protein sequence is empty
+        """
+        # Check for empty sequences in provided proteins
+        for seq_id, seq in proteins.items():
+            if not seq or not seq.strip():
+                raise ValueError(f"Provided protein sequence '{seq_id}' is empty")
+
+        # Build new proteins dictionary
+        new_proteins: dict[str, str] = {}
+        if self.proteins is not None:
+            new_proteins.update(self.proteins)
+
+        # Check for conflicts before merging
+        for seq_id, new_seq in proteins.items():
+            if seq_id in new_proteins and new_proteins[seq_id] != new_seq:
+                raise ValueError(
+                    f"Protein sequence '{seq_id}' already exists with a different sequence. "
+                    f"Existing: '{new_proteins[seq_id][:20]}...', "
+                    f"Provided: '{new_seq[:20]}...'"
+                )
+            new_proteins[seq_id] = new_seq
+
+        return self.__class__(self.cds, new_proteins, self.genetic_code_table)
+
+    def extend_cds(self, cds: dict[str, str]) -> Self:
+        """Create a new ReferenceSequenceSet with additional CDS sequences.
+
+        Returns a new instance with the provided CDS sequences added. If a CDS ID
+        already exists with a different sequence, raises an error (no silent changes).
+        Cached data is invalidated in the new instance.
+
+        Args:
+            cds: Dictionary mapping sequence IDs to CDS sequences to add
+
+        Returns:
+            New ReferenceSequenceSet instance with extended CDS
+
+        Raises:
+            ValueError: If a CDS ID exists with a different sequence
+            ValueError: If any provided CDS sequence is empty
+        """
+        # Check for empty sequences in provided CDS
+        for seq_id, seq in cds.items():
+            if not seq or not seq.strip():
+                raise ValueError(f"Provided CDS sequence '{seq_id}' is empty")
+
+        # Build new CDS dictionary
+        new_cds: dict[str, str] = {}
+        new_cds.update(self.cds)
+
+        # Check for conflicts before extending
+        for seq_id, new_seq in cds.items():
+            if seq_id in new_cds:
+                # Normalize both sequences for comparison
+                existing_normalized = new_cds[seq_id].upper().replace("U", "T")
+                new_normalized = new_seq.upper().replace("U", "T")
+                if existing_normalized != new_normalized:
+                    raise ValueError(
+                        f"CDS sequence '{seq_id}' already exists with a different sequence. "
+                        f"Existing: '{new_cds[seq_id][:20]}...', "
+                        f"Provided: '{new_seq[:20]}...'"
+                    )
+                # If sequences match (after normalization), keep the existing one
+            else:
+                new_cds[seq_id] = new_seq
+
+        return self.__class__(new_cds, self.proteins, self.genetic_code_table)
+
+    def merge(self, other: Self) -> Self:
+        """Merge this ReferenceSequenceSet with another.
+
+        Returns a new instance containing sequences from both sets. Sequences from
+        this instance take precedence in ordering. If the same ID exists in both
+        sets with different sequences, raises an error (no silent changes).
+
+        The genetic code table from this instance is preserved in the merged result.
+
+        Args:
+            other: Another ReferenceSequenceSet to merge with this one
+
+        Returns:
+            New ReferenceSequenceSet with merged sequences
+
+        Raises:
+            ValueError: If a sequence ID exists in both sets with different sequences
+            ValueError: If any sequence in other is empty
+        """
+        # Check for empty sequences in other.cds
+        for seq_id, seq in other.cds.items():
+            if not seq or not seq.strip():
+                raise ValueError(f"CDS sequence '{seq_id}' in other set is empty")
+
+        # Check for empty sequences in other.proteins
+        if other.proteins is not None:
+            for seq_id, seq in other.proteins.items():
+                if not seq or not seq.strip():
+                    raise ValueError(f"Protein sequence '{seq_id}' in other set is empty")
+
+        # Merge CDS sequences
+        new_cds: dict[str, str] = {}
+        new_cds.update(self.cds)
+
+        for seq_id, other_seq in other.cds.items():
+            if seq_id in new_cds:
+                # Normalize both sequences for comparison
+                existing_normalized = new_cds[seq_id].upper().replace("U", "T")
+                other_normalized = other_seq.upper().replace("U", "T")
+                if existing_normalized != other_normalized:
+                    raise ValueError(
+                        f"CDS sequence '{seq_id}' exists in both sets with different sequences. "
+                        f"This: '{new_cds[seq_id][:20]}...', "
+                        f"Other: '{other_seq[:20]}...'"
+                    )
+            else:
+                new_cds[seq_id] = other_seq
+
+        # Merge protein sequences if either set has proteins
+        new_proteins: dict[str, str] | None = None
+        if self.proteins is not None or other.proteins is not None:
+            new_proteins = {}
+            if self.proteins is not None:
+                new_proteins.update(self.proteins)
+
+            if other.proteins is not None:
+                for seq_id, other_seq in other.proteins.items():
+                    if seq_id in new_proteins:
+                        if new_proteins[seq_id] != other_seq:
+                            raise ValueError(
+                                f"Protein sequence '{seq_id}' exists in both sets "
+                                f"with different sequences. "
+                                f"This: '{new_proteins[seq_id][:20]}...', "
+                                f"Other: '{other_seq[:20]}...'"
+                            )
+                        # If sequences match, keep the existing one
+                    else:
+                        new_proteins[seq_id] = other_seq
+
+        return self.__class__(new_cds, new_proteins, self.genetic_code_table)
