@@ -3,10 +3,15 @@
 Gene expression prediction and sequence optimization using Chimera algorithms.
 """
 
+from typing import TYPE_CHECKING
+
 from Bio.SeqRecord import SeqRecord
 
 from biotooler.core.lazy_import import lazy_import
 from biotooler.core.types import Scalar
+
+if TYPE_CHECKING:
+    from biotooler.core.reference_sequences import ReferenceSequenceSet
 
 # Lazy import pyChimera at module level - will raise ImportError if not installed
 pychimera = lazy_import(  # type: ignore[misc]
@@ -27,7 +32,10 @@ class ChimeraFeature:
     to keep family-level imports lightweight.
 
     Args:
-        reference_seqs: List of reference DNA sequences (host genes)
+        reference_seqs: List of reference DNA sequences (host genes). Deprecated in favor
+            of reference_set parameter.
+        reference_set: Optional ReferenceSequenceSet containing reference sequences.
+            If provided, will use protein_strings() if available, otherwise cds_strings().
         algorithm: Which algorithm to use ("cARS", "PScARS", "cMap", "PScMap")
         max_len: Maximum substring length for homolog filtering (default: 40)
         max_pos: Maximum position difference for position-specific algorithms (default: 0.5)
@@ -48,7 +56,9 @@ class ChimeraFeature:
 
     def __init__(
         self,
-        reference_seqs: list[str],
+        reference_seqs: list[str] | None = None,
+        *,
+        reference_set: "ReferenceSequenceSet | None" = None,
         algorithm: str = "cARS",
         max_len: int = 40,
         max_pos: float = 0.5,
@@ -57,18 +67,49 @@ class ChimeraFeature:
         """Initialize ChimeraFeature.
 
         Args:
-            reference_seqs: List of reference DNA sequences
+            reference_seqs: List of reference DNA sequences (deprecated, use reference_set)
+            reference_set: Optional ReferenceSequenceSet for reference sequences
             algorithm: Algorithm to use ("cARS", "PScARS", "cMap", "PScMap")
             max_len: Maximum substring length for homolog filtering
             max_pos: Maximum position difference for position-specific algorithms
             win_params: Window parameters dict (for position-specific algorithms)
 
         Raises:
-            NotImplementedError: Feature is currently a stub
+            ValueError: If neither reference_seqs nor reference_set is provided,
+                or if reference_set cannot provide required sequence type
         """
         # Store reference to pychimera module for future use
         self._chimera = pychimera
-        self.reference_seqs = reference_seqs
+
+        # Handle reference sequences
+        if reference_set is not None:
+            # Validate that reference_set can provide the needed sequences
+            # Prefer protein_strings, but accept cds_strings if proteins can be derived
+            try:
+                # Try to get protein strings (will derive from CDS if needed)
+                self.reference_seqs = reference_set.protein_strings(
+                    strip_terminal_stop=True, error_on_internal_stop=False
+                )
+                self._sequence_type = "protein"
+            except Exception:
+                # Fall back to CDS strings
+                try:
+                    self.reference_seqs = reference_set.cds_strings(
+                        require_multiple_of_three=False
+                    )
+                    self._sequence_type = "cds"
+                except Exception as e:
+                    raise ValueError(
+                        f"reference_set cannot provide required sequences: {e}"
+                    ) from e
+        elif reference_seqs is not None:
+            self.reference_seqs = reference_seqs
+            self._sequence_type = "cds"
+        else:
+            raise ValueError(
+                "Either reference_seqs or reference_set must be provided"
+            )
+
         self.algorithm = algorithm
         self.max_len = max_len
         self.max_pos = max_pos
