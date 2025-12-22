@@ -185,8 +185,7 @@ class TestAggregationHelper:
 
         result = geometric_mean(values)
 
-        # exp(mean(log([1,2,4,8]))) = exp(mean([0, 0.693, 1.386, 2.079]))
-        # = exp(1.0397) ≈ 2.828
+        # Geometric mean should match exp(mean(log(values)))
         expected = np.exp(np.mean(np.log(values)))
         assert abs(result - expected) < 1e-10
 

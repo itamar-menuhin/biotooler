@@ -1,12 +1,16 @@
 """Base interfaces for feature computation."""
 
-from typing import Protocol
+from __future__ import annotations
 
-import numpy as np
+from typing import TYPE_CHECKING, Protocol
+
 from Bio.SeqRecord import SeqRecord
 
 from biotooler.core.types import Scalar
 from biotooler.features.aggregation import AggregationSpec, PositionSpace
+
+if TYPE_CHECKING:
+    import numpy as np
 
 
 class IncrementalFeature(Protocol):
