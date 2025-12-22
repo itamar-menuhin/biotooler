@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -12,6 +13,7 @@ from biotooler.core.orf_store import OrfSpan, get_orf, select_orf_by_index
 from biotooler.core.seq_utils import get_seq_str
 from biotooler.core.types import FeatureOutput
 from biotooler.core.windowing import iter_orf_codon_windows, iter_windows
+from biotooler.features.aggregation import PositionSpace
 
 
 class FeatureSet:
@@ -55,8 +57,11 @@ class FeatureSet:
         if callable(features):
             # Single function - wrap it
             self._features = {"compute": features}
-        else:
+        elif isinstance(features, dict):
             self._features = features
+        else:
+            # Assume it's a positional feature object (or other feature object)
+            self._features = {"compute": features}
         self.name = name
 
     def _compute_features_over_windows(
@@ -307,6 +312,219 @@ class FeatureSet:
             window_start_key="window_start",
             init_state_kwargs={"record": record, "orf": resolved_orf},
         )
+
+        # Format as wide DataFrame using shared helper
+        return self._format_wide_dataframe(
+            feature_data=feature_data,
+            metadata_cols=["record_id", "orf_start", "orf_end"],
+        )
+
+    def compute_orf_windows_v2(
+        self,
+        record: SeqRecord,
+        *,
+        orf: OrfSpan | None = None,
+        orf_index: int | None = None,
+        window_nt: int,
+        step_nt: int,
+        drop_partial: bool = True,
+    ) -> pd.DataFrame:
+        """Compute features for ORF windows using v2 windowing semantics (positional features).
+
+        This method implements the new windowing approach for positional features:
+        1. Compute per-position values on the full ORF sequence (via compute_vector)
+        2. Aggregate per-position values into windows using specified aggregation functions
+
+        Unlike compute_orf_windows (legacy), this method:
+        - Does NOT slice the sequence into windows
+        - Computes per-position values once for the entire ORF
+        - Aggregates these values into windows based on the feature's position space
+
+        This method only works with features implementing the PositionalFeature protocol,
+        which requires:
+        - position_space property (RESIDUE or CODON)
+        - vector_keys property (dict mapping keys to AggregationSpec)
+        - compute_vector method (returns dict of numpy arrays)
+
+        ORF Resolution Rules (same as compute_orf_windows):
+        - If `orf` is provided: use it directly
+        - Else if `orf_index` is provided: find candidates and select that index
+        - Else: try to get attached ORF from record; if missing, raise clear error
+
+        Output Format (same as compute_orf_windows):
+        - Single row per record
+        - Metadata columns first: record_id, orf_start, orf_end
+        - Feature columns with suffixes: {name}.{feature_key}_{window_start}
+        - Column ordering is deterministic: metadata first, then features sorted by
+          (feature_key, window_start numeric)
+
+        Args:
+            record: DNA/RNA SeqRecord to analyze
+            orf: Optional explicit ORF coordinates (start, end)
+            orf_index: Optional index to select from ORF candidates
+            window_nt: Size of each window in nucleotides
+            step_nt: Step size between windows (must be multiple of 3)
+            drop_partial: If True, drops partial windows at end
+
+        Returns:
+            Single-row DataFrame with wide-format features
+
+        Raises:
+            ValueError: If step_nt is not multiple of 3, or if protein sequence provided,
+                       or if neither orf, orf_index, nor attached ORF is available,
+                       or if feature does not implement PositionalFeature protocol
+            KeyError: If trying to use attached ORF but none exists
+
+        Examples:
+            >>> from Bio.Seq import Seq
+            >>> from Bio.SeqRecord import SeqRecord
+            >>> import numpy as np
+            >>> from biotooler.features.aggregation import AggregationSpec, PositionSpace
+            >>> # Define a positional feature
+            >>> class GCFeature:
+            ...     @property
+            ...     def position_space(self):
+            ...         return PositionSpace.RESIDUE
+            ...     @property
+            ...     def vector_keys(self):
+            ...         return {"gc": AggregationSpec(aggregation_fn=np.mean)}
+            ...     def compute_vector(self, record, **kwargs):
+            ...         seq = str(record.seq).upper()
+            ...         gc_vector = np.array([1.0 if b in 'GC' else 0.0 for b in seq])
+            ...         return {"gc": gc_vector}
+            >>> fs = FeatureSet(GCFeature(), name="gc_content")
+            >>> record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="test")
+            >>> result = fs.compute_orf_windows_v2(
+            ...     record, orf=(0, 15), window_nt=9, step_nt=3
+            ... )
+            >>> result.shape
+            (1, 6)
+            >>> 'gc_content.gc_0' in result.columns
+            True
+        """
+        # Check for protein sequences early with clear error message
+        if "molecule_type" in record.annotations:
+            mol_type = record.annotations["molecule_type"]
+            if isinstance(mol_type, str) and mol_type.upper() == "PROTEIN":
+                raise ValueError(
+                    "ORF window computation is only supported for DNA/RNA sequences, "
+                    "not protein sequences"
+                )
+
+        # Resolve ORF coordinates (same logic as compute_orf_windows)
+        resolved_orf: OrfSpan
+        if orf is not None:
+            resolved_orf = orf
+        elif orf_index is not None:
+            candidates = find_orf_candidates(record)
+            resolved_orf = select_orf_by_index(candidates, orf_index)
+        else:
+            try:
+                resolved_orf = get_orf(record)
+            except KeyError as e:
+                raise ValueError(
+                    f"No ORF information provided for record {record.id!r}. "
+                    "Please provide 'orf' parameter, 'orf_index' parameter, "
+                    "or attach an ORF using attach_orf()."
+                ) from e
+
+        # Validate step_nt (must be multiple of 3 for codon alignment)
+        if step_nt % 3 != 0:
+            raise ValueError(
+                f"step_nt must be a multiple of 3 for codon-aligned windows, got {step_nt}"
+            )
+
+        # Build feature data dictionary for single row
+        feature_data: dict[str, Any] = {
+            "record_id": record.id,
+            "orf_start": resolved_orf[0],
+            "orf_end": resolved_orf[1],
+        }
+
+        # Extract ORF sequence
+        orf_start, orf_end = resolved_orf
+        seq_str = get_seq_str(record)
+        orf_seq_str = seq_str[orf_start:orf_end]
+        orf_len = len(orf_seq_str)
+
+        # Create ORF record for compute_vector
+        orf_record = SeqRecord(
+            Seq(orf_seq_str),
+            id=record.id,
+            description=record.description,
+        )
+        # Copy annotations but exclude cache keys
+        for key, value in record.annotations.items():
+            if not key.startswith("_biotooler_"):
+                orf_record.annotations[key] = value
+
+        # Process each feature
+        for _feat_name, feat_fn in self._features.items():
+            # Check if feature implements PositionalFeature protocol (duck-typing)
+            has_positional = (
+                hasattr(feat_fn, "position_space")
+                and hasattr(feat_fn, "vector_keys")
+                and hasattr(feat_fn, "compute_vector")
+            )
+
+            if not has_positional:
+                raise ValueError(
+                    f"Feature does not implement PositionalFeature protocol. "
+                    f"compute_orf_windows_v2 requires features with position_space, "
+                    f"vector_keys, and compute_vector. Use compute_orf_windows for "
+                    f"non-positional features."
+                )
+
+            # Get position space and vector keys
+            position_space = feat_fn.position_space  # type: ignore[union-attr]
+            vector_keys = feat_fn.vector_keys  # type: ignore[union-attr]
+
+            # Compute per-position vectors for the full ORF
+            vectors = feat_fn.compute_vector(orf_record)  # type: ignore[union-attr]
+
+            # Determine the length in the position space
+            if position_space == PositionSpace.CODON:
+                position_space_len = orf_len // 3
+            else:  # RESIDUE
+                position_space_len = orf_len
+
+            # Generate window boundaries in position space
+            window_start_nt = 0
+            while window_start_nt < orf_len:
+                window_end_nt = min(window_start_nt + window_nt, orf_len)
+
+                # Skip partial windows if drop_partial is True
+                if drop_partial and (window_end_nt - window_start_nt) < window_nt:
+                    break
+
+                # Convert nucleotide positions to position space indices
+                if position_space == PositionSpace.CODON:
+                    # For codon space, convert nt positions to codon indices
+                    window_start_pos = window_start_nt // 3
+                    window_end_pos = window_end_nt // 3
+                else:  # RESIDUE
+                    # For residue space, positions are the same as nt positions
+                    window_start_pos = window_start_nt
+                    window_end_pos = window_end_nt
+
+                # Aggregate each vector key for this window
+                for key, agg_spec in vector_keys.items():
+                    if key not in vectors:
+                        raise ValueError(
+                            f"Feature compute_vector did not return expected key '{key}'"
+                        )
+
+                    vector = vectors[key]
+                    window_values = vector[window_start_pos:window_end_pos]
+
+                    # Apply aggregation function
+                    aggregated_value = agg_spec.aggregation_fn(window_values)
+
+                    # Store with column name format: {name}.{key}_{window_start_nt}
+                    col_name = f"{self.name}.{key}_{window_start_nt}"
+                    feature_data[col_name] = aggregated_value
+
+                window_start_nt += step_nt
 
         # Format as wide DataFrame using shared helper
         return self._format_wide_dataframe(
