@@ -2,6 +2,7 @@
 
 import hashlib
 import inspect
+import json
 from collections import OrderedDict
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
@@ -222,11 +223,11 @@ class CodonBiasFeature:
                         f"Failed to instantiate {score_class.__name__}: {e}"
                     ) from e
 
-            # Cache the built models with LRU eviction
-            model_cache[cache_key] = models
-            # Evict oldest if cache is full
-            if len(model_cache) > max_cache_size:
+            # Cache the built models with FIFO eviction
+            # Evict oldest if cache would exceed max size
+            while len(model_cache) >= max_cache_size:
                 model_cache.popitem(last=False)  # Remove oldest (FIFO)
+            model_cache[cache_key] = models
 
         # Use provided names or resolved names
         if names is None:
@@ -637,7 +638,7 @@ def _generate_cache_key(
     # Hash the concatenated CDS strings for deterministic content-based key
     cds_strings = reference_set.cds_strings()
     concatenated_cds = "".join(cds_strings)
-    cds_hash = hashlib.sha256(concatenated_cds.encode()).hexdigest()[:16]
+    cds_hash = hashlib.sha256(concatenated_cds.encode()).hexdigest()[:32]
     key_parts.append(f"cds:{cds_hash}")
 
     # Add score specifications (convert to strings for consistent hashing)
@@ -654,9 +655,9 @@ def _generate_cache_key(
 
     # Add score kwargs if provided
     if score_kwargs:
-        # Sort kwargs for deterministic key
-        kwargs_str = str(sorted(score_kwargs.items()))
-        kwargs_hash = hashlib.sha256(kwargs_str.encode()).hexdigest()[:16]
+        # Use json.dumps for deterministic serialization
+        kwargs_str = json.dumps(score_kwargs, sort_keys=True)
+        kwargs_hash = hashlib.sha256(kwargs_str.encode()).hexdigest()[:32]
         key_parts.append(f"kwargs:{kwargs_hash}")
 
     return "|".join(key_parts)
