@@ -272,6 +272,38 @@ class TestCodonBiasCaching:
         assert "CAI" in result
         assert "ENC" in result
 
+    def test_cache_different_instances_same_class(self):
+        """Test that different score instances produce different cache keys."""
+        from codonbias.scores import CodonAdaptationIndex
+
+        ref_set = ReferenceSequenceSet(
+            cds={"gene1": "ATGATGATGATGATGATGATG"}
+        )
+
+        # Create two different CAI instances
+        ref_seq = "".join(ref_set.cds_strings())
+        cai1 = CodonAdaptationIndex(ref_seq)
+        cai2 = CodonAdaptationIndex(ref_seq)
+
+        cache = OrderedDict()
+
+        # Pass first CAI instance
+        feature1 = CodonBiasFeature.from_reference(
+            ref_set, [cai1], names=["CAI"], model_cache=cache
+        )
+        assert len(cache) == 1
+
+        # Pass second CAI instance (different object) should create new cache entry
+        feature2 = CodonBiasFeature.from_reference(
+            ref_set, [cai2], names=["CAI"], model_cache=cache
+        )
+        assert len(cache) == 2
+
+        # The features should use different model instances
+        assert feature1.models[0] is cai1
+        assert feature2.models[0] is cai2
+        assert feature1.models[0] is not feature2.models[0]
+
     def test_lru_behavior_move_to_end(self):
         """Test that accessing cached models moves them to end (LRU)."""
         ref_sets = [

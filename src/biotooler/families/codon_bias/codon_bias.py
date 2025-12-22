@@ -649,8 +649,8 @@ def _generate_cache_key(
         elif isinstance(score_id, str):
             score_strs.append(score_id)
         else:
-            # For instances, use the class name
-            score_strs.append(type(score_id).__name__)
+            # For instances, use class name + instance id to ensure uniqueness
+            score_strs.append(f"{type(score_id).__name__}@{id(score_id)}")
     key_parts.append(f"scores:{','.join(score_strs)}")
 
     # Add score kwargs if provided
