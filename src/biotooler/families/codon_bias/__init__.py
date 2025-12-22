@@ -24,7 +24,8 @@ def get_features() -> list[type["CodonBiasFeature"]]:
     this function is called.
 
     Returns:
-        List of Feature classes provided by this family
+        List of Feature classes (not instances) provided by this family.
+        Users can instantiate these classes as needed.
 
     Raises:
         ImportError: If codonbias is not installed.

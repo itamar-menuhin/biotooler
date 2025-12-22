@@ -150,7 +150,7 @@ def test_codon_bias_get_features_import_error_with_hint():
 
     # Check if codonbias is actually installed
     try:
-        import codonbias  # noqa: F401
+        import codonbias as _  # noqa: F401
 
         codonbias_installed = True
         # Remove it temporarily
