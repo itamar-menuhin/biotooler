@@ -3,7 +3,6 @@
 from collections.abc import Callable
 from typing import Any
 
-import numpy as np
 import pandas as pd
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -469,10 +468,10 @@ class FeatureSet:
 
             if not has_positional:
                 raise ValueError(
-                    f"Feature does not implement PositionalFeature protocol. "
-                    f"compute_orf_windows_v2 requires features with position_space, "
-                    f"vector_keys, and compute_vector. Use compute_orf_windows for "
-                    f"non-positional features."
+                    "Feature does not implement PositionalFeature protocol. "
+                    "compute_orf_windows_v2 requires features with position_space, "
+                    "vector_keys, and compute_vector. Use compute_orf_windows for "
+                    "non-positional features."
                 )
 
             # Get position space and vector keys
@@ -481,12 +480,6 @@ class FeatureSet:
 
             # Compute per-position vectors for the full ORF
             vectors = feat_fn.compute_vector(orf_record)  # type: ignore[union-attr]
-
-            # Determine the length in the position space
-            if position_space == PositionSpace.CODON:
-                position_space_len = orf_len // 3
-            else:  # RESIDUE
-                position_space_len = orf_len
 
             # Generate window boundaries in position space
             window_start_nt = 0
