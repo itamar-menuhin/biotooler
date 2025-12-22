@@ -306,34 +306,40 @@ def _try_get_weights(
     """
     # Try log_weights first
     if hasattr(model, "log_weights"):
-        return {
-            "has_weights": True,
-            "weights": model.log_weights,
-            "type": "log",
-        }
+        log_weights = getattr(model, "log_weights", None)
+        if log_weights is not None:
+            return {
+                "has_weights": True,
+                "weights": log_weights,
+                "type": "log",
+            }
 
     # Try weights
     if hasattr(model, "weights"):
-        return {
-            "has_weights": True,
-            "weights": model.weights,
-            "type": "linear",
-        }
+        weights = getattr(model, "weights", None)
+        if weights is not None:
+            return {
+                "has_weights": True,
+                "weights": weights,
+                "type": "linear",
+            }
 
     # Try get_weights() method
-    if hasattr(model, "get_weights") and callable(model.get_weights):
-        try:
-            weights = model.get_weights()
-            # Check if it returns a valid weights structure
-            if weights is not None:
-                return {
-                    "has_weights": True,
-                    "weights": weights,
-                    "type": "linear",
-                }
-        except (TypeError, AttributeError, ValueError):
-            # get_weights() may require arguments or fail for other reasons
-            pass
+    if hasattr(model, "get_weights"):
+        get_weights_method = getattr(model, "get_weights", None)
+        if get_weights_method is not None and callable(get_weights_method):
+            try:
+                weights = get_weights_method()
+                # Check if it returns a valid weights structure
+                if weights is not None:
+                    return {
+                        "has_weights": True,
+                        "weights": weights,
+                        "type": "linear",
+                    }
+            except (TypeError, AttributeError, ValueError):
+                # get_weights() may require arguments or fail for other reasons
+                pass
 
     # No accessible weights - must use fallback
     return {
