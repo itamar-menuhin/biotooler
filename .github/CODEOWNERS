@@ -1,0 +1,10 @@
+# CODEOWNERS file for biotooler feature families
+#
+# Each feature family has its own directory and designated owners
+# This enables isolated contributions and clear ownership
+
+# Codon bias feature family
+/src/biotooler/families/codon_bias/ @placeholder-owner-codon-bias
+
+# Additional families can be added here with their respective owners
+# /src/biotooler/families/<family>/ @owner-username

@@ -9,8 +9,8 @@ from codonbias.scores import (
     FrequencyOfOptimalCodons,
 )
 
+from biotooler.families.codon_bias import CodonBiasFeature
 from biotooler.features import FeatureSet
-from biotooler.features.codon_bias import CodonBiasFeature
 
 
 class TestCodonBiasBasic:
