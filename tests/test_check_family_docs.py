@@ -248,3 +248,43 @@ Content
             # Should detect missing "## Examples" even though "## Examples_REMOVED" exists
             assert len(errors) == 1
             assert "Examples" in errors[0]
+
+    def test_upstream_na_word_boundary(self):
+        """Test that N/A detection uses word boundaries (e.g., 'BANANA' should not match)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            readme_path = Path(tmpdir) / "README.md"
+            content = """
+# Test Family
+
+## What this family provides
+Content
+
+## Intuition
+Content
+
+## Mathematical formulation
+Content
+
+## Features and output schema
+Content
+
+## References
+- Link: https://example.com
+
+## Upstream library links
+This family uses BANANA library
+
+## Examples
+Content
+
+## Edge cases and validation
+Content
+
+## Maintenance notes
+Content
+"""
+            readme_path.write_text(content)
+            errors = check_readme(readme_path, "test_family")
+            # Should fail because 'BANANA' contains 'NA' but not as a word
+            assert len(errors) == 1
+            assert "Upstream library links" in errors[0]

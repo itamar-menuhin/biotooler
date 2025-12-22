@@ -18,6 +18,14 @@ REQUIRED_HEADINGS = [
 ]
 
 
+def _extract_section(content: str, heading: str) -> str | None:
+    """Extract content between a heading and the next heading or end of file."""
+    match = re.search(
+        rf"^{re.escape(heading)}\s*(.*?)(?=^##|\Z)", content, re.DOTALL | re.MULTILINE
+    )
+    return match.group(1) if match else None
+
+
 def check_readme(readme_path: Path, family_name: str) -> list[str]:
     """Check a single README for completeness. Returns list of errors."""
     errors = []
@@ -36,25 +44,18 @@ def check_readme(readme_path: Path, family_name: str) -> list[str]:
             errors.append(f"Family '{family_name}': Missing heading '{heading}'")
 
     # Check References section has at least one http(s) link
-    references_match = re.search(
-        r"## References\s*(.*?)(?=##|\Z)", content, re.DOTALL
-    )
-    if references_match:
-        references_section = references_match.group(1)
-        if not re.search(r"https?://", references_section):
-            errors.append(
-                f"Family '{family_name}': 'References' section must contain "
-                "at least one http(s) link"
-            )
+    references_section = _extract_section(content, "## References")
+    if references_section and not re.search(r"https?://", references_section):
+        errors.append(
+            f"Family '{family_name}': 'References' section must contain "
+            "at least one http(s) link"
+        )
 
     # Check Upstream library links section has at least one http(s) link or "N/A"
-    upstream_match = re.search(
-        r"## Upstream library links\s*(.*?)(?=##|\Z)", content, re.DOTALL
-    )
-    if upstream_match:
-        upstream_section = upstream_match.group(1)
+    upstream_section = _extract_section(content, "## Upstream library links")
+    if upstream_section:
         has_link = re.search(r"https?://", upstream_section)
-        has_na = "N/A" in upstream_section
+        has_na = re.search(r"\bN/A\b", upstream_section)
         if not has_link and not has_na:
             errors.append(
                 f"Family '{family_name}': 'Upstream library links' section must contain "
