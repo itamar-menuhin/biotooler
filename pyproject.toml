@@ -25,6 +25,7 @@ build-backend = "setuptools.build_meta"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+exclude = ["templates"]
 
 [tool.ruff.lint]
 select = [
@@ -44,7 +45,7 @@ indent-style = "space"
 
 [tool.pyright]
 include = ["src"]
-exclude = ["**/__pycache__"]
+exclude = ["**/__pycache__", "templates"]
 pythonVersion = "3.11"
 typeCheckingMode = "basic"
 
