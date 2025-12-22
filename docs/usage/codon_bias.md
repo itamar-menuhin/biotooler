@@ -57,6 +57,165 @@ print(result.keys())
 # dict_keys(['CodonAdaptationIndex', 'EffectiveNumberOfCodons'])
 ```
 
+## Using ReferenceSequenceSet
+
+The `from_reference` class method provides a convenient way to build codon bias features from a shared reference sequence set. This is particularly useful when working with organism-specific reference sequences.
+
+### Basic Usage with ReferenceSequenceSet
+
+```python
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from biotooler.core.reference_sequences import ReferenceSequenceSet
+from biotooler.families.codon_bias import CodonBiasFeature
+
+# Create a reference set from highly expressed genes
+ref_set = ReferenceSequenceSet(
+    cds={
+        "gene1": "ATGATGATGATGATGATGATG",
+        "gene2": "ATGATGATGATGATGATGATG",
+        "gene3": "ATGATGATGATGATGATGATG",
+    }
+)
+
+# Build feature using abbreviations
+feature = CodonBiasFeature.from_reference(ref_set, ["CAI", "ENC", "FOP"])
+
+# Compute features on a test sequence
+test_seq = "ATGATGATGATGATGATG"
+record = SeqRecord(Seq(test_seq), id="test_gene")
+result = feature(record)
+
+print(result)
+# {'CAI': 1.0, 'ENC': 20.0, 'FOP': 1.0}
+```
+
+### Score Identifier Resolution
+
+The `from_reference` method accepts multiple formats for specifying scores:
+
+```python
+# Using abbreviations (recommended)
+feature = CodonBiasFeature.from_reference(ref_set, ["CAI", "ENC", "FOP"])
+
+# Using full class names
+feature = CodonBiasFeature.from_reference(
+    ref_set,
+    ["CodonAdaptationIndex", "EffectiveNumberOfCodons"]
+)
+
+# Using class objects
+from codonbias.scores import CodonAdaptationIndex, EffectiveNumberOfCodons
+feature = CodonBiasFeature.from_reference(
+    ref_set,
+    [CodonAdaptationIndex, EffectiveNumberOfCodons]
+)
+
+# Mixing different formats
+feature = CodonBiasFeature.from_reference(
+    ref_set,
+    ["CAI", "EffectiveNumberOfCodons", FrequencyOfOptimalCodons]
+)
+```
+
+Supported abbreviations:
+- **CAI**: CodonAdaptationIndex
+- **ENC**: EffectiveNumberOfCodons
+- **FOP**: FrequencyOfOptimalCodons
+- **RSCU**: RelativeSynonymousCodonUsage
+- **RCBS/DCBS**: RelativeCodonBiasScore
+- **tAI**: TrnaAdaptationIndex
+- **nTE**: NormalizedTranslationalEfficiency
+- **CPB/CPS**: CodonPairBias
+
+### Custom Names
+
+You can provide custom names for the features:
+
+```python
+feature = CodonBiasFeature.from_reference(
+    ref_set,
+    ["CAI", "ENC"],
+    names=["CodonAdaptIndex", "EffectiveNumCodons"]
+)
+```
+
+### Passing Score-Specific Parameters
+
+Use `score_kwargs` to pass constructor arguments to specific scores:
+
+```python
+feature = CodonBiasFeature.from_reference(
+    ref_set,
+    ["CAI", "ENC"],
+    score_kwargs={
+        "CAI": {"genetic_code": 11, "k_mer": 1},  # Bacterial genetic code
+        "ENC": {"bg_correction": True, "robust": False}
+    }
+)
+```
+
+The kwargs can be keyed by abbreviation, class name, or any score identifier you're using.
+
+### Loading Reference from Files
+
+You can create a `ReferenceSequenceSet` from FASTA or CSV files:
+
+```python
+from pathlib import Path
+from biotooler.core.reference_sequences import ReferenceSequenceSet
+
+# From FASTA file
+ref_set = ReferenceSequenceSet.from_fasta("highly_expressed_genes.fasta")
+
+# From CSV file
+ref_set = ReferenceSequenceSet.from_csv(
+    "reference_genes.csv",
+    id_column="gene_id",
+    cds_column="sequence"
+)
+
+# Build feature from the loaded reference
+feature = CodonBiasFeature.from_reference(ref_set, ["CAI", "ENC"])
+```
+
+### Automatic Reference Sequence Handling
+
+The `from_reference` method automatically:
+1. Concatenates CDS sequences from the reference set
+2. Detects which scores require `ref_seq` parameter (e.g., CAI, FOP)
+3. Passes the concatenated reference to scores that need it
+4. Instantiates scores without reference when not needed (e.g., ENC)
+
+This means you can mix scores that do and don't require reference sequences:
+
+```python
+# CAI needs ref_seq, ENC doesn't
+feature = CodonBiasFeature.from_reference(ref_set, ["CAI", "ENC"])
+# Both will work correctly
+```
+
+### Error Handling
+
+The method provides clear error messages:
+
+```python
+# Empty reference set
+empty_ref = ReferenceSequenceSet(cds={})
+try:
+    feature = CodonBiasFeature.from_reference(empty_ref, ["CAI"])
+except ValueError as e:
+    print(e)
+    # "ReferenceSequenceSet must contain CDS sequences to build codon bias models"
+
+# Invalid score identifier
+try:
+    feature = CodonBiasFeature.from_reference(ref_set, ["INVALID"])
+except ValueError as e:
+    print(e)
+    # "Cannot resolve score identifier 'INVALID'. Expected one of: CAI, ENC, ..."
+```
+
 ## Windowed Analysis
 
 The `CodonBiasFeature` supports both baseline and incremental window computation modes when used with `FeatureSet.compute_orf_windows()`.

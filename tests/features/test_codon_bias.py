@@ -332,3 +332,231 @@ class TestCodonBiasEdgeCases:
         # Should work and produce result
         assert "CAI" in result
         assert isinstance(result["CAI"], float)
+
+
+class TestCodonBiasFromReference:
+    """Tests for CodonBiasFeature.from_reference factory method."""
+
+    def test_from_reference_builds_and_computes(self):
+        """Test that from_reference builds models and computes correctly."""
+        from biotooler.core.reference_sequences import ReferenceSequenceSet
+
+        # Create reference set
+        ref_set = ReferenceSequenceSet(
+            cds={
+                "gene1": "ATGATGATGATGATGATGATG",
+                "gene2": "ATGATGATGATGATGATGATG",
+            }
+        )
+
+        # Build feature from reference
+        feature = CodonBiasFeature.from_reference(ref_set, ["CAI", "ENC"])
+
+        # Test sequence
+        test_seq = "ATGATGATGATGATGATG"
+        record = SeqRecord(Seq(test_seq), id="test")
+
+        # Compute features
+        result = feature(record)
+
+        # Check results
+        assert "CAI" in result
+        assert "ENC" in result
+        assert isinstance(result["CAI"], float)
+        assert isinstance(result["ENC"], float)
+        assert 0 <= result["CAI"] <= 1  # CAI is typically 0-1
+        assert 20 <= result["ENC"] <= 61  # ENC is typically 20-61
+
+    def test_from_reference_matches_direct_codonbias_usage(self):
+        """Test that from_reference produces same results as direct codonbias usage."""
+        from biotooler.core.reference_sequences import ReferenceSequenceSet
+
+        # Create reference set
+        ref_cds = {
+            "gene1": "ATGATGATGATGATGATGATG",
+            "gene2": "ATGATGATGATGATGATGATG",
+        }
+        ref_set = ReferenceSequenceSet(cds=ref_cds)
+
+        # Build feature from reference
+        feature = CodonBiasFeature.from_reference(ref_set, ["CAI"])
+
+        # Build feature directly with codonbias
+        concatenated_ref = "".join(ref_set.cds_strings())
+        cai_direct = CodonAdaptationIndex(concatenated_ref)
+        feature_direct = CodonBiasFeature([cai_direct], names=["CAI"])
+
+        # Test sequence
+        test_seq = "ATGATGATGATGATGATG"
+        record = SeqRecord(Seq(test_seq), id="test")
+
+        # Compute with both
+        result_from_ref = feature(record)
+        result_direct = feature_direct(record)
+
+        # Results should match
+        assert abs(result_from_ref["CAI"] - result_direct["CAI"]) < 1e-6
+
+    def test_from_reference_with_abbreviations(self):
+        """Test resolving score abbreviations."""
+        from biotooler.core.reference_sequences import ReferenceSequenceSet
+
+        ref_set = ReferenceSequenceSet(
+            cds={"gene1": "ATGATGATGATGATGATGATG"}
+        )
+
+        # Use various abbreviations
+        feature = CodonBiasFeature.from_reference(ref_set, ["CAI", "ENC", "FOP"])
+
+        # Check that names are set correctly (should use abbreviations)
+        assert feature.names == ["CAI", "ENC", "FOP"]
+
+        # Check that models are instantiated
+        assert len(feature.models) == 3
+
+    def test_from_reference_with_class_names(self):
+        """Test resolving full class names."""
+        from biotooler.core.reference_sequences import ReferenceSequenceSet
+
+        ref_set = ReferenceSequenceSet(
+            cds={"gene1": "ATGATGATGATGATGATGATG"}
+        )
+
+        # Use full class names
+        feature = CodonBiasFeature.from_reference(
+            ref_set, ["CodonAdaptationIndex", "EffectiveNumberOfCodons"]
+        )
+
+        # Check that names are set correctly (should use abbreviations)
+        assert feature.names == ["CAI", "ENC"]
+
+        # Check that models are instantiated
+        assert len(feature.models) == 2
+
+    def test_from_reference_with_class_objects(self):
+        """Test resolving class objects."""
+        from biotooler.core.reference_sequences import ReferenceSequenceSet
+
+        ref_set = ReferenceSequenceSet(
+            cds={"gene1": "ATGATGATGATGATGATGATG"}
+        )
+
+        # Use class objects
+        feature = CodonBiasFeature.from_reference(
+            ref_set, [CodonAdaptationIndex, EffectiveNumberOfCodons]
+        )
+
+        # Check that names are set correctly
+        assert feature.names == ["CAI", "ENC"]
+
+        # Check that models are instantiated
+        assert len(feature.models) == 2
+        assert isinstance(feature.models[0], CodonAdaptationIndex)
+        assert isinstance(feature.models[1], EffectiveNumberOfCodons)
+
+    def test_from_reference_with_custom_names(self):
+        """Test providing custom names."""
+        from biotooler.core.reference_sequences import ReferenceSequenceSet
+
+        ref_set = ReferenceSequenceSet(
+            cds={"gene1": "ATGATGATGATGATGATGATG"}
+        )
+
+        # Provide custom names
+        feature = CodonBiasFeature.from_reference(
+            ref_set, ["CAI", "ENC"], names=["CodonAdaptIndex", "EffectiveNumCodons"]
+        )
+
+        # Check custom names are used
+        assert feature.names == ["CodonAdaptIndex", "EffectiveNumCodons"]
+
+    def test_from_reference_with_score_kwargs(self):
+        """Test passing kwargs to score constructors."""
+        from biotooler.core.reference_sequences import ReferenceSequenceSet
+
+        ref_set = ReferenceSequenceSet(
+            cds={"gene1": "ATGATGATGATGATGATGATG"}
+        )
+
+        # Pass kwargs for CAI
+        feature = CodonBiasFeature.from_reference(
+            ref_set,
+            ["CAI"],
+            score_kwargs={"CAI": {"genetic_code": 1, "k_mer": 1}},
+        )
+
+        # Check model was instantiated (no error means kwargs were accepted)
+        assert len(feature.models) == 1
+
+    def test_from_reference_empty_cds_raises_error(self):
+        """Test that empty CDS raises clear error."""
+        from biotooler.core.reference_sequences import ReferenceSequenceSet
+
+        # Create reference set with empty CDS
+        ref_set = ReferenceSequenceSet(cds={})
+
+        # Should raise ValueError
+        with pytest.raises(
+            ValueError,
+            match="ReferenceSequenceSet must contain CDS sequences",
+        ):
+            CodonBiasFeature.from_reference(ref_set, ["CAI"])
+
+    def test_from_reference_invalid_score_identifier(self):
+        """Test that invalid score identifier raises clear error."""
+        from biotooler.core.reference_sequences import ReferenceSequenceSet
+
+        ref_set = ReferenceSequenceSet(
+            cds={"gene1": "ATGATGATGATGATGATGATG"}
+        )
+
+        # Use invalid identifier
+        with pytest.raises(ValueError, match="Cannot resolve score identifier"):
+            CodonBiasFeature.from_reference(ref_set, ["INVALID_SCORE"])
+
+    def test_from_reference_enc_without_ref_seq(self):
+        """Test that ENC works without ref_seq (doesn't require reference)."""
+        from biotooler.core.reference_sequences import ReferenceSequenceSet
+
+        ref_set = ReferenceSequenceSet(
+            cds={"gene1": "ATGATGATGATGATGATGATG"}
+        )
+
+        # ENC doesn't require ref_seq
+        feature = CodonBiasFeature.from_reference(ref_set, ["ENC"])
+
+        # Should work
+        test_seq = "ATGATGATGATGATGATG"
+        record = SeqRecord(Seq(test_seq), id="test")
+        result = feature(record)
+
+        assert "ENC" in result
+        assert isinstance(result["ENC"], float)
+
+    def test_from_reference_mixed_score_types(self):
+        """Test mixing abbreviations, class names, and class objects."""
+        from biotooler.core.reference_sequences import ReferenceSequenceSet
+
+        ref_set = ReferenceSequenceSet(
+            cds={"gene1": "ATGATGATGATGATGATGATG"}
+        )
+
+        # Mix different score identifier types
+        feature = CodonBiasFeature.from_reference(
+            ref_set,
+            ["CAI", "EffectiveNumberOfCodons", FrequencyOfOptimalCodons],
+            names=["CAI", "ENC", "FOP"],
+        )
+
+        # Check all models instantiated correctly
+        assert len(feature.models) == 3
+        assert feature.names == ["CAI", "ENC", "FOP"]
+
+        # Test computation works
+        test_seq = "ATGATGATGATGATGATG"
+        record = SeqRecord(Seq(test_seq), id="test")
+        result = feature(record)
+
+        assert "CAI" in result
+        assert "ENC" in result
+        assert "FOP" in result
