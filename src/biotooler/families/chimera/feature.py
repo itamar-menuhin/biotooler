@@ -5,8 +5,13 @@ Feature family for analyzing chimeric protein structures using pyChimera.
 
 from Bio.SeqRecord import SeqRecord
 
+from biotooler.core.lazy_import import lazy_import
 from biotooler.core.types import Scalar
-from biotooler.families.chimera.integration import require_chimera_dep
+
+# Lazy import pyChimera at module level - will raise ImportError if not installed
+pychimera = lazy_import(  # type: ignore[misc]
+    "pychimera", extra="chimera", purpose="computing chimeric protein structure features"
+)
 
 
 class ChimeraFeature:
@@ -16,8 +21,8 @@ class ChimeraFeature:
     and compute structural features. The feature is currently a stub and will be
     implemented in future versions.
 
-    The pyChimera dependency is lazily loaded only when the feature is instantiated
-    to keep imports lightweight.
+    The pyChimera dependency is lazily loaded only when the feature module is imported
+    to keep family-level imports lightweight.
 
     Args:
         None currently - will be added in future implementation
@@ -36,13 +41,11 @@ class ChimeraFeature:
     def __init__(self):
         """Initialize ChimeraFeature.
 
-        Lazily imports pyChimera when the feature is instantiated.
-
         Raises:
-            ImportError: If pyChimera is not installed
+            NotImplementedError: Feature is currently a stub
         """
-        # Lazy load pyChimera dependency
-        self._chimera = require_chimera_dep()
+        # Store reference to pychimera module for future use
+        self._chimera = pychimera
 
     def __call__(self, record: SeqRecord) -> dict[str, Scalar]:
         """Compute chimera features for the entire sequence.
