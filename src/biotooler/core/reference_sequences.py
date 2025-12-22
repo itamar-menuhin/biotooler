@@ -153,12 +153,13 @@ class ReferenceSequenceSet:
 
         # Extract CDS sequences
         cds_dict: dict[str, str] = {}
-        for idx, row in df.iterrows():
+        # start=2 accounts for header row in 1-based row numbering
+        for row_num, (_idx, row) in enumerate(df.iterrows(), start=2):
             seq_id = str(row[id_column])
             cds_value = row[cds_column]
             if pd.isna(cds_value):  # type: ignore[arg-type]
                 raise ValueError(
-                    f"CDS sequence is missing for ID '{seq_id}' at row {idx}"
+                    f"CDS sequence is missing for ID '{seq_id}' at row {row_num}"
                 )
             if seq_id in cds_dict:
                 raise ValueError(f"Duplicate sequence ID in CSV: {seq_id}")
@@ -171,12 +172,13 @@ class ReferenceSequenceSet:
         proteins_dict: dict[str, str] | None = None
         if protein_column is not None:
             proteins_dict = {}
-            for idx, row in df.iterrows():
+            # start=2 accounts for header row in 1-based row numbering
+            for row_num, (_idx, row) in enumerate(df.iterrows(), start=2):
                 seq_id = str(row[id_column])
                 protein_value = row[protein_column]
                 if pd.isna(protein_value):  # type: ignore[arg-type]
                     raise ValueError(
-                        f"Protein sequence is missing for ID '{seq_id}' at row {idx}"
+                        f"Protein sequence is missing for ID '{seq_id}' at row {row_num}"
                     )
                 proteins_dict[seq_id] = str(protein_value)
 
