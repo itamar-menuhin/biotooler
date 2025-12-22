@@ -36,7 +36,9 @@ class ReferenceSequenceSet:
         self.proteins = proteins
         self.genetic_code_table = genetic_code_table
         self._cds_strings_cache: list[str] | None = None
+        self._cds_validated_multiple_of_three: bool = False
         self._protein_strings_cache: list[str] | None = None
+        self._protein_validated_no_internal_stops: bool = False
 
     @classmethod
     def from_fasta(
@@ -111,14 +113,15 @@ class ReferenceSequenceSet:
             ValueError: If require_multiple_of_three is True and any CDS length % 3 != 0
         """
         if self._cds_strings_cache is not None:
-            # Return cached result, but still validate if required
-            if require_multiple_of_three:
+            # Return cached result, but validate if required and not already validated
+            if require_multiple_of_three and not self._cds_validated_multiple_of_three:
                 self._validate_cds_lengths()
+                self._cds_validated_multiple_of_three = True
             return self._cds_strings_cache
 
         # Normalize and validate CDS sequences
         normalized: list[str] = []
-        for seq_id, seq in self.cds.items():
+        for idx, (seq_id, seq) in enumerate(self.cds.items()):
             # Normalize: uppercase and U->T
             normalized_seq = seq.upper().replace("U", "T")
 
@@ -126,13 +129,15 @@ class ReferenceSequenceSet:
             if require_multiple_of_three and len(normalized_seq) % 3 != 0:
                 raise ValueError(
                     f"CDS sequence '{seq_id}' has length {len(normalized_seq)} "
-                    f"which is not a multiple of 3 (index: {list(self.cds.keys()).index(seq_id)})"
+                    f"which is not a multiple of 3 (index: {idx})"
                 )
 
             normalized.append(normalized_seq)
 
-        # Cache the result
+        # Cache the result and mark validation state
         self._cds_strings_cache = normalized
+        if require_multiple_of_three:
+            self._cds_validated_multiple_of_three = True
         return normalized
 
     def _validate_cds_lengths(self) -> None:
@@ -175,9 +180,10 @@ class ReferenceSequenceSet:
             ValueError: If CDS translation fails
         """
         if self._protein_strings_cache is not None:
-            # Return cached result, but still validate if required
-            if error_on_internal_stop:
+            # Return cached result, but validate if required and not already validated
+            if error_on_internal_stop and not self._protein_validated_no_internal_stops:
                 self._validate_no_internal_stops()
+                self._protein_validated_no_internal_stops = True
             return self._protein_strings_cache
 
         result: list[str] = []
@@ -239,8 +245,10 @@ class ReferenceSequenceSet:
                         f"Failed to translate CDS sequence '{seq_id}' (index: {idx}): {e}"
                     ) from e
 
-        # Cache the result
+        # Cache the result and mark validation state
         self._protein_strings_cache = result
+        if error_on_internal_stop:
+            self._protein_validated_no_internal_stops = True
         return result
 
     def _validate_no_internal_stops(self) -> None:
