@@ -13,7 +13,7 @@ from typing import Any
 # This is manually maintained to avoid importing any family modules
 FAMILIES: dict[str, dict[str, Any]] = {
     "chimera": {
-        "summary": "Protein structure analysis using pyChimera interface to UCSF Chimera",
+        "summary": "Gene expression prediction and optimization using Chimera algorithms",
         "extra": "chimera",  # pip install extra name
         "owner": "@itamar-menuhin",
         "heavy": True,  # Has heavy optional dependencies

@@ -2,118 +2,141 @@
 
 ## What this family provides
 
-The chimera family provides feature computation for analyzing protein structures using pyChimera. PyChimera is a Python interface to UCSF Chimera, enabling programmatic access to molecular visualization and analysis capabilities. This family is currently scaffolded and structured for future implementation of features related to protein structure analysis and structural bioinformatics.
+The chimera family provides feature computation for gene expression prediction and sequence optimization using the Chimera algorithms. These algorithms can predict the expression level of a gene in an unsupervised manner based solely on the coding sequence and the host genome. The algorithms measure sequence adaptation by comparing target genes against reference gene sets to quantify similarity patterns.
 
 ## Intuition
 
-Protein structure analysis is fundamental to understanding protein function, interactions, and behavior. UCSF Chimera (and its successor ChimeraX) provides powerful tools for molecular structure visualization and analysis. PyChimera enables programmatic access to these capabilities, making it possible to automate structural analysis workflows.
+Gene expression levels are influenced not only by regulatory elements but also by the coding sequence itself. The Chimera algorithms exploit "hidden information" embedded in the redundancy of the genetic code - information beyond what is encoded in the amino acid sequence. This information can reflect evolutionary optimization for translation efficiency, mRNA stability, and other expression-related factors.
 
-This family aims to leverage pyChimera to compute structural features for protein sequences, enabling:
+The core insight is that highly expressed genes in a host organism tend to share common sequence patterns. By measuring how well a target gene's sequence matches patterns found in a reference set of host genes, we can:
 
-1. **Structural characterization**: Analyzing secondary structure content, surface properties, and geometric features
-2. **Quality assessment**: Evaluating structure quality through metrics like Ramachandran statistics
-3. **Functional annotation**: Inferring functional properties from structural features
-4. **Comparative analysis**: Computing features across multiple structures for comparative studies
-5. **High-throughput analysis**: Automating structural feature extraction for large-scale studies
+1. **Predict expression levels**: Genes with higher similarity to reference gene patterns are predicted to express better
+2. **Optimize sequences**: Design synonymous variants that maximize similarity to reference patterns while maintaining the same protein
+3. **Detect adaptation**: Identify whether genes are well-adapted to their host organism
 
-Future implementations of this family will leverage pyChimera to compute structural features such as:
-
-- Secondary structure composition and transitions
-- Solvent accessible surface area calculations
-- Contact maps and distance matrices
-- Structural stability metrics
-- Geometric and topological descriptors
+The Chimera algorithms work by finding maximal common substrings between target and reference sequences, either globally (cARS/cMap) or with position-specific constraints (PScARS/PScMap).
 
 ## Mathematical formulation
 
-This family is currently scaffolded for future implementation. When implemented, it will compute various structural metrics using pyChimera's analytical capabilities.
+### ChimeraARS (cARS) - Average Repetitive Substring
 
-### Planned Features
+The cARS score measures the average length of maximal common substrings between a target gene and a reference set at every position:
 
-**Secondary Structure Content**: Quantification of alpha helices, beta sheets, and coil regions.
+```
+cARS(target) = (1/L) * Σ(i=1 to L) max_length(target[i:], reference_set)
+```
 
-**Solvent Accessible Surface Area (SASA)**: The area of a molecule's surface that is accessible to solvent, computed using methods like Lee-Richards or Shrake-Rupley algorithms.
+Where:
+- L is the length of the target sequence
+- max_length finds the longest substring starting at position i that appears in the reference set
+- Higher scores indicate better adaptation to the reference set
 
-**Contact Maps**: Binary matrices indicating which residues are in spatial proximity (typically within 8-10 Å).
+**Position-Specific cARS (PScARS)** extends this by constraining matches to similar positions within genes (e.g., matching beginning regions with beginning regions), capturing position-dependent regulatory signals.
 
-**Ramachandran Statistics**: Analysis of backbone dihedral angles (phi and psi) to assess structure quality.
+### ChimeraMap (cMap) - Sequence Optimization
 
-### Implementation Notes
+Given a target amino acid sequence, cMap generates an optimized nucleotide sequence by selecting codons that maximize coverage by substrings found in the reference set:
 
-Future implementations will interface with pyChimera to:
-1. Load protein structures from PDB files or model predictions
-2. Select and analyze specific chains or regions
-3. Compute structural features using Chimera's analytical tools
-4. Return scalar or vector features for downstream analysis
+```
+optimized_seq = argmax Σ coverage(substring) * weight(substring)
+```
+
+The algorithm constructs the sequence from minimal sequence blocks that appear in reference genes, using a greedy approach with suffix arrays for efficient substring matching.
+
+**Position-Specific cMap (PScMap)** adds position constraints, and **Multi-sequence cMap (MScMap)** generates multiple diverse optimized variants for multi-copy systems.
+
+### Implementation approach
+
+The algorithms use suffix arrays for efficient substring matching:
+1. Build suffix array from reference sequences (one-time preprocessing)
+2. Query target sequences against the suffix array
+3. For cARS: calculate average maximal match lengths
+4. For cMap: greedily select optimal codon choices
 
 ## Features and output schema
 
 ### Input
 
-This feature family is designed to accept protein SeqRecord objects. Future implementations may also support:
-- PDB file paths for direct structure loading
-- Structure objects from BioPython or other libraries
-- Sequence regions with associated structure predictions
+- **Reference sequences**: Set of host genes (DNA sequences) used as the adaptation template
+- **Target sequences**: Query genes to analyze or optimize (DNA for cARS, amino acid for cMap)
+- **Parameters**:
+  - `max_len`: Maximum substring length to consider (homolog filtering)
+  - `max_pos`: Maximum position difference (for position-specific variants)
+  - `win_params`: Window parameters for position-specific algorithms
 
 ### Output
 
-Currently returns empty dictionary (stub). Future implementations will return:
-- Dictionary mapping feature names to scalar values
-- Structural metrics (e.g., "sasa_total", "helix_content", "sheet_content")
-- Domain-specific features if applicable
+**cARS/PScARS output**:
+- Dictionary mapping feature names to scalar scores
+- `"cARS_score"` or `"PScARS_score"`: Adaptation score (higher = better adapted)
+- Scores typically range from ~10-50 for typical genes
+
+**cMap/PScMap output** (future):
+- Optimized nucleotide sequences
+- Block composition information
+- Optimization metrics
 
 ### Modes
 
-**Baseline mode** (planned): Compute features for entire protein structure
-**Incremental mode**: Not applicable for structure-based features
+The feature can operate on:
+- Single sequences or batches (uses multiprocessing)
+- Different alphabets: nucleotide, codon, or amino acid
+- Global or position-specific matching
 
 ## References
 
-- Pettersen, E.F., Goddard, T.D., Huang, C.C., et al. (2004). UCSF Chimera—a visualization system for exploratory research and analysis. *Journal of Computational Chemistry*, 25(13), 1605-1612. https://doi.org/10.1002/jcc.20084
+- Zur, H., & Tuller, T. (2015). Exploiting hidden information interleaved in the redundancy of the genetic code without prior knowledge. *Bioinformatics*, 31(9), 1398-1404. https://doi.org/10.1093/bioinformatics/btu797
 
-- Pettersen, E.F., Goddard, T.D., Huang, C.C., et al. (2021). UCSF ChimeraX: Structure visualization for researchers, educators, and developers. *Protein Science*, 30(1), 70-82. https://doi.org/10.1002/pro.3943
+- Diament, A., Schreiber, M., & Tuller, T. (2019). ChimeraUGEM: unsupervised gene expression modeling in any given organism. *Bioinformatics*, 35(13), 2243-2250. https://doi.org/10.1093/bioinformatics/btz080
 
-- Hubbard, S.J., & Thornton, J.M. (1993). NACCESS: Computer program for calculating accessible surface areas. Department of Biochemistry and Molecular Biology, University College London. http://www.bioinf.manchester.ac.uk/naccess/
+- Burghardt, L., et al. (2025). Multi-sequence Chimera Map for optimizing gene expression in multi-copy systems. (In preparation)
 
 ## Upstream library links
 
 - pyChimera GitHub: https://github.com/CompSynthBio/pyChimera
-- UCSF Chimera homepage: https://www.cgl.ucsf.edu/chimera/
-- UCSF ChimeraX homepage: https://www.cgl.ucsf.edu/chimerax/
+- ChimeraUGEM website: https://www.cs.tau.ac.il/~tamirtul/ChimeraUGEM/
+- Zenodo DOI: https://doi.org/10.5281/zenodo.17577902
 
 ## Examples
 
-### Basic Usage (Stub)
+### Basic Usage: cARS Prediction
 
 ```python
 from biotooler.families.chimera import ChimeraFeature
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-# This is a stub - actual implementation pending
-# feature = ChimeraFeature()
-# record = SeqRecord(Seq("MKTAYIAKQRQISFVKSHFSRQ"), id="test_protein")
-# result = feature(record)
-# print(result)
+# Create reference set (e.g., highly expressed E. coli genes)
+reference_genes = [
+    "ATGAAACGCATTAGCACCACCATTACC...",  # Gene 1
+    "ATGGCAAGCGTTATTAAAGGTGTTACC...",  # Gene 2
+    # ... more reference genes
+]
+
+# Target gene to analyze
+target_gene = "ATGACCGTTAAAGGTGTTACCATCGAA..."
+
+# Create feature and compute cARS score
+feature = ChimeraFeature(reference_genes, algorithm="cARS")
+record = SeqRecord(Seq(target_gene), id="my_gene")
+result = feature(record)
+print(result)  # {'cARS_score': 35.2}
 ```
 
-### Future Usage Example
-
-When implemented, the feature will support workflows like:
+### Advanced: Position-Specific cARS
 
 ```python
-# Load a PDB structure and compute features
-from biotooler.families.chimera import ChimeraFeature
-from Bio.PDB import PDBParser
-
-parser = PDBParser()
-structure = parser.get_structure("protein", "structure.pdb")
-
-# Compute structural features
-feature = ChimeraFeature()
-result = feature(structure)
-print(result)
-# Expected output: {'sasa_total': 12500.5, 'helix_content': 0.35, ...}
+# Use position-specific algorithm with window parameters
+win_params = {'size': 40, 'center': 0, 'by_start': True, 'by_stop': True}
+feature = ChimeraFeature(
+    reference_genes,
+    algorithm="PScARS",
+    win_params=win_params,
+    max_len=40,
+    max_pos=0.5
+)
+result = feature(record)
+print(result)  # {'PScARS_score': 38.7}
 ```
 
 ## Edge cases and validation
@@ -127,31 +150,33 @@ print(result)
 ### Known limitations
 
 - Feature computation not yet implemented (stub only)
-- Requires pyChimera installation which has specific system dependencies
-- PyChimera may require UCSF Chimera or ChimeraX to be installed separately
-- Structure-based analysis requires 3D coordinates (PDB files or predictions)
+- Requires pyChimera installation: `pip install git+https://github.com/CompSynthBio/pyChimera`
+- Suffix array preprocessing required for reference sequences (can be cached)
+- Optimal for coding sequences; less meaningful for non-coding regions
+- Reference set quality impacts prediction accuracy
 
 ## Maintenance notes
 
 ### Dependencies
 
-- **pyChimera**: Python interface to UCSF Chimera (optional, installed via `pip install "biotooler[chimera]"`)
-- **UCSF Chimera/ChimeraX**: May be required as a system dependency for pyChimera
+- **pyChimera**: Python implementation of Chimera algorithms (optional, installed via `pip install "biotooler[chimera]"`)
 - **BioPython**: For SeqRecord handling (core biotooler dependency)
+- **NumPy**: Required by pyChimera for suffix array operations
 
 ### Future enhancements
 
-- Implement core structural feature computation
-- Add support for multiple structure file formats
-- Support batch processing of multiple structures
-- Add visualization output capabilities
-- Integrate with structure prediction tools (AlphaFold, RoseTTAFold)
-- Interface analysis capabilities (useful for protein-protein interactions and fusion proteins)
-- Domain boundary detection algorithms
+- Implement cARS score computation
+- Implement PScARS with position-specific scoring
+- Add cMap/PScMap optimization features
+- Support for caching suffix arrays
+- Batch processing optimization
+- Support for different sequence alphabets (nt, codon, aa)
+- Integration with codon usage tables
+- Homolog filtering options
 
 ### Testing strategy
 
 - Lazy import tests ensure pyChimera is not loaded on module import
 - Feature instantiation tests verify proper error messages without pyChimera
-- Integration tests will be added when feature computation is implemented
-- Structure validation tests will ensure proper handling of PDB files
+- Integration tests will validate cARS scores against known examples
+- Performance tests for suffix array construction and querying
