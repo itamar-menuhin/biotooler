@@ -318,3 +318,295 @@ class TestIterWindows:
         # Verify molecule_type is copied to windows
         for window in windows:
             assert window.annotations["molecule_type"] == "DNA"
+
+
+class TestComputeWindowIndices:
+    """Tests for compute_window_indices helper function."""
+
+    def test_codon_space_basic(self):
+        """Test basic codon-space window indexing."""
+        from biotooler.core.windowing import compute_window_indices
+
+        # 15 nt = 5 codons, window size 9 nt, step 3 nt
+        indices = compute_window_indices(
+            15, window_size=9, step=3, position_space="codon"
+        )
+
+        assert len(indices) == 3
+        assert indices[0] == (0, 9)
+        assert indices[1] == (3, 12)
+        assert indices[2] == (6, 15)
+
+    def test_codon_space_with_start_offset(self):
+        """Test codon-space windowing with start offset."""
+        from biotooler.core.windowing import compute_window_indices
+
+        indices = compute_window_indices(
+            15, window_size=9, step=3, position_space="codon", start_offset=3
+        )
+
+        assert len(indices) == 2
+        assert indices[0] == (3, 12)
+        assert indices[1] == (6, 15)
+
+    def test_codon_space_step_not_multiple_of_3_error(self):
+        """Test that step not multiple of 3 raises error for codon space."""
+        from biotooler.core.windowing import compute_window_indices
+
+        with pytest.raises(ValueError, match="step must be a multiple of 3"):
+            compute_window_indices(15, window_size=9, step=1, position_space="codon")
+
+        with pytest.raises(ValueError, match="step must be a multiple of 3"):
+            compute_window_indices(15, window_size=9, step=4, position_space="codon")
+
+    def test_codon_space_start_offset_not_multiple_of_3_error(self):
+        """Test that start_offset not multiple of 3 raises error for codon space."""
+        from biotooler.core.windowing import compute_window_indices
+
+        with pytest.raises(ValueError, match="start_offset must be a multiple of 3"):
+            compute_window_indices(
+                15, window_size=9, step=3, position_space="codon", start_offset=1
+            )
+
+    def test_residue_space_step_1_allowed(self):
+        """Test that step=1 is allowed for residue space."""
+        from biotooler.core.windowing import compute_window_indices
+
+        # 10 residues, window size 5, step 1
+        indices = compute_window_indices(
+            10, window_size=5, step=1, position_space="residue"
+        )
+
+        # Should get windows at positions 0, 1, 2, 3, 4, 5
+        assert len(indices) == 6
+        assert indices[0] == (0, 5)
+        assert indices[1] == (1, 6)
+        assert indices[2] == (2, 7)
+        assert indices[3] == (3, 8)
+        assert indices[4] == (4, 9)
+        assert indices[5] == (5, 10)
+
+    def test_residue_space_any_step_allowed(self):
+        """Test that any positive step is allowed for residue space."""
+        from biotooler.core.windowing import compute_window_indices
+
+        # Step 2 (not multiple of 3) should work for residue space
+        indices = compute_window_indices(
+            10, window_size=4, step=2, position_space="residue"
+        )
+
+        assert len(indices) == 4
+        assert indices[0] == (0, 4)
+        assert indices[1] == (2, 6)
+        assert indices[2] == (4, 8)
+        assert indices[3] == (6, 10)
+
+    def test_drop_partial_true(self):
+        """Test that partial windows are dropped when drop_partial=True."""
+        from biotooler.core.windowing import compute_window_indices
+
+        # 14 nt, window 9 nt, step 3 nt
+        indices = compute_window_indices(
+            14, window_size=9, step=3, position_space="codon", drop_partial=True
+        )
+
+        # Should only get full windows at 0 and 3
+        assert len(indices) == 2
+        assert indices[0] == (0, 9)
+        assert indices[1] == (3, 12)
+
+    def test_drop_partial_false(self):
+        """Test that partial windows are included when drop_partial=False."""
+        from biotooler.core.windowing import compute_window_indices
+
+        # 14 nt, window 9 nt, step 3 nt
+        indices = compute_window_indices(
+            14, window_size=9, step=3, position_space="codon", drop_partial=False
+        )
+
+        # Should get windows at 0, 3, 6, 9, 12
+        assert len(indices) == 5
+        assert indices[0] == (0, 9)  # Full
+        assert indices[1] == (3, 12)  # Full
+        assert indices[2] == (6, 14)  # Partial (8 nt)
+        assert indices[3] == (9, 14)  # Partial (5 nt)
+        assert indices[4] == (12, 14)  # Partial (2 nt)
+
+    def test_invalid_window_size(self):
+        """Test that invalid window_size raises ValueError."""
+        from biotooler.core.windowing import compute_window_indices
+
+        with pytest.raises(ValueError, match="window_size must be positive"):
+            compute_window_indices(15, window_size=0, step=3, position_space="codon")
+
+        with pytest.raises(ValueError, match="window_size must be positive"):
+            compute_window_indices(15, window_size=-1, step=3, position_space="codon")
+
+    def test_invalid_step(self):
+        """Test that invalid step raises ValueError."""
+        from biotooler.core.windowing import compute_window_indices
+
+        with pytest.raises(ValueError, match="step must be positive"):
+            compute_window_indices(15, window_size=9, step=0, position_space="codon")
+
+        with pytest.raises(ValueError, match="step must be positive"):
+            compute_window_indices(15, window_size=9, step=-3, position_space="codon")
+
+    def test_invalid_position_space(self):
+        """Test that invalid position_space raises ValueError."""
+        from biotooler.core.windowing import compute_window_indices
+
+        with pytest.raises(ValueError, match="position_space must be"):
+            compute_window_indices(
+                15, window_size=9, step=3, position_space="invalid"
+            )
+
+    def test_empty_result_when_window_too_large(self):
+        """Test empty result when window size exceeds sequence length."""
+        from biotooler.core.windowing import compute_window_indices
+
+        indices = compute_window_indices(
+            6, window_size=9, step=3, position_space="codon", drop_partial=True
+        )
+
+        assert len(indices) == 0
+
+    def test_single_window_exact_fit(self):
+        """Test single window when it exactly fits the sequence."""
+        from biotooler.core.windowing import compute_window_indices
+
+        indices = compute_window_indices(
+            9, window_size=9, step=3, position_space="codon"
+        )
+
+        assert len(indices) == 1
+        assert indices[0] == (0, 9)
+
+
+class TestComputeWindowIndexArrays:
+    """Tests for compute_window_index_arrays helper function."""
+
+    def test_codon_output_space(self):
+        """Test conversion to codon index space."""
+        from biotooler.core.windowing import compute_window_index_arrays
+
+        # 15 nt = 5 codons, window 9 nt (3 codons), step 3 nt (1 codon)
+        arrays = compute_window_index_arrays(
+            15, window_size=9, step=3, position_space="codon", output_space="codon"
+        )
+
+        assert len(arrays) == 3
+
+        # Window 0: nt 0-9 -> codons 0-2 (indices 0, 1, 2)
+        assert arrays[0].tolist() == [0, 1, 2]
+
+        # Window 1: nt 3-12 -> codons 1-3 (indices 1, 2, 3)
+        assert arrays[1].tolist() == [1, 2, 3]
+
+        # Window 2: nt 6-15 -> codons 2-4 (indices 2, 3, 4)
+        assert arrays[2].tolist() == [2, 3, 4]
+
+    def test_residue_output_space_step_1(self):
+        """Test residue space with step=1."""
+        from biotooler.core.windowing import compute_window_index_arrays
+
+        # 10 residues, window 3, step 1
+        arrays = compute_window_index_arrays(
+            10, window_size=3, step=1, position_space="residue", output_space="residue"
+        )
+
+        assert len(arrays) == 8
+
+        # First few windows
+        assert arrays[0].tolist() == [0, 1, 2]
+        assert arrays[1].tolist() == [1, 2, 3]
+        assert arrays[2].tolist() == [2, 3, 4]
+
+        # Last window
+        assert arrays[7].tolist() == [7, 8, 9]
+
+    def test_residue_output_space_default(self):
+        """Test that output_space=None keeps residue indices."""
+        from biotooler.core.windowing import compute_window_index_arrays
+
+        arrays = compute_window_index_arrays(
+            10, window_size=3, step=2, position_space="residue"
+        )
+
+        assert len(arrays) == 4
+        assert arrays[0].tolist() == [0, 1, 2]
+        assert arrays[1].tolist() == [2, 3, 4]
+        assert arrays[2].tolist() == [4, 5, 6]
+        assert arrays[3].tolist() == [6, 7, 8]
+
+    def test_with_start_offset(self):
+        """Test with start_offset in codon space."""
+        from biotooler.core.windowing import compute_window_index_arrays
+
+        arrays = compute_window_index_arrays(
+            15,
+            window_size=9,
+            step=3,
+            position_space="codon",
+            output_space="codon",
+            start_offset=3,
+        )
+
+        assert len(arrays) == 2
+
+        # Window at nt 3-12 -> codons 1-3
+        assert arrays[0].tolist() == [1, 2, 3]
+
+        # Window at nt 6-15 -> codons 2-4
+        assert arrays[1].tolist() == [2, 3, 4]
+
+    def test_invalid_output_space(self):
+        """Test that invalid output_space raises ValueError."""
+        from biotooler.core.windowing import compute_window_index_arrays
+
+        with pytest.raises(ValueError, match="output_space must be"):
+            compute_window_index_arrays(
+                15,
+                window_size=9,
+                step=3,
+                position_space="codon",
+                output_space="invalid",
+            )
+
+    def test_drop_partial_affects_array_count(self):
+        """Test that drop_partial affects the number of arrays."""
+        from biotooler.core.windowing import compute_window_index_arrays
+
+        arrays_with_drop = compute_window_index_arrays(
+            14,
+            window_size=9,
+            step=3,
+            position_space="codon",
+            output_space="codon",
+            drop_partial=True,
+        )
+
+        arrays_without_drop = compute_window_index_arrays(
+            14,
+            window_size=9,
+            step=3,
+            position_space="codon",
+            output_space="codon",
+            drop_partial=False,
+        )
+
+        assert len(arrays_with_drop) == 2  # Only full windows
+        assert len(arrays_without_drop) == 5  # Including partial windows
+
+    def test_array_dtypes(self):
+        """Test that returned arrays are numpy arrays."""
+        from biotooler.core.windowing import compute_window_index_arrays
+        import numpy as np
+
+        arrays = compute_window_index_arrays(
+            15, window_size=9, step=3, position_space="codon", output_space="codon"
+        )
+
+        for arr in arrays:
+            assert isinstance(arr, np.ndarray)
+            assert arr.dtype == np.int_  # Should be integer type

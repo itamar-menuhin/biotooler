@@ -2,6 +2,7 @@
 
 from collections.abc import Iterator
 
+import numpy as np
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
@@ -241,3 +242,197 @@ def iter_orf_codon_windows(
 
         window_index += 1
         window_start_in_orf += step_nt
+
+
+def compute_window_indices(
+    sequence_length: int,
+    window_size: int,
+    step: int,
+    *,
+    drop_partial: bool = True,
+    position_space: str = "nucleotide",
+    start_offset: int = 0,
+) -> list[tuple[int, int]]:
+    """Compute window start/end index pairs for sliding windows.
+
+    This is a shared indexing logic helper that generates window boundaries
+    with proper validation for different position spaces (nucleotide codon-space
+    vs amino acid/residue space).
+
+    For nucleotide codon-space windows (position_space="codon"):
+    - step and start_offset must be multiples of 3 (enforced)
+    - window_size must be positive
+    - indices are in nucleotide space (not codon space)
+
+    For amino acid/residue windows (position_space="residue"):
+    - step=1 is allowed (and any positive step)
+    - window_size must be positive
+    - no codon alignment restrictions
+
+    Args:
+        sequence_length: Length of the sequence in nucleotides or residues
+        window_size: Size of each window in nucleotides or residues (must be positive)
+        step: Step size between windows in nucleotides or residues (must be positive)
+        drop_partial: If True, drops windows smaller than window_size at the end
+        position_space: Either "codon" (enforces multiples of 3) or "residue" (no restrictions)
+        start_offset: Starting offset for the first window (default: 0)
+
+    Returns:
+        List of (start, end) tuples representing window boundaries in nucleotide/residue space
+
+    Raises:
+        ValueError: If parameters are invalid, or if position_space="codon" and
+                   step or start_offset are not multiples of 3
+
+    Examples:
+        >>> # Codon-space windows (step must be multiple of 3)
+        >>> compute_window_indices(15, window_size=9, step=3, position_space="codon")
+        [(0, 9), (3, 12), (6, 15)]
+
+        >>> # Residue-space windows (step=1 allowed)
+        >>> compute_window_indices(10, window_size=5, step=1, position_space="residue")
+        [(0, 5), (1, 6), (2, 7), (3, 8), (4, 9), (5, 10)]
+
+        >>> # Codon-space with start_offset
+        >>> compute_window_indices(
+        ...     15, window_size=9, step=3, position_space="codon", start_offset=3
+        ... )
+        [(3, 12), (6, 15)]
+
+        >>> # Error: step not multiple of 3 for codon space
+        >>> compute_window_indices(15, window_size=9, step=1, position_space="codon")
+        Traceback (most recent call last):
+        ...
+        ValueError: For codon position space, step must be a multiple of 3, got 1
+    """
+    # Validate window_size
+    if window_size <= 0:
+        raise ValueError(f"window_size must be positive, got {window_size}")
+
+    # Validate step
+    if step <= 0:
+        raise ValueError(f"step must be positive, got {step}")
+
+    # Validate position_space
+    if position_space not in ("codon", "residue"):
+        raise ValueError(
+            f"position_space must be 'codon' or 'residue', got {position_space!r}"
+        )
+
+    # Enforce codon alignment for codon space
+    if position_space == "codon":
+        if step % 3 != 0:
+            raise ValueError(
+                f"For codon position space, step must be a multiple of 3, got {step}"
+            )
+        if start_offset % 3 != 0:
+            raise ValueError(
+                f"For codon position space, start_offset must be a multiple of 3, "
+                f"got {start_offset}"
+            )
+
+    # Generate window boundaries
+    windows = []
+    start = start_offset
+
+    while start < sequence_length:
+        end = min(start + window_size, sequence_length)
+
+        # Skip partial windows if drop_partial is True
+        if drop_partial and (end - start) < window_size:
+            break
+
+        windows.append((start, end))
+        start += step
+
+    return windows
+
+
+def compute_window_index_arrays(
+    sequence_length: int,
+    window_size: int,
+    step: int,
+    *,
+    drop_partial: bool = True,
+    position_space: str = "nucleotide",
+    start_offset: int = 0,
+    output_space: str | None = None,
+) -> list[np.ndarray]:
+    """Compute index arrays for each window, optionally converting to codon/residue space.
+
+    This helper produces numpy index arrays that can be used to slice position-space
+    vectors (e.g., per-codon or per-residue feature vectors) for windowing operations.
+
+    For nucleotide sequences with codon-space features:
+    - position_space="codon" enforces step/start multiples of 3
+    - output_space="codon" converts nucleotide indices to codon indices (divides by 3)
+    - Returns arrays of codon indices for slicing codon-space vectors
+
+    For amino acid sequences with residue-space features:
+    - position_space="residue" allows any step (including step=1)
+    - output_space="residue" (or None) keeps residue indices
+    - Returns arrays of residue indices for slicing residue-space vectors
+
+    Args:
+        sequence_length: Length of the sequence in nucleotides or residues
+        window_size: Size of each window in nucleotides or residues
+        step: Step size between windows in nucleotides or residues
+        drop_partial: If True, drops windows smaller than window_size
+        position_space: Either "codon" or "residue" (for validation)
+        start_offset: Starting offset for the first window (default: 0)
+        output_space: Optional conversion space. If "codon", converts nucleotide
+                     indices to codon indices by dividing by 3. If None or "residue",
+                     keeps original indices.
+
+    Returns:
+        List of numpy arrays, one per window, containing indices in the output space
+
+    Raises:
+        ValueError: If parameters are invalid or incompatible
+
+    Examples:
+        >>> # Codon-space windows with codon output
+        >>> arrays = compute_window_index_arrays(
+        ...     15, window_size=9, step=3, position_space="codon", output_space="codon"
+        ... )
+        >>> [arr.tolist() for arr in arrays]
+        [[0, 1, 2], [1, 2, 3], [2, 3, 4]]
+
+        >>> # Residue-space windows with step=1
+        >>> arrays = compute_window_index_arrays(
+        ...     10, window_size=3, step=1, position_space="residue"
+        ... )
+        >>> [arr.tolist() for arr in arrays]
+        [[0, 1, 2], [1, 2, 3], [2, 3, 4], [3, 4, 5], [4, 5, 6], [5, 6, 7], [6, 7, 8], [7, 8, 9]]
+    """
+    # Get window boundaries in nucleotide/residue space
+    window_boundaries = compute_window_indices(
+        sequence_length=sequence_length,
+        window_size=window_size,
+        step=step,
+        drop_partial=drop_partial,
+        position_space=position_space,
+        start_offset=start_offset,
+    )
+
+    # Convert to index arrays
+    index_arrays = []
+    for start, end in window_boundaries:
+        # Convert to output space if requested
+        if output_space == "codon":
+            # Convert nucleotide boundaries to codon indices
+            # For codon space, start and end should be divisible by 3
+            codon_start = start // 3
+            codon_end = end // 3
+            indices = np.arange(codon_start, codon_end)
+        elif output_space is None or output_space == "residue":
+            # Generate indices in the original space
+            indices = np.arange(start, end)
+        else:
+            raise ValueError(
+                f"output_space must be 'codon', 'residue', or None, got {output_space!r}"
+            )
+
+        index_arrays.append(indices)
+
+    return index_arrays
