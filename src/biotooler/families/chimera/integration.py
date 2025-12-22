@@ -6,7 +6,7 @@ This module provides helper functions for lazy loading of pyChimera dependency.
 from biotooler.core.lazy_import import lazy_import
 
 
-def require_chimera_dep():
+def require_pychimera():
     """Require pyChimera dependency with lazy loading.
 
     This function lazily imports pyChimera and raises a helpful error message
@@ -19,7 +19,7 @@ def require_chimera_dep():
         ImportError: If pyChimera is not installed, with installation instructions
     """
     return lazy_import(
-        "pyChimera",
+        "pychimera",
         extra="chimera",
         purpose="computing gene expression features using Chimera algorithms",
     )
