@@ -12,6 +12,12 @@ from typing import Any
 # Static registry of families with their metadata
 # This is manually maintained to avoid importing any family modules
 FAMILIES: dict[str, dict[str, Any]] = {
+    "chimera": {
+        "summary": "Chimeric protein structure analysis using pyChimera",
+        "extra": "chimera",  # pip install extra name
+        "owner": "@itamar-menuhin",
+        "heavy": True,  # Has heavy optional dependencies
+    },
     "codon_bias": {
         "summary": "Codon usage bias features using external codonbias package",
         "extra": "codon_bias",  # pip install extra name

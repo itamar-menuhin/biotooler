@@ -11,6 +11,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+chimera = [
+    "pychimera",
+]
 codon_bias = [
     "codon-bias",
 ]
