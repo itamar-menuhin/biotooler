@@ -1,10 +1,16 @@
 """Base interfaces for feature computation."""
 
-from typing import Protocol
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Protocol
 
 from Bio.SeqRecord import SeqRecord
 
 from biotooler.core.types import Scalar
+from biotooler.features.aggregation import AggregationSpec, PositionSpace
+
+if TYPE_CHECKING:
+    import numpy as np
 
 
 class IncrementalFeature(Protocol):
@@ -90,5 +96,68 @@ class IncrementalFeature(Protocol):
 
         Returns:
             Dictionary mapping feature names to scalar values
+        """
+        ...
+
+
+class PositionalFeature(Protocol):
+    """Protocol for features that compute per-position values before window aggregation.
+
+    The new windowing semantics:
+    1. Compute per-position values across the full sequence
+    2. Aggregate per-position values into windows using specified aggregation functions
+
+    This protocol requires:
+    - position_space: The space in which positions are computed (RESIDUE or CODON)
+    - vector_keys: Mapping of feature keys to their aggregation specifications
+    - compute_vector: Method to compute per-position feature values
+
+    Example:
+        >>> class GCContentFeature:
+        ...     @property
+        ...     def position_space(self):
+        ...         return PositionSpace.RESIDUE
+        ...
+        ...     @property
+        ...     def vector_keys(self):
+        ...         return {"gc": AggregationSpec(aggregation_fn=np.mean)}
+        ...
+        ...     def compute_vector(self, record, **kwargs):
+        ...         seq = str(record.seq).upper()
+        ...         gc_vector = np.array([1.0 if b in 'GC' else 0.0 for b in seq])
+        ...         return {"gc": gc_vector}
+    """
+
+    @property
+    def position_space(self) -> PositionSpace:
+        """The position space for this feature (RESIDUE or CODON).
+
+        Returns:
+            PositionSpace indicating whether features are computed per residue or codon
+        """
+        ...
+
+    @property
+    def vector_keys(self) -> dict[str, AggregationSpec]:
+        """Mapping of feature keys to aggregation specifications.
+
+        Returns:
+            Dictionary mapping feature names to AggregationSpec objects that define
+            how per-position values should be aggregated into window values
+        """
+        ...
+
+    def compute_vector(
+        self, record: SeqRecord, **kwargs
+    ) -> dict[str, np.ndarray]:
+        """Compute per-position feature values for the entire sequence.
+
+        Args:
+            record: The SeqRecord containing the sequence
+            **kwargs: Additional parameters that may be needed
+
+        Returns:
+            Dictionary mapping feature names to numpy arrays of per-position values.
+            Array length should match the sequence length in the position_space.
         """
         ...
