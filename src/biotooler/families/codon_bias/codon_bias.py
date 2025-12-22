@@ -1,13 +1,17 @@
 """Codon usage bias feature computation using codonbias package."""
 
 from collections.abc import Sequence
+from typing import Any
 
-import codonbias.scores
-import codonbias.stats
-import codonbias.utils
 from Bio.SeqRecord import SeqRecord
 
+from biotooler.core.lazy_import import lazy_import
 from biotooler.core.seq_utils import get_seq_str
+
+# Lazy import codonbias modules
+codonbias = lazy_import(  # type: ignore[misc]
+    "codonbias", extra="codon_bias", purpose="computing codon usage bias features"
+)
 
 
 class CodonBiasFeature:
@@ -48,7 +52,7 @@ class CodonBiasFeature:
 
     def __init__(
         self,
-        models: Sequence[codonbias.scores.ScalarScore],
+        models: Sequence[Any],  # codonbias.scores.ScalarScore
         *,
         names: Sequence[str] | None = None,
     ):
@@ -134,7 +138,7 @@ class CodonBiasFeature:
         seq_str = _convert_rna_to_dna(seq_str)
 
         # Initialize codon counter
-        counter = codonbias.stats.CodonCounter(seq_str)
+        counter = codonbias.stats.CodonCounter(seq_str)  # type: ignore[attr-defined]
         codon_counts = counter.get_codon_table()
 
         # Try to get weights for each model and determine if incremental is possible
@@ -190,7 +194,7 @@ class CodonBiasFeature:
             abs_out_end = orf_start + out_end
             out_seq = get_seq_str(record)[abs_out_start:abs_out_end]
             out_seq = _convert_rna_to_dna(out_seq)
-            out_counter = codonbias.stats.CodonCounter(out_seq)
+            out_counter = codonbias.stats.CodonCounter(out_seq)  # type: ignore[attr-defined]
             out_counts = out_counter.get_codon_table()
             codon_counts -= out_counts
 
@@ -200,7 +204,7 @@ class CodonBiasFeature:
             abs_in_end = orf_start + in_end
             in_seq = get_seq_str(record)[abs_in_start:abs_in_end]
             in_seq = _convert_rna_to_dna(in_seq)
-            in_counter = codonbias.stats.CodonCounter(in_seq)
+            in_counter = codonbias.stats.CodonCounter(in_seq)  # type: ignore[attr-defined]
             in_counts = in_counter.get_codon_table()
             codon_counts += in_counts
 
@@ -242,10 +246,14 @@ class CodonBiasFeature:
 
                     if weight_type == "log":
                         # Use geometric mean for log weights
-                        score = codonbias.utils.geomean(weights, codon_counts)
+                        score = codonbias.utils.geomean(  # type: ignore[attr-defined]
+                            weights, codon_counts
+                        )
                     else:
                         # Use arithmetic mean for regular weights
-                        score = codonbias.utils.mean(weights, codon_counts)
+                        score = codonbias.utils.mean(  # type: ignore[attr-defined]
+                            weights, codon_counts
+                        )
                 except Exception:
                     # Incremental computation failed - will use baseline fallback
                     score = None
@@ -291,7 +299,7 @@ def _convert_rna_to_dna(seq_str: str) -> str:
 
 
 def _try_get_weights(
-    model: codonbias.scores.ScalarScore,
+    model: Any,  # codonbias.scores.ScalarScore
 ) -> dict:
     """Try to extract weights from a codonbias model for incremental computation.
 

@@ -6,16 +6,19 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "biopython",
-    "codon-bias",
     "numpy",
     "pandas",
 ]
 
 [project.optional-dependencies]
+codon_bias = [
+    "codon-bias",
+]
 dev = [
     "pytest",
     "ruff",
     "pyright",
+    "codon-bias",  # Required for running tests
 ]
 
 [build-system]
