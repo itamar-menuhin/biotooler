@@ -1,6 +1,8 @@
 """Codon usage bias feature computation using codonbias package."""
 
+import hashlib
 import inspect
+from collections import OrderedDict
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -36,6 +38,7 @@ class CodonBiasFeature:
     Args:
         models: List of codonbias.scores.ScalarScore instances to compute
         names: Optional list of names for each model (defaults to model class names)
+        max_cache_size: Maximum number of model sets to cache (default: 8)
 
     Examples:
         >>> from codonbias.scores import CodonAdaptationIndex, EffectiveNumberOfCodons
@@ -59,12 +62,14 @@ class CodonBiasFeature:
         models: Sequence[Any],  # codonbias.scores.ScalarScore
         *,
         names: Sequence[str] | None = None,
+        max_cache_size: int = 8,
     ):
         """Initialize CodonBiasFeature.
 
         Args:
             models: Sequence of codonbias.scores.ScalarScore instances
             names: Optional sequence of names for each model (must match length of models)
+            max_cache_size: Maximum number of model sets to cache (default: 8)
 
         Raises:
             ValueError: If names is provided but length doesn't match models
@@ -80,6 +85,10 @@ class CodonBiasFeature:
                     f"({len(self.models)})"
                 )
             self.names = list(names) if not isinstance(names, list) else names
+        
+        # Initialize bounded cache for model building
+        self._model_cache: OrderedDict[str, list[Any]] = OrderedDict()
+        self._max_cache_size = max_cache_size
 
     @classmethod
     def from_reference(
@@ -89,11 +98,17 @@ class CodonBiasFeature:
         *,
         names: Sequence[str] | None = None,
         score_kwargs: dict[str, dict[str, Any]] | None = None,
+        model_cache: OrderedDict[str, list[Any]] | None = None,
+        max_cache_size: int = 8,
     ) -> "CodonBiasFeature":
         """Create CodonBiasFeature from a ReferenceSequenceSet.
 
         This factory method builds codon bias score models from a shared reference
         sequence set, automatically handling reference sequence requirements.
+
+        Models are cached to avoid expensive rebuilds when the same reference set
+        and parameters are used repeatedly. The cache can be shared across multiple
+        from_reference calls by passing the same OrderedDict instance.
 
         Args:
             reference_set: ReferenceSequenceSet containing CDS sequences
@@ -105,6 +120,9 @@ class CodonBiasFeature:
             names: Optional custom names for the scores (defaults to abbreviations or class names)
             score_kwargs: Optional dict mapping score identifiers to their constructor kwargs
                 Example: {"CAI": {"genetic_code": 11}, "ENC": {"bg_correction": True}}
+            model_cache: Optional cache dictionary for reusing models (feature-instance scoped).
+                If None, a new cache is created for this call.
+            max_cache_size: Maximum number of model sets to cache (default: 8)
 
         Returns:
             CodonBiasFeature instance with instantiated score models
@@ -127,6 +145,12 @@ class CodonBiasFeature:
             ...     names=["CAI", "ENC"],
             ...     score_kwargs={"CAI": {"genetic_code": 11}}
             ... )
+            >>> # Reusing cache across multiple calls
+            >>> from collections import OrderedDict
+            >>> cache = OrderedDict()
+            >>> feature1 = CodonBiasFeature.from_reference(ref_set, ["CAI"], model_cache=cache)
+            >>> feature2 = CodonBiasFeature.from_reference(ref_set, ["CAI"], model_cache=cache)
+            >>> # feature2 reuses models built for feature1
         """
         # Check if reference_set has CDS sequences
         if not reference_set.cds:
@@ -134,53 +158,75 @@ class CodonBiasFeature:
                 "ReferenceSequenceSet must contain CDS sequences to build codon bias models"
             )
 
-        # Get concatenated reference sequences for models that need ref_seq
-        ref_seq_strings = reference_set.cds_strings()
-        concatenated_ref_seq = "".join(ref_seq_strings)
+        # Initialize or use provided cache
+        if model_cache is None:
+            model_cache = OrderedDict()
 
-        # Resolve score identifiers and instantiate models
-        models = []
-        resolved_names = []
+        # Generate cache key
+        cache_key = _generate_cache_key(reference_set, scores, score_kwargs)
 
-        for score_id in scores:
-            # Resolve the score class
-            score_class = _resolve_score_identifier(score_id)
+        # Check if models are already cached
+        if cache_key in model_cache:
+            # Move to end for LRU behavior
+            model_cache.move_to_end(cache_key)
+            models = model_cache[cache_key]
+            # Resolve names for cached models
+            resolved_names = [type(model).__name__ for model in models]
+        else:
+            # Build models since not in cache
+            # Get concatenated reference sequences for models that need ref_seq
+            ref_seq_strings = reference_set.cds_strings()
+            concatenated_ref_seq = "".join(ref_seq_strings)
 
-            # Check if it's already an instance
-            if not inspect.isclass(score_class):
-                # Already instantiated
-                models.append(score_class)
-                resolved_names.append(type(score_class).__name__)
-                continue
+            # Resolve score identifiers and instantiate models
+            models = []
+            resolved_names = []
 
-            # Get kwargs for this score if provided
-            kwargs = {}
-            if score_kwargs:
-                # Try to match by various identifiers in order of specificity:
-                # 1. Original score_id (as provided by user)
-                # 2. Class name (e.g., "CodonAdaptationIndex")
-                # 3. Abbreviation (e.g., "CAI")
-                for key in [score_id, score_class.__name__,
-                           _get_score_abbreviation(score_class.__name__)]:
-                    if isinstance(key, str) and key in score_kwargs:
-                        kwargs = score_kwargs[key].copy()
-                        break
+            for score_id in scores:
+                # Resolve the score class
+                score_class = _resolve_score_identifier(score_id)
 
-            # Check if the score class accepts ref_seq parameter
-            sig = inspect.signature(score_class.__init__)
-            if "ref_seq" in sig.parameters:
-                # Pass the concatenated reference sequence
-                kwargs["ref_seq"] = concatenated_ref_seq
+                # Check if it's already an instance
+                if not inspect.isclass(score_class):
+                    # Already instantiated
+                    models.append(score_class)
+                    resolved_names.append(type(score_class).__name__)
+                    continue
 
-            # Instantiate the score
-            try:
-                model = score_class(**kwargs)
-                models.append(model)
-                resolved_names.append(score_class.__name__)
-            except TypeError as e:
-                raise TypeError(
-                    f"Failed to instantiate {score_class.__name__}: {e}"
-                ) from e
+                # Get kwargs for this score if provided
+                kwargs = {}
+                if score_kwargs:
+                    # Try to match by various identifiers in order of specificity:
+                    # 1. Original score_id (as provided by user)
+                    # 2. Class name (e.g., "CodonAdaptationIndex")
+                    # 3. Abbreviation (e.g., "CAI")
+                    for key in [score_id, score_class.__name__,
+                               _get_score_abbreviation(score_class.__name__)]:
+                        if isinstance(key, str) and key in score_kwargs:
+                            kwargs = score_kwargs[key].copy()
+                            break
+
+                # Check if the score class accepts ref_seq parameter
+                sig = inspect.signature(score_class.__init__)
+                if "ref_seq" in sig.parameters:
+                    # Pass the concatenated reference sequence
+                    kwargs["ref_seq"] = concatenated_ref_seq
+
+                # Instantiate the score
+                try:
+                    model = score_class(**kwargs)
+                    models.append(model)
+                    resolved_names.append(score_class.__name__)
+                except TypeError as e:
+                    raise TypeError(
+                        f"Failed to instantiate {score_class.__name__}: {e}"
+                    ) from e
+
+            # Cache the built models with LRU eviction
+            model_cache[cache_key] = models
+            # Evict oldest if cache is full
+            if len(model_cache) > max_cache_size:
+                model_cache.popitem(last=False)  # Remove oldest (FIFO)
 
         # Use provided names or resolved names
         if names is None:
@@ -190,7 +236,10 @@ class CodonBiasFeature:
                 for name in resolved_names
             ]
 
-        return cls(models, names=names)
+        # Create instance with models and cache
+        instance = cls(models, names=names, max_cache_size=max_cache_size)
+        instance._model_cache = model_cache
+        return instance
 
     def __call__(self, record: SeqRecord) -> dict[str, float]:
         """Compute codon bias scores for the entire sequence.
@@ -557,3 +606,57 @@ def _get_score_abbreviation(class_name: str) -> str:
         "CodonPairBias": "CPB",
     }
     return name_to_abbrev.get(class_name, "")
+
+
+def _generate_cache_key(
+    reference_set: "ReferenceSequenceSet",
+    scores: Sequence[str | type | Any],
+    score_kwargs: dict[str, dict[str, Any]] | None,
+) -> str:
+    """Generate a deterministic cache key for model building.
+
+    The cache key is based on:
+    - reference_set.name (if present)
+    - Content hash of cds_strings()
+    - Score specifications
+    - Score kwargs
+
+    Args:
+        reference_set: ReferenceSequenceSet containing CDS sequences
+        scores: Sequence of score identifiers
+        score_kwargs: Optional dict mapping score identifiers to their constructor kwargs
+
+    Returns:
+        Deterministic cache key string
+    """
+    # Start with reference set name if available
+    key_parts = []
+    if reference_set.name:
+        key_parts.append(f"name:{reference_set.name}")
+
+    # Hash the concatenated CDS strings for deterministic content-based key
+    cds_strings = reference_set.cds_strings()
+    concatenated_cds = "".join(cds_strings)
+    cds_hash = hashlib.sha256(concatenated_cds.encode()).hexdigest()[:16]
+    key_parts.append(f"cds:{cds_hash}")
+
+    # Add score specifications (convert to strings for consistent hashing)
+    score_strs = []
+    for score_id in scores:
+        if inspect.isclass(score_id):
+            score_strs.append(score_id.__name__)
+        elif isinstance(score_id, str):
+            score_strs.append(score_id)
+        else:
+            # For instances, use the class name
+            score_strs.append(type(score_id).__name__)
+    key_parts.append(f"scores:{','.join(score_strs)}")
+
+    # Add score kwargs if provided
+    if score_kwargs:
+        # Sort kwargs for deterministic key
+        kwargs_str = str(sorted(score_kwargs.items()))
+        kwargs_hash = hashlib.sha256(kwargs_str.encode()).hexdigest()[:16]
+        key_parts.append(f"kwargs:{kwargs_hash}")
+
+    return "|".join(key_parts)
