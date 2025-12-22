@@ -226,15 +226,15 @@ class TestCodonBiasValidation:
         feature = CodonBiasFeature([cai], names=["CAI"])
         fs = FeatureSet(feature, name="cb")
 
-        # Create protein sequence
-        protein_record = SeqRecord(Seq("MKALVSWGRMKALVSWGRMKALVSWGR"), id="protein")
+        # Create protein sequence (short is sufficient for validation test)
+        protein_record = SeqRecord(Seq("MKALVSWGR"), id="protein")
         protein_record.annotations["molecule_type"] = "protein"
 
         # Error is raised by FeatureSet.compute_orf_windows before reaching CodonBiasFeature
-        with pytest.raises(ValueError, match="ORF window computation is only supported for DNA/RNA"):
-            fs.compute_orf_windows(
-                protein_record, orf=(0, 9), window_nt=9, step_nt=3
-            )
+        with pytest.raises(
+            ValueError, match="ORF window computation is only supported for DNA/RNA"
+        ):
+            fs.compute_orf_windows(protein_record, orf=(0, 9), window_nt=9, step_nt=3)
 
 
 class TestCodonBiasMultipleModels:
@@ -276,7 +276,6 @@ class TestCodonBiasMultipleModels:
         result = fs.compute_orf_windows(record, orf=(0, 21), window_nt=9, step_nt=3)
 
         # Check column names use absolute start positions
-        feature_cols = [c for c in result.columns if c.startswith("cb.CAI_")]
         # Should have windows at positions 0, 3, 6, 9, 12
         assert "cb.CAI_0" in result.columns
         assert "cb.CAI_3" in result.columns
@@ -324,8 +323,8 @@ class TestCodonBiasEdgeCases:
         cai = CodonAdaptationIndex(ref_seq)
         feature = CodonBiasFeature([cai], names=["CAI"])
 
-        # Mixed case RNA
-        rna_seq = "AUGuGAuGuGAUG"
+        # Mixed case RNA with both uppercase and lowercase U
+        rna_seq = "AUGugAUGuGAUG"
         rna_record = SeqRecord(Seq(rna_seq), id="rna")
 
         result = feature(rna_record)

@@ -61,7 +61,8 @@ class CodonBiasFeature:
         Raises:
             ValueError: If names is provided but length doesn't match models
         """
-        self.models = list(models)
+        # Ensure we have lists for consistent iteration
+        self.models = list(models) if not isinstance(models, list) else models
         if names is None:
             self.names = [type(model).__name__ for model in self.models]
         else:
@@ -70,7 +71,7 @@ class CodonBiasFeature:
                     f"Length of names ({len(names)}) must match length of models "
                     f"({len(self.models)})"
                 )
-            self.names = list(names)
+            self.names = list(names) if not isinstance(names, list) else names
 
     def __call__(self, record: SeqRecord) -> dict[str, float]:
         """Compute codon bias scores for the entire sequence.
@@ -93,7 +94,7 @@ class CodonBiasFeature:
 
         # Compute scores for each model
         result = {}
-        for name, model in zip(self.names, self.models):
+        for name, model in zip(self.names, self.models, strict=True):
             score = model.get_score(seq_str)
             result[name] = float(score)
 
@@ -220,7 +221,9 @@ class CodonBiasFeature:
         codon_counts = state["codon_counts"]
         model_data = state["model_data"]
 
-        for name, model, weights_info in zip(self.names, self.models, model_data):
+        for name, model, weights_info in zip(
+            self.names, self.models, model_data, strict=True
+        ):
             if weights_info["has_weights"]:
                 # Use incremental computation with weights
                 weights = weights_info["weights"]
@@ -328,7 +331,7 @@ def _try_get_weights(
                     "weights": weights,
                     "type": "linear",
                 }
-        except Exception:
+        except (TypeError, AttributeError, ValueError):
             # get_weights() may require arguments or fail for other reasons
             pass
 
