@@ -2,7 +2,6 @@
 
 from collections import OrderedDict
 
-import pytest
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
@@ -77,13 +76,13 @@ class TestCodonBiasCaching:
         cache = OrderedDict()
 
         # Build with CAI
-        feature1 = CodonBiasFeature.from_reference(
+        CodonBiasFeature.from_reference(
             ref_set, ["CAI"], model_cache=cache
         )
         assert len(cache) == 1
 
         # Build with ENC should create new models
-        feature2 = CodonBiasFeature.from_reference(
+        CodonBiasFeature.from_reference(
             ref_set, ["ENC"], model_cache=cache
         )
         assert len(cache) == 2
@@ -97,13 +96,13 @@ class TestCodonBiasCaching:
         cache = OrderedDict()
 
         # Build with default kwargs
-        feature1 = CodonBiasFeature.from_reference(
+        CodonBiasFeature.from_reference(
             ref_set, ["CAI"], model_cache=cache
         )
         assert len(cache) == 1
 
         # Build with custom kwargs should create new models
-        feature2 = CodonBiasFeature.from_reference(
+        CodonBiasFeature.from_reference(
             ref_set, ["CAI"], score_kwargs={"CAI": {"genetic_code": 1}}, model_cache=cache
         )
         assert len(cache) == 2
@@ -119,7 +118,7 @@ class TestCodonBiasCaching:
 
         # Fill cache beyond max_cache_size (default is 8)
         features = []
-        for i, ref_set in enumerate(ref_sets):
+        for ref_set in ref_sets:
             feature = CodonBiasFeature.from_reference(
                 ref_set, ["CAI"], model_cache=cache, max_cache_size=3
             )

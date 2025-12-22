@@ -85,7 +85,7 @@ class CodonBiasFeature:
                     f"({len(self.models)})"
                 )
             self.names = list(names) if not isinstance(names, list) else names
-        
+
         # Initialize bounded cache for model building
         self._model_cache: OrderedDict[str, list[Any]] = OrderedDict()
         self._max_cache_size = max_cache_size
