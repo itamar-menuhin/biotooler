@@ -21,20 +21,20 @@ FAMILY_META = {
 
 def get_features() -> list["{{FAMILY_NAME_TITLE}}Feature"]:
     """Get list of feature instances provided by this family.
-    
+
     This function lazily imports the feature module to keep the family
     import lightweight. Heavy optional dependencies are only loaded when
     this function is called.
-    
+
     Returns:
         List of Feature instances provided by this family
-        
+
     Raises:
         ImportError: If optional dependencies are not installed.
             The error message includes installation instructions.
     """
     from biotooler.families.{{FAMILY_NAME}}.feature import {{FAMILY_NAME_TITLE}}Feature
-    
+
     # Return list of feature instances or classes
     # Customize this based on your family's needs
     return [{{FAMILY_NAME_TITLE}}Feature]
