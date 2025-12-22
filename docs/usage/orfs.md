@@ -244,3 +244,116 @@ Retrieve an ORF span from a SeqRecord's annotations.
 **Returns:** The ORF span as `(start, end)` tuple
 
 **Raises:** `KeyError` if the ORF is not found
+
+## ORF Selection Policies in Translation
+
+When translating DNA/RNA sequences to protein using `ensure_protein_record()`, you can control how ORFs are selected using the `orf_policy` parameter. This is particularly useful for protein-family features where you want to automatically select the best ORF.
+
+### Default Policy
+
+The default policy (`orf_policy="default"`) preserves the existing predictable behavior:
+
+1. Use explicit ORF if provided via `orf` parameter
+2. Use attached ORF if present and `use_orf_if_present=True`
+3. Translate full sequence from frame 0
+
+```python
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from biotooler.core.translation import ensure_protein_record
+
+# Sequence with multiple potential ORFs
+dna = SeqRecord(Seq("NNNNATGAAAGCCCTGGTGTAA"), id="seq1")
+dna.annotations["molecule_type"] = "DNA"
+
+# Default policy translates from frame 0 (includes leading NNN)
+result = ensure_protein_record(dna, orf_policy="default")
+print(result.annotations["translation_region_source"])  # "full_sequence_frame0"
+```
+
+### Longest ORF Policy
+
+The longest ORF policy (`orf_policy="longest_orf"`) automatically finds and selects the longest ORF candidate:
+
+1. Use explicit ORF if provided via `orf` parameter (highest priority)
+2. Use attached ORF if present and `use_orf_if_present=True`
+3. **Find all ORF candidates and select the longest one**
+4. Fall back to frame 0 if no ORF candidates found
+
+```python
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from biotooler.core.translation import ensure_protein_record
+
+# Sequence with 5' UTR followed by coding sequence
+dna = SeqRecord(Seq("NNNNATGAAAGCCCTGGTGTAA"), id="seq1")
+dna.annotations["molecule_type"] = "DNA"
+
+# Longest ORF policy skips the NNN prefix
+result = ensure_protein_record(dna, orf_policy="longest_orf")
+print(result.annotations["translation_region"])  # (4, 22)
+print(result.annotations["translation_region_source"])  # "longest_orf"
+print(str(result.seq))  # "MKALV"
+```
+
+### Tie-Breaking Rules
+
+When multiple ORF candidates have the same maximum length, the policy uses deterministic tie-breakers:
+
+1. **Longest length** (primary criterion)
+2. **Earliest start position** (first tie-breaker)
+3. **Earliest stop position** (second tie-breaker)
+
+```python
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from biotooler.core.translation import ensure_protein_record
+
+# Multiple ORFs: (0,9), (12,21), (24,33) - all 9 bases
+# The one starting at position 0 wins the tie
+dna = SeqRecord(Seq("ATGAAATAAGGGGGGATGCCCTAGGGGGGGATGTTTTAA"), id="seq1")
+dna.annotations["molecule_type"] = "DNA"
+
+result = ensure_protein_record(dna, orf_policy="longest_orf")
+print(result.annotations["translation_region"])  # (0, 9) - earliest start
+```
+
+### When to Use Longest ORF Policy
+
+The `longest_orf` policy is useful when:
+
+- Processing sequences with unknown or variable 5'/3' UTRs
+- Analyzing genomic regions where the coding sequence needs to be identified
+- Working with protein-family features that require translation from the best ORF
+- You want automatic ORF selection without manual intervention
+
+**Important:** This policy is opt-in to maintain predictable default behavior. Always test with your specific use case to ensure the selected ORFs are appropriate.
+
+### Interaction with Explicit and Attached ORFs
+
+The ORF selection priority remains unchanged regardless of policy:
+
+1. **Explicit ORF** (via `orf` parameter) - always takes priority
+2. **Attached ORF** (when `use_orf_if_present=True`) - takes priority over policy-based selection
+3. **Policy-based selection** - only applies when no explicit or attached ORF is available
+4. **Frame 0 fallback** - used when no ORFs can be determined
+
+```python
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from biotooler.core.orf_store import attach_orf
+from biotooler.core.translation import ensure_protein_record
+
+dna = SeqRecord(Seq("NNNNATGAAAGCCCTGGTGTAA"), id="seq1")
+dna.annotations["molecule_type"] = "DNA"
+
+# Explicit ORF overrides longest_orf policy
+result = ensure_protein_record(dna, orf=(0, 6), orf_policy="longest_orf")
+print(result.annotations["translation_region_source"])  # "explicit_orf"
+
+# Attached ORF overrides longest_orf policy
+dna = attach_orf(dna, (0, 6))
+result = ensure_protein_record(dna, orf_policy="longest_orf")
+print(result.annotations["translation_region_source"])  # "attached_orf"
+```
+

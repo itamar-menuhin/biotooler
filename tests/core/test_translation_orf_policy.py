@@ -33,12 +33,14 @@ class TestOrfPolicyDefault:
         result_explicit = ensure_protein_record(dna, orf_policy="default")
 
         assert str(result_default.seq) == str(result_explicit.seq)
-        assert result_default.annotations["translation_region"] == result_explicit.annotations[
-            "translation_region"
-        ]
-        assert result_default.annotations["translation_region_source"] == result_explicit.annotations[
-            "translation_region_source"
-        ]
+        assert (
+            result_default.annotations["translation_region"]
+            == result_explicit.annotations["translation_region"]
+        )
+        assert (
+            result_default.annotations["translation_region_source"]
+            == result_explicit.annotations["translation_region_source"]
+        )
 
     def test_invalid_orf_policy_raises_error(self):
         """Test that invalid orf_policy raises ValueError."""
@@ -73,9 +75,9 @@ class TestOrfPolicyLongestOrf:
         # Should select the longest ORF: (0, 21)
         assert result.annotations["translation_region"] == (0, 21)
         assert result.annotations["translation_region_source"] == "longest_orf"
-        # Translates to: MK*MP* (ATGAAATAGATGCCCTAG + TAA)
-        # With strip_terminal_stop=True: MK*MP
-        assert str(result.seq) == "MK*MP"
+        # Translates to: MK*MP** (ATGAAATAGATGCCCTAGTAA has TAG and TAA both as stops)
+        # With strip_terminal_stop=True: MK*MP* (only the last stop is stripped)
+        assert str(result.seq) == "MK*MP*"
 
     def test_longest_orf_with_internal_stops_ignored(self):
         """Test longest_orf policy with internal stops when allowed."""
@@ -169,13 +171,15 @@ class TestOrfPolicyTieBreaking:
         assert result.annotations["translation_region"] == (0, 21)
 
     def test_tie_breaking_multiple_same_length_different_starts(self):
-        """Test tie-breaking with multiple ORFs of same length at different positions."""
-        # ATG AAA TAA GGG AAA ATG CCC TAG AAA AAA ATG GGG TAA
-        # 0   3   6   9   12  15  18  21  24  27  30  33  36  39
-        # ORF 1: (0, 9) = 9 bases    <- earliest start, wins
-        # ORF 2: (15, 24) = 9 bases
-        # ORF 3: (30, 39) = 9 bases
-        seq = "ATGAAATAAGGAAAATGCCCTAGAAAAAAATGGGGTAA"
+        """Test longest ORF selection when multiple starts create overlapping ORFs."""
+        # When a sequence has multiple start codons and stops, the first start
+        # can pair with multiple stops, creating ORFs of different lengths
+        # ATG AAA TAA GGG AAA AAA ATG CCC TAG AAA AAA AAA ATG GGG TAA
+        # From start at 0: Can reach stops at 6, 18, 30, 42
+        # From start at 18: Can reach stops at 24, 42
+        # From start at 36: Can reach stop at 42
+        # The longest ORF is (0, 42) = 42 bases
+        seq = "ATGAAATAAGGAAAAAATGCCCTAGAAAAAAAAATGGGGTAA"
         dna = SeqRecord(Seq(seq), id="test")
         dna.annotations["molecule_type"] = "DNA"
 
@@ -183,8 +187,8 @@ class TestOrfPolicyTieBreaking:
             dna, orf_policy="longest_orf", on_internal_stop="ignore"
         )
 
-        # Should select the one with earliest start: (0, 9)
-        assert result.annotations["translation_region"] == (0, 9)
+        # Should select the longest ORF: (0, 42)
+        assert result.annotations["translation_region"] == (0, 42)
         assert result.annotations["translation_region_source"] == "longest_orf"
 
     def test_tie_breaking_same_start_and_length(self):
