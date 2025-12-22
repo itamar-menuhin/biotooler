@@ -11,7 +11,11 @@ from biotooler.core.orf_candidates import find_orf_candidates
 from biotooler.core.orf_store import OrfSpan, get_orf, select_orf_by_index
 from biotooler.core.seq_utils import get_seq_str
 from biotooler.core.types import FeatureOutput
-from biotooler.core.windowing import iter_orf_codon_windows, iter_windows
+from biotooler.core.windowing import (
+    compute_window_indices,
+    iter_orf_codon_windows,
+    iter_windows,
+)
 from biotooler.features.aggregation import PositionSpace
 
 
@@ -481,15 +485,24 @@ class FeatureSet:
             # Compute per-position vectors for the full ORF
             vectors = feat_fn.compute_vector(orf_record)  # type: ignore[union-attr]
 
-            # Generate window boundaries in position space
-            window_start_nt = 0
-            while window_start_nt < orf_len:
-                window_end_nt = min(window_start_nt + window_nt, orf_len)
+            # Generate window boundaries using the shared indexing helper
+            # Map PositionSpace enum to string for the helper function
+            position_space_str = (
+                "codon" if position_space == PositionSpace.CODON else "residue"
+            )
 
-                # Skip partial windows if drop_partial is True
-                if drop_partial and (window_end_nt - window_start_nt) < window_nt:
-                    break
+            # Get window boundaries in nucleotide space
+            window_boundaries = compute_window_indices(
+                sequence_length=orf_len,
+                window_size=window_nt,
+                step=step_nt,
+                drop_partial=drop_partial,
+                position_space=position_space_str,
+                start_offset=0,
+            )
 
+            # Process each window
+            for window_start_nt, window_end_nt in window_boundaries:
                 # Convert nucleotide positions to position space indices
                 if position_space == PositionSpace.CODON:
                     # For codon space, convert nt positions to codon indices
@@ -517,7 +530,6 @@ class FeatureSet:
                     col_name = f"{self.name}.{key}_{window_start_nt}"
                     feature_data[col_name] = aggregated_value
 
-                window_start_nt += step_nt
 
         # Format as wide DataFrame using shared helper
         return self._format_wide_dataframe(
