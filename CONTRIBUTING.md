@@ -39,6 +39,23 @@ After running the scaffolder:
    - Fill in the `__call__` method for basic feature computation
    - Optionally implement `init_state`, `step_state`, and `emit` for incremental computation over sliding windows
    - Add appropriate error handling and validation
+   - **If you have optional dependencies**, use the `lazy_import` helper:
+     ```python
+     from biotooler.core.lazy_import import lazy_import
+     
+     optional_pkg = lazy_import(
+         "package_name",
+         extra="your_family_name",
+         purpose="computing your features"
+     )
+     ```
+   - Then add the optional dependency to `pyproject.toml`:
+     ```toml
+     [project.optional-dependencies]
+     your_family_name = [
+         "package-name",
+     ]
+     ```
 
 2. **Complete the README** in `src/biotooler/families/<name>/README.md`:
    - Replace all TODO sections with actual content

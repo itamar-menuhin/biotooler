@@ -7,6 +7,15 @@ from Bio.SeqRecord import SeqRecord
 
 from biotooler.core.types import Scalar
 
+# TODO: If you have optional dependencies, use lazy_import:
+# from biotooler.core.lazy_import import lazy_import
+#
+# optional_package = lazy_import(
+#     "package_name",
+#     extra="{{FAMILY_NAME}}",
+#     purpose="computing {{FAMILY_NAME}} features"
+# )
+
 
 class {{FAMILY_NAME_TITLE}}Feature:
     """Feature that computes {{FAMILY_NAME}} metrics.
