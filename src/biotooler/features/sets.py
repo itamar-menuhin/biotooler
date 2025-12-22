@@ -59,6 +59,133 @@ class FeatureSet:
             self._features = features
         self.name = name
 
+    def _compute_features_over_windows(
+        self,
+        windows: list[SeqRecord],
+        feature_data: dict[str, Any],
+        window_start_key: str,
+        init_state_kwargs: dict[str, Any],
+    ) -> None:
+        """Compute features over windows and populate feature_data dict.
+
+        This is a shared helper method used by both compute_orf_windows and compute_windows
+        to compute features over a list of windows, supporting both incremental and
+        non-incremental feature computation.
+
+        Args:
+            windows: List of SeqRecord windows to compute features over
+            feature_data: Dictionary to populate with feature values
+            window_start_key: Annotation key to use for window start position
+            init_state_kwargs: Additional kwargs to pass to init_state for incremental features
+        """
+        # Compute features for each window and add with window_start suffix
+        for _feat_name, feat_fn in self._features.items():
+            # Check if feature supports incremental computation (duck-typing)
+            has_incremental = (
+                hasattr(feat_fn, "init_state")
+                and hasattr(feat_fn, "step_state")
+                and hasattr(feat_fn, "emit")
+            )
+
+            if has_incremental:
+                # Use incremental path
+                state = None
+                prev_window_start = 0
+                prev_window_end = 0
+
+                for window in windows:
+                    window_start = window.annotations[window_start_key]
+                    # Determine window_end key based on context
+                    if "window_end" in window.annotations:
+                        window_end = window.annotations["window_end"]
+                    else:
+                        window_end = window.annotations["end"]
+
+                    if state is None:
+                        # First window: initialize state
+                        state = feat_fn.init_state(  # type: ignore[union-attr]
+                            window_start=window_start,
+                            window_end=window_end,
+                            **init_state_kwargs,
+                        )
+                    else:
+                        # Subsequent windows: update state incrementally
+                        # out: bases leaving the window (from prev_start to curr_start)
+                        # in: bases entering the window (from prev_end to curr_end)
+                        out_start = prev_window_start
+                        out_end = window_start
+                        in_start = prev_window_end
+                        in_end = window_end
+
+                        feat_fn.step_state(  # type: ignore[union-attr]
+                            state,
+                            out_start=out_start,
+                            out_end=out_end,
+                            in_start=in_start,
+                            in_end=in_end,
+                        )
+
+                    prev_window_start = window_start
+                    prev_window_end = window_end
+
+                    # Emit features for this window
+                    features = feat_fn.emit(state)  # type: ignore[union-attr]
+                    for key, value in features.items():
+                        col_name = f"{self.name}.{key}_{window_start}"
+                        feature_data[col_name] = value
+            else:
+                # Use fallback path for non-incremental features
+                for window in windows:
+                    window_start = window.annotations[window_start_key]
+                    features = feat_fn(window)
+                    for key, value in features.items():
+                        col_name = f"{self.name}.{key}_{window_start}"
+                        feature_data[col_name] = value
+
+    def _format_wide_dataframe(
+        self, feature_data: dict[str, Any], metadata_cols: list[str]
+    ) -> pd.DataFrame:
+        """Format feature data into wide DataFrame with deterministic column ordering.
+
+        This is a shared helper method used by both compute_orf_windows and compute_windows
+        to create the final wide-format DataFrame with proper column ordering.
+
+        Args:
+            feature_data: Dictionary containing metadata and feature values
+            metadata_cols: List of metadata column names to place first
+
+        Returns:
+            Single-row DataFrame with ordered columns
+        """
+        # Create single-row DataFrame
+        df = pd.DataFrame([feature_data])
+
+        # Ensure deterministic column ordering:
+        # 1. Metadata columns first
+        # 2. Feature columns sorted by (feature_key, window_start numeric)
+        feature_cols = [c for c in df.columns if c not in metadata_cols]
+
+        # Sort with error handling for malformed column names
+        def sort_key(col: str) -> tuple[str, int]:
+            parts = col.rsplit("_", 1)
+            if len(parts) != 2:
+                # No underscore found - sort by column name only
+                return (col, 0)
+            try:
+                return (parts[0], int(parts[1]))
+            except ValueError:
+                # Can't parse as int - sort by full name
+                return (col, 0)
+
+        feature_cols.sort(key=sort_key)
+
+        # Reorder columns
+        ordered_cols = metadata_cols + feature_cols
+        result_df = df[ordered_cols]
+        assert isinstance(result_df, pd.DataFrame)
+
+        return result_df
+
     def compute_orf_windows(
         self,
         record: SeqRecord,
@@ -173,102 +300,19 @@ class FeatureSet:
             # No windows generated - return row with metadata only
             return pd.DataFrame([feature_data])
 
-        # Collect all feature keys from first window to ensure we have all columns
-        all_feature_keys: set[str] = set()
+        # Compute features over windows using shared helper
+        self._compute_features_over_windows(
+            windows=windows,
+            feature_data=feature_data,
+            window_start_key="window_start",
+            init_state_kwargs={"record": record, "orf": resolved_orf},
+        )
 
-        # Compute features for each window and add with window_start suffix
-        for _feat_name, feat_fn in self._features.items():
-            # Check if feature supports incremental computation (duck-typing)
-            has_incremental = (
-                hasattr(feat_fn, "init_state")
-                and hasattr(feat_fn, "step_state")
-                and hasattr(feat_fn, "emit")
-            )
-
-            if has_incremental:
-                # Use incremental path
-                state = None
-                prev_window_start = 0
-                prev_window_end = 0
-
-                for window in windows:
-                    window_start = window.annotations["window_start"]
-                    window_end = window.annotations["window_end"]
-
-                    if state is None:
-                        # First window: initialize state
-                        state = feat_fn.init_state(  # type: ignore[union-attr]
-                            record,
-                            orf=resolved_orf,
-                            window_start=window_start,
-                            window_end=window_end,
-                        )
-                    else:
-                        # Subsequent windows: update state incrementally
-                        # out: bases leaving the window (from prev_start to curr_start)
-                        # in: bases entering the window (from prev_end to curr_end)
-                        out_start = prev_window_start
-                        out_end = window_start
-                        in_start = prev_window_end
-                        in_end = window_end
-
-                        feat_fn.step_state(  # type: ignore[union-attr]
-                            state,
-                            out_start=out_start,
-                            out_end=out_end,
-                            in_start=in_start,
-                            in_end=in_end,
-                        )
-
-                    prev_window_start = window_start
-                    prev_window_end = window_end
-
-                    # Emit features for this window
-                    features = feat_fn.emit(state)  # type: ignore[union-attr]
-                    for key, value in features.items():
-                        col_name = f"{self.name}.{key}_{window_start}"
-                        feature_data[col_name] = value
-                        all_feature_keys.add(key)
-            else:
-                # Use fallback path for non-incremental features
-                for window in windows:
-                    window_start = window.annotations["window_start"]
-                    features = feat_fn(window)
-                    for key, value in features.items():
-                        col_name = f"{self.name}.{key}_{window_start}"
-                        feature_data[col_name] = value
-                        all_feature_keys.add(key)
-
-        # Create single-row DataFrame
-        df = pd.DataFrame([feature_data])
-
-        # Ensure deterministic column ordering:
-        # 1. Metadata columns first
-        metadata_cols = ["record_id", "orf_start", "orf_end"]
-
-        # 2. Feature columns sorted by (feature_key, window_start numeric)
-        feature_cols = [c for c in df.columns if c not in metadata_cols]
-
-        # Sort with error handling for malformed column names
-        def sort_key(col: str) -> tuple[str, int]:
-            parts = col.rsplit("_", 1)
-            if len(parts) != 2:
-                # No underscore found - sort by column name only
-                return (col, 0)
-            try:
-                return (parts[0], int(parts[1]))
-            except ValueError:
-                # Can't parse as int - sort by full name
-                return (col, 0)
-
-        feature_cols.sort(key=sort_key)
-
-        # Reorder columns
-        ordered_cols = metadata_cols + feature_cols
-        result_df = df[ordered_cols]
-        assert isinstance(result_df, pd.DataFrame)
-
-        return result_df
+        # Format as wide DataFrame using shared helper
+        return self._format_wide_dataframe(
+            feature_data=feature_data,
+            metadata_cols=["record_id", "orf_start", "orf_end"],
+        )
 
     def compute_windows(
         self,
@@ -374,101 +418,19 @@ class FeatureSet:
             # No windows generated - return row with metadata only
             return pd.DataFrame([feature_data])
 
-        # Collect all feature keys from first window to ensure we have all columns
-        all_feature_keys: set[str] = set()
+        # Compute features over windows using shared helper
+        self._compute_features_over_windows(
+            windows=windows,
+            feature_data=feature_data,
+            window_start_key="start",
+            init_state_kwargs={
+                "record": region_record,
+                "region": (region_start, region_end),
+            },
+        )
 
-        # Compute features for each window and add with window_start suffix
-        for _feat_name, feat_fn in self._features.items():
-            # Check if feature supports incremental computation (duck-typing)
-            has_incremental = (
-                hasattr(feat_fn, "init_state")
-                and hasattr(feat_fn, "step_state")
-                and hasattr(feat_fn, "emit")
-            )
-
-            if has_incremental:
-                # Use incremental path
-                state = None
-                prev_window_start = 0
-                prev_window_end = 0
-
-                for window in windows:
-                    # For generic windows, use "start" annotation (relative to region_record)
-                    window_start = window.annotations["start"]
-                    window_end = window.annotations["end"]
-
-                    if state is None:
-                        # First window: initialize state
-                        # Pass region parameter for consistency with ORF windowing
-                        state = feat_fn.init_state(  # type: ignore[union-attr]
-                            region_record,
-                            window_start=window_start,
-                            window_end=window_end,
-                            region=(region_start, region_end),
-                        )
-                    else:
-                        # Subsequent windows: update state incrementally
-                        # out: bases leaving the window (from prev_start to curr_start)
-                        # in: bases entering the window (from prev_end to curr_end)
-                        out_start = prev_window_start
-                        out_end = window_start
-                        in_start = prev_window_end
-                        in_end = window_end
-
-                        feat_fn.step_state(  # type: ignore[union-attr]
-                            state,
-                            out_start=out_start,
-                            out_end=out_end,
-                            in_start=in_start,
-                            in_end=in_end,
-                        )
-
-                    prev_window_start = window_start
-                    prev_window_end = window_end
-
-                    # Emit features for this window
-                    features = feat_fn.emit(state)  # type: ignore[union-attr]
-                    for key, value in features.items():
-                        col_name = f"{self.name}.{key}_{window_start}"
-                        feature_data[col_name] = value
-                        all_feature_keys.add(key)
-            else:
-                # Use fallback path for non-incremental features
-                for window in windows:
-                    window_start = window.annotations["start"]
-                    features = feat_fn(window)
-                    for key, value in features.items():
-                        col_name = f"{self.name}.{key}_{window_start}"
-                        feature_data[col_name] = value
-                        all_feature_keys.add(key)
-
-        # Create single-row DataFrame
-        df = pd.DataFrame([feature_data])
-
-        # Ensure deterministic column ordering:
-        # 1. Metadata columns first
-        metadata_cols = ["record_id", "region_start", "region_end"]
-
-        # 2. Feature columns sorted by (feature_key, window_start numeric)
-        feature_cols = [c for c in df.columns if c not in metadata_cols]
-
-        # Sort with error handling for malformed column names
-        def sort_key(col: str) -> tuple[str, int]:
-            parts = col.rsplit("_", 1)
-            if len(parts) != 2:
-                # No underscore found - sort by column name only
-                return (col, 0)
-            try:
-                return (parts[0], int(parts[1]))
-            except ValueError:
-                # Can't parse as int - sort by full name
-                return (col, 0)
-
-        feature_cols.sort(key=sort_key)
-
-        # Reorder columns
-        ordered_cols = metadata_cols + feature_cols
-        result_df = df[ordered_cols]
-        assert isinstance(result_df, pd.DataFrame)
-
-        return result_df
+        # Format as wide DataFrame using shared helper
+        return self._format_wide_dataframe(
+            feature_data=feature_data,
+            metadata_cols=["record_id", "region_start", "region_end"],
+        )
