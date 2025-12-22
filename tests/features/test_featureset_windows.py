@@ -149,11 +149,14 @@ class TestComputeWindowsBasicFunctionality:
 
         # Should be sorted by feature key, then window_start
         # Expected: a_feat_0, a_feat_2, a_feat_4, ..., z_feat_0, z_feat_2, z_feat_4, ...
-        a_cols = [c for c in feature_cols if "a_feat" in c]
-        z_cols = [c for c in feature_cols if "z_feat" in c]
-
         # All a_feat columns should come before all z_feat columns
-        assert all(feature_cols.index(a) < feature_cols.index(z) for a in a_cols for z in z_cols)
+        # Use indices to avoid O(n²) complexity
+        a_indices = [i for i, c in enumerate(feature_cols) if "a_feat" in c]
+        z_indices = [i for i, c in enumerate(feature_cols) if "z_feat" in c]
+        if a_indices and z_indices:
+            assert max(a_indices) < min(z_indices), (
+                "a_feat columns should come before z_feat columns"
+            )
 
         # Check first few columns
         assert feature_cols[0] == "test.a_feat_0"

@@ -347,6 +347,8 @@ class FeatureSet:
                 description=record.description,
             )
             # Copy annotations but exclude cache keys to avoid using cached full sequence
+            # Cache keys like '_biotooler_seq_str' are sequence-specific and would be
+            # invalid for the region subsequence, causing iter_windows to use wrong data
             for key, value in record.annotations.items():
                 if not key.startswith("_biotooler_"):
                     region_record.annotations[key] = value

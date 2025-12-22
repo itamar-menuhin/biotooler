@@ -266,7 +266,8 @@ result = fs.compute_windows(
 
 ```python
 # Analyze only the promoter region
-full_gene = SeqRecord(Seq("..." * 1000), id="gene1")
+# Note: Using 'N' * 1000 as placeholder for a real gene sequence
+full_gene = SeqRecord(Seq("N" * 1000), id="gene1")
 
 # Focus on positions 0-500 (promoter region)
 result = fs.compute_windows(
