@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Self
 
+import pandas as pd
 from Bio import SeqIO
 from Bio.Seq import Seq
 
@@ -90,6 +91,94 @@ class ReferenceSequenceSet:
 
             if not proteins_dict:
                 raise ValueError(f"Protein FASTA file is empty: {protein_path}")
+
+        return cls(cds_dict, proteins_dict, genetic_code_table)
+
+    @classmethod
+    def from_csv(
+        cls,
+        csv_path: Path | str,
+        id_column: str,
+        cds_column: str,
+        protein_column: str | None = None,
+        genetic_code_table: int | str = 1,
+    ) -> Self:
+        """Construct ReferenceSequenceSet from CSV file.
+
+        Args:
+            csv_path: Path to CSV file
+            id_column: Name of column containing sequence IDs
+            cds_column: Name of column containing CDS sequences
+            protein_column: Optional name of column containing protein sequences
+            genetic_code_table: Genetic code table ID (int) or name (str) for translation
+
+        Returns:
+            ReferenceSequenceSet instance
+
+        Raises:
+            FileNotFoundError: If CSV file does not exist
+            ValueError: If required columns are missing, CSV is empty, or contains duplicate IDs
+        """
+        # Load CSV file
+        csv_file = Path(csv_path)
+        if not csv_file.exists():
+            raise FileNotFoundError(f"CSV file not found: {csv_file}")
+
+        try:
+            df = pd.read_csv(csv_file)
+        except Exception as e:
+            raise ValueError(f"Failed to read CSV file: {e}") from e
+
+        if df.empty:
+            raise ValueError(f"CSV file is empty: {csv_file}")
+
+        # Validate required columns
+        if id_column not in df.columns:
+            raise ValueError(
+                f"ID column '{id_column}' not found in CSV. "
+                f"Available columns: {', '.join(df.columns)}"
+            )
+        if cds_column not in df.columns:
+            raise ValueError(
+                f"CDS column '{cds_column}' not found in CSV. "
+                f"Available columns: {', '.join(df.columns)}"
+            )
+
+        # Check for protein column if specified
+        if protein_column is not None and protein_column not in df.columns:
+            raise ValueError(
+                f"Protein column '{protein_column}' not found in CSV. "
+                f"Available columns: {', '.join(df.columns)}"
+            )
+
+        # Extract CDS sequences
+        cds_dict: dict[str, str] = {}
+        for idx, row in df.iterrows():
+            seq_id = str(row[id_column])
+            cds_value = row[cds_column]
+            if pd.isna(cds_value):  # type: ignore[arg-type]
+                raise ValueError(
+                    f"CDS sequence is missing for ID '{seq_id}' at row {idx}"
+                )
+            if seq_id in cds_dict:
+                raise ValueError(f"Duplicate sequence ID in CSV: {seq_id}")
+            cds_dict[seq_id] = str(cds_value)
+
+        if not cds_dict:
+            raise ValueError("No valid CDS sequences found in CSV")
+
+        # Extract protein sequences if column is specified
+        proteins_dict: dict[str, str] | None = None
+        if protein_column is not None:
+            proteins_dict = {}
+            for idx, row in df.iterrows():
+                seq_id = str(row[id_column])
+                protein_value = row[protein_column]
+                if pd.isna(protein_value):  # type: ignore[arg-type]
+                    raise ValueError(
+                        f"Protein sequence is missing for ID '{seq_id}' at row {idx}"
+                    )
+                proteins_dict[seq_id] = str(protein_value)
 
         return cls(cds_dict, proteins_dict, genetic_code_table)
 

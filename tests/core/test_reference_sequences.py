@@ -160,6 +160,178 @@ class TestFromFasta:
             Path(protein_path).unlink()
 
 
+class TestFromCsv:
+    """Tests for from_csv constructor."""
+
+    def test_from_csv_cds_only(self):
+        """Test loading CDS sequences from CSV file."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write("id,sequence\n")
+            f.write("seq1,ATGAAATAA\n")
+            f.write("seq2,ATGGGGTGA\n")
+            csv_path = f.name
+
+        try:
+            ref_set = ReferenceSequenceSet.from_csv(csv_path, "id", "sequence")
+            assert "seq1" in ref_set.cds
+            assert "seq2" in ref_set.cds
+            assert ref_set.cds["seq1"] == "ATGAAATAA"
+            assert ref_set.cds["seq2"] == "ATGGGGTGA"
+            assert ref_set.proteins is None
+        finally:
+            Path(csv_path).unlink()
+
+    def test_from_csv_with_proteins(self):
+        """Test loading CDS and protein sequences from CSV file."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write("id,cds,protein\n")
+            f.write("seq1,ATGAAATAA,MK*\n")
+            f.write("seq2,ATGGGGTGA,MG*\n")
+            csv_path = f.name
+
+        try:
+            ref_set = ReferenceSequenceSet.from_csv(
+                csv_path, "id", "cds", protein_column="protein"
+            )
+            assert ref_set.cds["seq1"] == "ATGAAATAA"
+            assert ref_set.proteins is not None
+            assert ref_set.proteins["seq1"] == "MK*"
+            assert ref_set.proteins["seq2"] == "MG*"
+        finally:
+            Path(csv_path).unlink()
+
+    def test_from_csv_file_not_found(self):
+        """Test error when CSV file doesn't exist."""
+        with pytest.raises(FileNotFoundError, match="CSV file not found"):
+            ReferenceSequenceSet.from_csv("/nonexistent/file.csv", "id", "sequence")
+
+    def test_from_csv_empty_file(self):
+        """Test error when CSV file is empty."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            csv_path = f.name
+
+        try:
+            with pytest.raises(ValueError, match="Failed to read CSV file"):
+                ReferenceSequenceSet.from_csv(csv_path, "id", "sequence")
+        finally:
+            Path(csv_path).unlink()
+
+    def test_from_csv_missing_id_column(self):
+        """Test error when ID column is missing."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write("sequence\n")
+            f.write("ATGAAATAA\n")
+            csv_path = f.name
+
+        try:
+            with pytest.raises(ValueError, match="ID column 'id' not found"):
+                ReferenceSequenceSet.from_csv(csv_path, "id", "sequence")
+        finally:
+            Path(csv_path).unlink()
+
+    def test_from_csv_missing_cds_column(self):
+        """Test error when CDS column is missing."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write("id\n")
+            f.write("seq1\n")
+            csv_path = f.name
+
+        try:
+            with pytest.raises(ValueError, match="CDS column 'sequence' not found"):
+                ReferenceSequenceSet.from_csv(csv_path, "id", "sequence")
+        finally:
+            Path(csv_path).unlink()
+
+    def test_from_csv_missing_protein_column(self):
+        """Test error when specified protein column is missing."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write("id,sequence\n")
+            f.write("seq1,ATGAAATAA\n")
+            csv_path = f.name
+
+        try:
+            with pytest.raises(ValueError, match="Protein column 'protein' not found"):
+                ReferenceSequenceSet.from_csv(csv_path, "id", "sequence", "protein")
+        finally:
+            Path(csv_path).unlink()
+
+    def test_from_csv_duplicate_ids(self):
+        """Test error when CSV has duplicate IDs."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write("id,sequence\n")
+            f.write("seq1,ATGAAATAA\n")
+            f.write("seq1,ATGGGGTGA\n")
+            csv_path = f.name
+
+        try:
+            with pytest.raises(ValueError, match="Duplicate sequence ID in CSV: seq1"):
+                ReferenceSequenceSet.from_csv(csv_path, "id", "sequence")
+        finally:
+            Path(csv_path).unlink()
+
+    def test_from_csv_missing_cds_value(self):
+        """Test error when CDS value is missing for a row."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write("id,sequence\n")
+            f.write("seq1,ATGAAATAA\n")
+            f.write("seq2,\n")
+            csv_path = f.name
+
+        try:
+            with pytest.raises(ValueError, match="CDS sequence is missing for ID 'seq2'"):
+                ReferenceSequenceSet.from_csv(csv_path, "id", "sequence")
+        finally:
+            Path(csv_path).unlink()
+
+    def test_from_csv_missing_protein_value(self):
+        """Test error when protein value is missing for a row."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write("id,sequence,protein\n")
+            f.write("seq1,ATGAAATAA,MK*\n")
+            f.write("seq2,ATGGGGTGA,\n")
+            csv_path = f.name
+
+        try:
+            with pytest.raises(
+                ValueError, match="Protein sequence is missing for ID 'seq2'"
+            ):
+                ReferenceSequenceSet.from_csv(csv_path, "id", "sequence", "protein")
+        finally:
+            Path(csv_path).unlink()
+
+    def test_from_csv_with_custom_genetic_code(self):
+        """Test loading with custom genetic code table."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write("id,sequence\n")
+            f.write("seq1,ATGAAATAA\n")
+            csv_path = f.name
+
+        try:
+            ref_set = ReferenceSequenceSet.from_csv(
+                csv_path, "id", "sequence", genetic_code_table=11
+            )
+            assert ref_set.genetic_code_table == 11
+        finally:
+            Path(csv_path).unlink()
+
+    def test_from_csv_different_column_names(self):
+        """Test using different column names."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write("gene_id,nucleotide_seq,amino_acid_seq\n")
+            f.write("gene1,ATGAAATAA,MK*\n")
+            csv_path = f.name
+
+        try:
+            ref_set = ReferenceSequenceSet.from_csv(
+                csv_path, "gene_id", "nucleotide_seq", "amino_acid_seq"
+            )
+            assert ref_set.cds["gene1"] == "ATGAAATAA"
+            assert ref_set.proteins is not None
+            assert ref_set.proteins["gene1"] == "MK*"
+        finally:
+            Path(csv_path).unlink()
+
+
 class TestCdsStrings:
     """Tests for cds_strings method."""
 
