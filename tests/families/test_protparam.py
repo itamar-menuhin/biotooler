@@ -65,9 +65,7 @@ class TestProtParamFeatureProteinInput:
         """Test with a longer protein sequence."""
         feature = ProtParamFeature()
         # A longer, realistic sequence
-        protein = SeqRecord(
-            Seq("MKALVSWGRDPQFIHETNLCYKVM"), id="test"
-        )
+        protein = SeqRecord(Seq("MKALVSWGRDPQFIHETNLCYKVM"), id="test")
         protein.annotations["molecule_type"] = "protein"
 
         result = feature(protein)
@@ -182,9 +180,7 @@ class TestProtParamFeatureLazyImport:
         import sys
 
         # Remove ProtParam if already loaded
-        protparam_modules = [
-            key for key in sys.modules.keys() if "ProtParam" in key
-        ]
+        protparam_modules = [key for key in sys.modules.keys() if "ProtParam" in key]
         for mod in protparam_modules:
             del sys.modules[mod]
 
@@ -192,20 +188,15 @@ class TestProtParamFeatureLazyImport:
         from biotooler.families.protparam import ProtParamFeature  # noqa: F401
 
         # ProtParam should not be loaded yet
-        protparam_loaded = any(
-            "Bio.SeqUtils.ProtParam" in key for key in sys.modules.keys()
-        )
-        # This may fail if ProtParam was already imported elsewhere
-        # but demonstrates the lazy loading intent
+        # (This check demonstrates intent but may fail if ProtParam was already imported)
+        # We don't assert here as it's informational only
 
     def test_feature_instantiation_does_not_load_protparam(self):
         """Test that instantiating the feature doesn't load ProtParam."""
         import sys
 
         # Remove ProtParam if already loaded
-        protparam_modules = [
-            key for key in sys.modules.keys() if "ProtParam" in key
-        ]
+        protparam_modules = [key for key in sys.modules.keys() if "ProtParam" in key]
         for mod in protparam_modules:
             del sys.modules[mod]
 
@@ -213,10 +204,8 @@ class TestProtParamFeatureLazyImport:
         feature = ProtParamFeature()  # noqa: F841
 
         # ProtParam still should not be loaded
-        protparam_loaded = any(
-            "Bio.SeqUtils.ProtParam" in key for key in sys.modules.keys()
-        )
-        # May fail if already imported, but demonstrates the intent
+        # (This check demonstrates intent but may fail if ProtParam was already imported)
+        # We don't assert here as it's informational only
 
 
 class TestProtParamFeatureEdgeCases:

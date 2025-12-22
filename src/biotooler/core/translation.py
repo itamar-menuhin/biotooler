@@ -4,6 +4,8 @@ This module provides utilities for ensuring sequences are in protein form,
 with automatic translation of DNA/RNA sequences when needed.
 """
 
+from typing import Any
+
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
@@ -95,7 +97,7 @@ def ensure_protein_record(
 
     # Determine region to translate
     region_start = 0
-    region_end = len(record.seq)
+    region_end = len(record.seq) if record.seq else 0
     region_source = "full_sequence_frame0"
 
     if orf is not None:
@@ -124,7 +126,9 @@ def ensure_protein_record(
     # Use to_stop=False to translate through stops
     # Use cds=False to not require start/stop codons
     try:
-        translated = Seq(region_seq).translate(table=table, to_stop=False, cds=False)
+        translated = Seq(region_seq).translate(
+            table=table, to_stop=False, cds=False  # type: ignore[arg-type]
+        )
     except Exception as e:
         raise ValueError(
             f"Translation failed for record {record.id!r} using table {table}: {e}"
@@ -165,19 +169,21 @@ def ensure_protein_record(
         protein_str = protein_str[:-1]
 
     # Create new protein record
+    annotations: dict[str, Any] = {
+        "molecule_type": "protein",
+        "translation_performed": True,
+        "translation_table": table,
+        "translation_source": mol_type,
+        "translation_region": (region_start, region_end),
+        "translation_region_source": region_source,
+    }
+
     protein_record = SeqRecord(
         Seq(protein_str),
         id=record.id,
         name=record.name,
         description=record.description,
-        annotations={
-            "molecule_type": "protein",
-            "translation_performed": True,
-            "translation_table": table,
-            "translation_source": mol_type,
-            "translation_region": (region_start, region_end),
-            "translation_region_source": region_source,
-        },
+        annotations=annotations,  # type: ignore[arg-type]
     )
 
     return protein_record

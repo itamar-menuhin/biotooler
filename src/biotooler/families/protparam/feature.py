@@ -138,8 +138,6 @@ class ProtParamFeature:
         try:
             result["aromaticity"] = pa.aromaticity()
         except Exception as e:
-            raise ValueError(
-                f"Failed to compute aromaticity for record {record.id!r}: {e}"
-            ) from e
+            raise ValueError(f"Failed to compute aromaticity for record {record.id!r}: {e}") from e
 
         return result
