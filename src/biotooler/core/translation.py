@@ -4,11 +4,12 @@ This module provides utilities for ensuring sequences are in protein form,
 with automatic translation of DNA/RNA sequences when needed.
 """
 
-from typing import Any
+from typing import Any, Literal
 
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
+from biotooler.core.orf_candidates import find_orf_candidates
 from biotooler.core.orf_store import OrfSpan, get_orf
 from biotooler.core.record import get_molecule_type
 from biotooler.core.seq_utils import get_seq_str
@@ -22,6 +23,7 @@ def ensure_protein_record(
     orf: OrfSpan | None = None,
     strip_terminal_stop: bool = True,
     on_internal_stop: str = "error",
+    orf_policy: Literal["default", "longest_orf"] = "default",
 ) -> SeqRecord:
     """Ensure a SeqRecord is in protein form, translating if necessary.
 
@@ -42,13 +44,21 @@ def ensure_protein_record(
         on_internal_stop: Action to take if internal stop codons are found after
             translation. Must be "error" (raises ValueError) or "ignore" (keeps stops).
             Default: "error"
+        orf_policy: ORF selection policy when no explicit or attached ORF is provided.
+            Must be "default" or "longest_orf". Default: "default"
+            - "default": Use full sequence in frame 0 (preserves existing behavior)
+            - "longest_orf": Find ORF candidates and select the longest one. If multiple
+              ORFs have the same length, selects the one with the earliest start position.
+              If still tied, selects the one with the earliest stop position. Falls back
+              to frame 0 if no ORF candidates are found.
 
     Returns:
         SeqRecord containing protein sequence with preserved id and description.
         If translation was performed, adds annotations about translation details.
 
     Raises:
-        ValueError: If on_internal_stop="error" and internal stop codons are found
+        ValueError: If on_internal_stop="error" and internal stop codons are found,
+            or if orf_policy has an invalid value
         KeyError: If molecule_type annotation is missing from record
 
     Examples:
@@ -60,7 +70,7 @@ def ensure_protein_record(
         >>> result = ensure_protein_record(protein)
         >>> str(result.seq)
         'MKALV'
-        >>> # DNA record is translated
+        >>> # DNA record is translated (default policy uses frame 0)
         >>> dna = SeqRecord(Seq("ATGAAAGCCCTGGTG"), id="test")
         >>> dna.annotations["molecule_type"] = "DNA"
         >>> result = ensure_protein_record(dna)
@@ -70,10 +80,22 @@ def ensure_protein_record(
         True
         >>> result.annotations["translation_table"]
         1
+        >>> # DNA record with longest_orf policy
+        >>> dna = SeqRecord(Seq("NNNNATGAAAGCCCTGGTGTAA"), id="test")
+        >>> dna.annotations["molecule_type"] = "DNA"
+        >>> result = ensure_protein_record(dna, orf_policy="longest_orf")
+        >>> str(result.seq)
+        'MKALV'
+        >>> result.annotations["translation_region_source"]
+        'longest_orf'
     """
     # Validate on_internal_stop parameter
     if on_internal_stop not in ("error", "ignore"):
         raise ValueError(f"on_internal_stop must be 'error' or 'ignore', got {on_internal_stop!r}")
+
+    # Validate orf_policy parameter
+    if orf_policy not in ("default", "longest_orf"):
+        raise ValueError(f"orf_policy must be 'default' or 'longest_orf', got {orf_policy!r}")
 
     # Get molecule type
     mol_type = get_molecule_type(record)
@@ -111,8 +133,31 @@ def ensure_protein_record(
             region_start, region_end = attached_orf
             region_source = "attached_orf"
         except KeyError:
-            # No attached ORF, use full sequence
-            pass
+            # No attached ORF, check orf_policy
+            if orf_policy == "longest_orf":
+                # Find ORF candidates and select the longest one
+                candidates = find_orf_candidates(record)
+                if candidates:
+                    # Select longest ORF with deterministic tie-breaking
+                    # Candidates are already sorted by (start, end)
+                    # Find the longest by length, then earliest start, then earliest stop
+                    longest_orf = max(
+                        candidates, key=lambda span: (span[1] - span[0], -span[0], -span[1])
+                    )
+                    region_start, region_end = longest_orf
+                    region_source = "longest_orf"
+                # else: no candidates, keep frame0 default
+    elif orf_policy == "longest_orf":
+        # use_orf_if_present=False but orf_policy="longest_orf" specified
+        # Find ORF candidates and select the longest one
+        candidates = find_orf_candidates(record)
+        if candidates:
+            longest_orf = max(
+                candidates, key=lambda span: (span[1] - span[0], -span[0], -span[1])
+            )
+            region_start, region_end = longest_orf
+            region_source = "longest_orf"
+        # else: no candidates, keep frame0 default
 
     # Get sequence string and extract region
     seq_str = get_seq_str(record)
