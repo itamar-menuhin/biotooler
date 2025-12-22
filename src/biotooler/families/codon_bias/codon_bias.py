@@ -156,7 +156,10 @@ class CodonBiasFeature:
             # Get kwargs for this score if provided
             kwargs = {}
             if score_kwargs:
-                # Try to match by various identifiers
+                # Try to match by various identifiers in order of specificity:
+                # 1. Original score_id (as provided by user)
+                # 2. Class name (e.g., "CodonAdaptationIndex")
+                # 3. Abbreviation (e.g., "CAI")
                 for key in [score_id, score_class.__name__,
                            _get_score_abbreviation(score_class.__name__)]:
                     if isinstance(key, str) and key in score_kwargs:
@@ -503,17 +506,20 @@ def _resolve_score_identifier(score_id: str | type | Any) -> type | Any:
         return score_id
 
     # Define abbreviation mapping
+    # Note: Some scores have alternative abbreviations commonly used in literature:
+    # - DCBS (Distance from CBS) is an alternative name for RCBS
+    # - CPS (Codon Pair Score) is an alternative name for CPB
     abbreviation_map = {
         "CAI": "CodonAdaptationIndex",
         "ENC": "EffectiveNumberOfCodons",
         "FOP": "FrequencyOfOptimalCodons",
         "RSCU": "RelativeSynonymousCodonUsage",
         "RCBS": "RelativeCodonBiasScore",
-        "DCBS": "RelativeCodonBiasScore",  # Alternative name
+        "DCBS": "RelativeCodonBiasScore",  # Alternative name for RCBS
         "tAI": "TrnaAdaptationIndex",
         "nTE": "NormalizedTranslationalEfficiency",
         "CPB": "CodonPairBias",
-        "CPS": "CodonPairBias",  # Alternative name
+        "CPS": "CodonPairBias",  # Alternative name for CPB
     }
 
     # Try to resolve as abbreviation
