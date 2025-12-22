@@ -18,6 +18,7 @@ dev = [
     "pytest",
     "ruff",
     "pyright",
+    "codon-bias",  # Required for running tests
 ]
 
 [build-system]
