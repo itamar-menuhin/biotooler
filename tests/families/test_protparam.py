@@ -130,6 +130,40 @@ class TestProtParamFeatureDNATranslation:
         with pytest.raises(ValueError):
             feature(dna)
 
+    def test_dna_equals_explicit_protein_translation(self):
+        """Test that DNA input yields same result as explicitly translated protein."""
+        from biotooler.core.translation import ensure_protein_record
+
+        feature = ProtParamFeature()
+
+        # Create DNA sequence
+        # ATGAAAGCCCTGGTGTCTTGGGGACGT -> MKALVSWGR
+        dna = SeqRecord(Seq("ATGAAAGCCCTGGTGTCTTGGGGACGT"), id="test")
+        dna.annotations["molecule_type"] = "DNA"
+
+        # Get result from DNA input (automatic translation)
+        dna_result = feature(dna)
+
+        # Manually translate DNA to protein
+        protein = ensure_protein_record(
+            dna,
+            table=1,
+            use_orf_if_present=True,
+            strip_terminal_stop=True,
+            on_internal_stop="error",
+        )
+
+        # Get result from explicit protein input
+        protein_result = feature(protein)
+
+        # Results should be identical
+        assert dna_result == protein_result
+        assert dna_result["molecular_weight"] == protein_result["molecular_weight"]
+        assert dna_result["isoelectric_point"] == protein_result["isoelectric_point"]
+        assert dna_result["gravy"] == protein_result["gravy"]
+        assert dna_result["instability_index"] == protein_result["instability_index"]
+        assert dna_result["aromaticity"] == protein_result["aromaticity"]
+
 
 class TestProtParamFeatureRNATranslation:
     """Tests for ProtParamFeature with RNA input."""

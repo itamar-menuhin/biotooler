@@ -2,11 +2,11 @@
 
 from Bio.SeqRecord import SeqRecord
 
-from biotooler.core.translation import ensure_protein_record
+from biotooler.core.protein_family import ProteinFamilyFeature
 from biotooler.core.types import Scalar
 
 
-class ProtParamFeature:
+class ProtParamFeature(ProteinFamilyFeature):
     """Feature that computes protein physicochemical parameters.
 
     This feature uses Bio.SeqUtils.ProtParam.ProteinAnalysis to compute:
@@ -66,11 +66,11 @@ class ProtParamFeature:
         self.strip_terminal_stop = strip_terminal_stop
         self.on_internal_stop = on_internal_stop
 
-    def __call__(self, record: SeqRecord) -> dict[str, Scalar]:
-        """Compute ProtParam features for the sequence.
+    def compute_protein(self, protein_record: SeqRecord) -> dict[str, Scalar]:
+        """Compute ProtParam features for a protein sequence.
 
         Args:
-            record: DNA, RNA, or protein SeqRecord to analyze
+            protein_record: Protein SeqRecord to analyze (molecule_type="protein")
 
         Returns:
             Dictionary mapping feature names to scalar values:
@@ -81,17 +81,8 @@ class ProtParamFeature:
             - aromaticity: Fraction of aromatic amino acids
 
         Raises:
-            ValueError: If translation fails or internal stops found (when configured)
+            ValueError: If computation fails
         """
-        # Ensure we have a protein sequence
-        protein_record = ensure_protein_record(
-            record,
-            table=self.table,
-            use_orf_if_present=self.use_orf_if_present,
-            strip_terminal_stop=self.strip_terminal_stop,
-            on_internal_stop=self.on_internal_stop,
-        )
-
         # Get protein sequence string
         protein_seq = str(protein_record.seq)
 
@@ -103,7 +94,7 @@ class ProtParamFeature:
             pa = ProteinAnalysis(protein_seq)
         except Exception as e:
             raise ValueError(
-                f"Failed to create ProteinAnalysis for record {record.id!r}: {e}"
+                f"Failed to create ProteinAnalysis for record {protein_record.id!r}: {e}"
             ) from e
 
         # Compute all features
@@ -113,31 +104,35 @@ class ProtParamFeature:
             result["molecular_weight"] = pa.molecular_weight()
         except Exception as e:
             raise ValueError(
-                f"Failed to compute molecular_weight for record {record.id!r}: {e}"
+                f"Failed to compute molecular_weight for record {protein_record.id!r}: {e}"
             ) from e
 
         try:
             result["isoelectric_point"] = pa.isoelectric_point()
         except Exception as e:
             raise ValueError(
-                f"Failed to compute isoelectric_point for record {record.id!r}: {e}"
+                f"Failed to compute isoelectric_point for record {protein_record.id!r}: {e}"
             ) from e
 
         try:
             result["gravy"] = pa.gravy()
         except Exception as e:
-            raise ValueError(f"Failed to compute gravy for record {record.id!r}: {e}") from e
+            raise ValueError(
+                f"Failed to compute gravy for record {protein_record.id!r}: {e}"
+            ) from e
 
         try:
             result["instability_index"] = pa.instability_index()
         except Exception as e:
             raise ValueError(
-                f"Failed to compute instability_index for record {record.id!r}: {e}"
+                f"Failed to compute instability_index for record {protein_record.id!r}: {e}"
             ) from e
 
         try:
             result["aromaticity"] = pa.aromaticity()
         except Exception as e:
-            raise ValueError(f"Failed to compute aromaticity for record {record.id!r}: {e}") from e
+            raise ValueError(
+                f"Failed to compute aromaticity for record {protein_record.id!r}: {e}"
+            ) from e
 
         return result
