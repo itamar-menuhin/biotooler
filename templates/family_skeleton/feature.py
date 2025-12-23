@@ -4,8 +4,10 @@
 """
 
 from Bio.SeqRecord import SeqRecord
+import numpy as np
 
 from biotooler.core.types import Scalar
+from biotooler.features.aggregation import AggregationSpec, PositionSpace
 
 # TODO: If you have optional dependencies, use lazy_import:
 # from biotooler.core.lazy_import import lazy_import
@@ -124,3 +126,96 @@ class {{FAMILY_NAME_TITLE}}Feature:
         """
         # TODO: Implement feature emission from state if needed
         return {}
+
+    # ========================================================================
+    # Positional Feature Protocol (NEW WINDOWING SEMANTICS)
+    # ========================================================================
+    # The following methods implement the PositionalFeature protocol, which
+    # enforces full-context vector computation followed by window aggregation.
+    # This is the RECOMMENDED approach for new families.
+    #
+    # To implement this protocol, you must provide:
+    # 1. position_space property: defines granularity (RESIDUE or CODON)
+    # 2. vector_keys property: maps feature keys to aggregation specs
+    # 3. compute_vector method: computes per-position values across full sequence
+    #
+    # See docs/dev/adding_a_family.md for detailed guidance.
+    # ========================================================================
+
+    @property
+    def position_space(self) -> PositionSpace:
+        """Define the position space for this feature (REQUIRED for positional features).
+
+        Returns:
+            PositionSpace.RESIDUE for per-nucleotide/amino-acid features
+            PositionSpace.CODON for per-codon features
+
+        Example:
+            return PositionSpace.RESIDUE
+        """
+        # TODO: Uncomment and return the appropriate position space
+        # return PositionSpace.RESIDUE  # or PositionSpace.CODON
+        raise NotImplementedError(
+            "position_space must be implemented for positional features. "
+            "See docs/dev/adding_a_family.md for guidance."
+        )
+
+    @property
+    def vector_keys(self) -> dict[str, AggregationSpec]:
+        """Define aggregation specs for each feature key (REQUIRED for positional features).
+
+        Returns:
+            Dictionary mapping feature names to AggregationSpec objects.
+            Each spec defines how per-position values are aggregated into windows.
+
+        Example:
+            return {
+                "gc_mean": AggregationSpec(aggregation_fn=np.mean),
+                "gc_sum": AggregationSpec(aggregation_fn=np.sum),
+            }
+        """
+        # TODO: Uncomment and define your feature keys with aggregation functions
+        # return {
+        #     "feature_key": AggregationSpec(aggregation_fn=np.mean),
+        # }
+        raise NotImplementedError(
+            "vector_keys must be implemented for positional features. "
+            "See docs/dev/adding_a_family.md for guidance."
+        )
+
+    def compute_vector(
+        self, record: SeqRecord, **kwargs
+    ) -> dict[str, np.ndarray]:
+        """Compute per-position feature values (REQUIRED for positional features).
+
+        This method computes feature values at each position across the FULL sequence.
+        The windowing framework will then slice and aggregate these values into windows.
+
+        IMPORTANT: When wrapping upstream libraries, ensure you:
+        1. Call the library with the FULL sequence (not individual windows)
+        2. Transform library output into per-position numpy arrays
+        3. Return arrays that match the position_space granularity
+
+        Args:
+            record: The SeqRecord containing the full sequence
+            **kwargs: Additional parameters (e.g., orf coordinates)
+
+        Returns:
+            Dictionary mapping feature keys (from vector_keys) to numpy arrays.
+            Array length must match sequence length in the position_space.
+
+        Example:
+            seq = str(record.seq).upper()
+            gc_vector = np.array([1.0 if base in "GC" else 0.0 for base in seq])
+            return {"gc_mean": gc_vector, "gc_sum": gc_vector}
+
+        See Also:
+            - docs/dev/adding_a_family.md: How to use upstream positional APIs
+            - README.md: "Windowing correctness" section for testing guidance
+        """
+        # TODO: Implement per-position computation across full sequence
+        # When wrapping upstream libraries, call them with the full sequence here
+        raise NotImplementedError(
+            "compute_vector must be implemented for positional features. "
+            "See docs/dev/adding_a_family.md for guidance on wrapping upstream libraries."
+        )

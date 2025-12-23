@@ -14,6 +14,7 @@ REQUIRED_HEADINGS = [
     "## Upstream library links",
     "## Examples",
     "## Edge cases and validation",
+    "## Windowing correctness",
     "## Maintenance notes",
 ]
 
@@ -21,7 +22,7 @@ REQUIRED_HEADINGS = [
 def _extract_section(content: str, heading: str) -> str | None:
     """Extract content between a heading and the next heading or end of file."""
     match = re.search(
-        rf"^{re.escape(heading)}\s*(.*?)(?=^##|\Z)", content, re.DOTALL | re.MULTILINE
+        rf"^{re.escape(heading)}(?!#)\s*(.*?)(?=^##(?!#)|\Z)", content, re.DOTALL | re.MULTILINE
     )
     return match.group(1) if match else None
 
@@ -61,6 +62,50 @@ def check_readme(readme_path: Path, family_name: str) -> list[str]:
                 f"Family '{family_name}': 'Upstream library links' section must contain "
                 "at least one http(s) link or 'N/A'"
             )
+
+    # Check Windowing correctness section has required subsections
+    windowing_section = _extract_section(content, "## Windowing correctness")
+    if windowing_section:
+        required_subsections = [
+            "### Position space",
+            "### Vector computation",
+            "### Aggregation strategy",
+            "### Testing approach",
+        ]
+        for subsection in required_subsections:
+            if subsection not in windowing_section:
+                errors.append(
+                    f"Family '{family_name}': 'Windowing correctness' section must "
+                    f"include '{subsection}' subsection"
+                )
+        
+        # Check that windowing section references upstream APIs when appropriate
+        # If Upstream library links has actual links (not N/A), windowing should mention them
+        if upstream_section:
+            has_upstream_link = re.search(r"https?://", upstream_section)
+            has_na = re.search(r"\bN/A\b", upstream_section)
+            if has_upstream_link and not has_na:
+                # Family uses upstream library - check windowing docs reference it
+                vector_computation_match = re.search(
+                    r"### Vector computation\s+(.*?)(?=###|\Z)", 
+                    windowing_section, 
+                    re.DOTALL
+                )
+                if vector_computation_match:
+                    vector_computation_text = vector_computation_match.group(1)
+                    # Should mention library, API, or link to documentation
+                    has_library_ref = (
+                        re.search(r"\blibrary\b", vector_computation_text, re.IGNORECASE) or
+                        re.search(r"\bAPI\b", vector_computation_text) or
+                        re.search(r"https?://", vector_computation_text) or
+                        re.search(r"\bupstream\b", vector_computation_text, re.IGNORECASE)
+                    )
+                    if not has_library_ref:
+                        errors.append(
+                            f"Family '{family_name}': 'Windowing correctness > Vector computation' "
+                            "section should explain how upstream library APIs are used "
+                            "(mention 'library', 'API', 'upstream', or include documentation links)"
+                        )
 
     return errors
 
