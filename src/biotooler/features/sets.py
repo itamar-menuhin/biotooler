@@ -209,6 +209,19 @@ class FeatureSet:
         This method produces wide-format output: one row per record with columns suffixed
         by window start index (e.g., CAI_0, CAI_3, CAI_6 for step_nt=3).
 
+        Windowing Semantics:
+        - step_nt moves the window start position forward
+        - Each window aggregates ALL codons/residues in its [start, end) range
+        - step_nt does NOT subsample codons/residues; it only controls window placement
+
+        For positional features (those implementing position_space, vector_keys, and
+        compute_vector), this method automatically uses v2 semantics: compute per-position
+        values once across the full ORF, then aggregate by window boundaries. This ensures
+        correct positional feature computation (e.g., codon bias, chimera).
+
+        For legacy/incremental features, this method uses the original windowing approach:
+        slice windows and call feature(window) or use incremental init/step/emit.
+
         ORF Resolution Rules:
         - If `orf` is provided: use it directly
         - Else if `orf_index` is provided: find candidates and select that index
@@ -286,16 +299,11 @@ class FeatureSet:
                     "or attach an ORF using attach_orf()."
                 ) from e
 
-        # Extract windows using iter_orf_codon_windows
-        windows = list(
-            iter_orf_codon_windows(
-                record,
-                orf=resolved_orf,
-                window_nt=window_nt,
-                step_nt=step_nt,
-                drop_partial=drop_partial,
+        # Validate step_nt (must be multiple of 3 for codon alignment)
+        if step_nt % 3 != 0:
+            raise ValueError(
+                f"step_nt must be a multiple of 3 for codon-aligned windows, got {step_nt}"
             )
-        )
 
         # Build feature data dictionary for single row
         feature_data: dict[str, Any] = {
@@ -304,17 +312,150 @@ class FeatureSet:
             "orf_end": resolved_orf[1],
         }
 
-        if not windows:
-            # No windows generated - return row with metadata only
-            return pd.DataFrame([feature_data])
+        # Separate positional features from non-positional features
+        positional_features = []
+        non_positional_features = []
 
-        # Compute features over windows using shared helper
-        self._compute_features_over_windows(
-            windows=windows,
-            feature_data=feature_data,
-            window_start_key="window_start",
-            init_state_kwargs={"record": record, "orf": resolved_orf},
-        )
+        for feat_name, feat_fn in self._features.items():
+            # Check if feature implements PositionalFeature protocol (duck-typing)
+            has_positional = (
+                hasattr(feat_fn, "position_space")
+                and hasattr(feat_fn, "vector_keys")
+                and hasattr(feat_fn, "compute_vector")
+            )
+
+            # Check if feature implements IncrementalFeature protocol (duck-typing)
+            has_incremental = (
+                hasattr(feat_fn, "init_state")
+                and hasattr(feat_fn, "step_state")
+                and hasattr(feat_fn, "emit")
+            )
+
+            # Routing logic:
+            # 1. If feature has incremental interface, use legacy path (allows mixed behavior)
+            # 2. Else if feature has positional interface with non-empty vector_keys, use v2 path
+            # 3. Otherwise, use legacy path
+
+            if has_incremental:
+                # Prefer incremental path for features that implement it
+                # (e.g., CodonBiasFeature with mixed models)
+                non_positional_features.append((feat_name, feat_fn))
+            elif has_positional:
+                try:
+                    vector_keys = feat_fn.vector_keys  # type: ignore[union-attr]
+                    if vector_keys:
+                        # Use positional path for pure positional features
+                        positional_features.append((feat_name, feat_fn))
+                    else:
+                        # Empty vector_keys means no positional behavior
+                        non_positional_features.append((feat_name, feat_fn))
+                except Exception:
+                    # If accessing vector_keys raises an exception, treat as non-positional
+                    non_positional_features.append((feat_name, feat_fn))
+            else:
+                non_positional_features.append((feat_name, feat_fn))
+
+        # Process positional features using v2 semantics
+        if positional_features:
+            # Extract ORF sequence
+            orf_start, orf_end = resolved_orf
+            seq_str = get_seq_str(record)
+            orf_seq_str = seq_str[orf_start:orf_end]
+            orf_len = len(orf_seq_str)
+
+            # Create ORF record for compute_vector
+            orf_record = SeqRecord(
+                Seq(orf_seq_str),
+                id=record.id,
+                description=record.description,
+            )
+            # Copy annotations but exclude cache keys
+            for key, value in record.annotations.items():
+                if not key.startswith("_biotooler_"):
+                    orf_record.annotations[key] = value
+
+            # Process each positional feature
+            for _feat_name, feat_fn in positional_features:
+                # Get position space and vector keys
+                position_space = feat_fn.position_space  # type: ignore[union-attr]
+                vector_keys = feat_fn.vector_keys  # type: ignore[union-attr]
+
+                # Compute per-position vectors for the full ORF
+                vectors = feat_fn.compute_vector(orf_record)  # type: ignore[union-attr]
+
+                # Generate window boundaries using the shared indexing helper
+                # Map PositionSpace enum to string for the helper function
+                position_space_str = (
+                    "codon" if position_space == PositionSpace.CODON else "residue"
+                )
+
+                # Get window boundaries in nucleotide space
+                window_boundaries = compute_window_indices(
+                    sequence_length=orf_len,
+                    window_size=window_nt,
+                    step=step_nt,
+                    drop_partial=drop_partial,
+                    position_space=position_space_str,
+                    start_offset=0,
+                )
+
+                # Process each window
+                for window_start_nt, window_end_nt in window_boundaries:
+                    # Convert nucleotide positions to position space indices
+                    if position_space == PositionSpace.CODON:
+                        # For codon space, convert nt positions to codon indices
+                        window_start_pos = window_start_nt // 3
+                        window_end_pos = window_end_nt // 3
+                    else:  # RESIDUE
+                        # For residue space, positions are the same as nt positions
+                        window_start_pos = window_start_nt
+                        window_end_pos = window_end_nt
+
+                    # Aggregate each vector key for this window
+                    for key, agg_spec in vector_keys.items():
+                        if key not in vectors:
+                            raise ValueError(
+                                f"Feature compute_vector did not return expected key '{key}'"
+                            )
+
+                        vector = vectors[key]
+                        window_values = vector[window_start_pos:window_end_pos]
+
+                        # Apply aggregation function
+                        aggregated_value = agg_spec.aggregation_fn(window_values)
+
+                        # Store with column name format: {name}.{key}_{window_start_nt}
+                        col_name = f"{self.name}.{key}_{window_start_nt}"
+                        feature_data[col_name] = aggregated_value
+
+        # Process non-positional features using legacy path
+        if non_positional_features:
+            # Extract windows using iter_orf_codon_windows
+            windows = list(
+                iter_orf_codon_windows(
+                    record,
+                    orf=resolved_orf,
+                    window_nt=window_nt,
+                    step_nt=step_nt,
+                    drop_partial=drop_partial,
+                )
+            )
+
+            if windows:
+                # Temporarily store features for legacy path
+                original_features = self._features
+                self._features = dict(non_positional_features)
+
+                # Compute features over windows using shared helper
+                self._compute_features_over_windows(
+                    windows=windows,
+                    feature_data=feature_data,
+                    window_start_key="window_start",
+                    init_state_kwargs={"record": record, "orf": resolved_orf},
+                )
+
+                # Restore original features
+                self._features = original_features
 
         # Format as wide DataFrame using shared helper
         return self._format_wide_dataframe(
