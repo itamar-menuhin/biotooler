@@ -21,15 +21,15 @@ The disorder family provides protein intrinsic disorder prediction features usin
 
 ### IUPred3
 - **Type**: External command-line tool
-- **Installation**: Download standalone binary/script from https://iupred3.elte.hu/
+- **Installation**: Download standalone binary/script from https://iupred3.elte.hu/ (or install via package manager if available)
 - **Interface**: Python subprocess wrapper calling the IUPred3 executable
 - **Output**: Per-residue disorder scores (similar to metapredict)
 - **Features**: Multiple disorder types (long, short, structured domains)
 - **Implementation approach**:
   - Feature class: `DisorderProfileIUPred3`
-  - Lazy import check for IUPred3 installation
-  - Subprocess wrapper: `subprocess.run(["iupred3", "long", input_fasta])`
-  - Parse output format (FASTA or tab-delimited)
+  - Lazy import check for IUPred3 installation (check binary exists in PATH)
+  - Subprocess wrapper with proper file handling (write temp FASTA, parse output)
+  - Parse output format (tab-delimited: position, amino acid, disorder score)
   - Return DISORDER_P_IUPRED3 vector
 
 ### ANCHOR2
@@ -167,15 +167,18 @@ Both `DisorderProfileMetapredict` and derived features accept DNA/RNA sequences 
 
 **Example translation workflow**:
 ```python
-from biotooler.core.translation import ensure_protein_record
+# Example showing translation (not direct user code - internal to features)
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 
-# DNA record with ORF
+# This is done automatically inside DisorderProfileMetapredict.compute_vector()
+# User code just needs to provide DNA/RNA record
 dna_record = SeqRecord(Seq("ATGAAACGCTTA"), id="gene1")
 dna_record.annotations["molecule_type"] = "DNA"
 dna_record.annotations["biotooler.orf"] = (0, 12)  # Attached ORF
 
-# Automatic translation (used internally by DisorderProfileMetapredict)
-protein_record = ensure_protein_record(dna_record, table=1)
+# DisorderProfileMetapredict internally calls ensure_protein_record()
+# protein_record = ensure_protein_record(dna_record, table=1)
 # protein_record.seq = "MKR" (translated from ORF)
 ```
 
@@ -243,14 +246,16 @@ print(f"Translated protein length: {len(disorder_scores)}")
 ### Using ORF regions
 
 ```python
-from biotooler.core.orf_store import attach_orf
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from biotooler.families.disorder.metapredict_backend import DisorderProfileMetapredict
 
 # DNA sequence with specific ORF region
 dna = SeqRecord(Seq("ATGAAAGCCCTGGTGTCTTGGGGACGTCCACAAATGTAG"), id="gene2")
 dna.annotations["molecule_type"] = "DNA"
 
-# Attach ORF (start=0, end=36, length=12 codons)
-dna = attach_orf(dna, (0, 36))
+# Attach ORF using annotation (the attach_orf helper does this)
+dna.annotations["biotooler.orf"] = (0, 36)  # Start=0, end=36, length=12 codons
 
 # DisorderProfileMetapredict will use attached ORF for translation
 feature = DisorderProfileMetapredict(use_orf_if_present=True)
@@ -867,19 +872,18 @@ def get_features() -> list[type]:
 disorder = [
     "metapredict>=3.0",
 ]
+# If IUPred3 requires a Python wrapper package:
 iupred = [
-    # If IUPred3 is packaged on PyPI:
-    "iupred3>=3.0",
-    # Or if we create a wrapper:
-    # "biotooler-iupred3>=0.1.0",
+    "biotooler-iupred3>=0.1.0",  # Example wrapper package name
 ]
-# For installing both:
+# For installing all disorder backends:
 all-disorder = [
-    "biotooler[disorder,iupred]",
+    "biotooler[disorder]",
+    "biotooler[iupred]",
 ]
 ```
 
-**Note**: If IUPred3 is not available on PyPI, document manual installation steps in README.
+**Note**: IUPred3 may require manual installation as a system binary. If creating a Python wrapper package, publish it to PyPI for easy installation. Document manual installation steps in README for external binary approach.
 
 ### Step 5: Add Tests
 
@@ -1136,20 +1140,32 @@ def compute_vector(self, record, **kwargs):
 - Review existing backends: `metapredict_backend.py`, `derived.py`
 - Review other families: `chimera/`, `protparam/`, `basic_stats/`
 - Check tests for implementation patterns
-- Ask maintainers: @itamar-menuhin (disorder family owner)
+- Open an issue on GitHub for questions or guidance
+- Disorder family maintainer: See CODEOWNERS file for current maintainer
 
 ### Troubleshooting
 
 **Import Error: "No module named 'metapredict'"**
 - Solution: Install metapredict with `pip install metapredict` or `pip install "biotooler[disorder]"`
 
-**Feature not available error**:
-- Current status: No features implemented yet in disorder family
-- Features are coming in future updates
-- The `require_metapredict()` helper is available for testing integration
+**Metapredict version issues**:
+- Ensure metapredict ≥ 3.0 is installed
+- Check version: `python -c "import metapredict; print(metapredict.__version__)"`
+- Update if needed: `pip install --upgrade metapredict`
+
+**Invalid amino acid errors**:
+- metapredict only supports 20 standard amino acids
+- Non-standard residues (U, O, etc.) will raise ValueError
+- Consider filtering or replacing non-standard residues before prediction
+
+**Translation errors with DNA/RNA**:
+- Ensure molecule_type is set correctly in record.annotations
+- Check that ORF coordinates are valid (must be in frame, divisible by 3)
+- Verify genetic code table is appropriate for your organism
 
 ### Version compatibility
 
 - metapredict ≥ 3.0 recommended (latest stable version)
 - biotooler ≥ 0.1.0 required for lazy import infrastructure
-- Future feature implementations will specify exact version requirements
+- Python ≥ 3.11 required
+- Compatible with all major operating systems (Linux, macOS, Windows)
