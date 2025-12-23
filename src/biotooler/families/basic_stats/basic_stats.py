@@ -5,6 +5,7 @@ from Bio.SeqRecord import SeqRecord
 
 from biotooler.core.seq_utils import get_seq_str
 from biotooler.core.types import Scalar
+from biotooler.features.aggregation import AggregationSpec, PositionSpace
 
 # Standard alphabets
 DNA_ALPHABET = "ACGT"
@@ -307,3 +308,98 @@ class BasicStatsFeature:
                 result["gc_fraction"] = 0.0
 
         return result
+
+    @property
+    def position_space(self) -> PositionSpace:
+        """The position space for this feature (RESIDUE).
+
+        Returns:
+            PositionSpace.RESIDUE indicating features are computed per residue/base
+        """
+        return PositionSpace.RESIDUE
+
+    @property
+    def vector_keys(self) -> dict[str, AggregationSpec]:
+        """Mapping of feature keys to aggregation specifications.
+
+        For basic stats, we compute per-position indicators and aggregate them:
+        - count_<char>: Sum of indicators (total count in window)
+        - fraction_<char>: Mean of indicators (fraction in window)
+        - gc_fraction: Mean of GC indicator (for DNA/RNA)
+
+        Returns:
+            Dictionary mapping feature names to AggregationSpec objects that define
+            how per-position values should be aggregated into window values.
+        """
+        # For the positional protocol, we'll compute per-position binary indicators
+        # and aggregate them with sum (for counts) or mean (for fractions)
+
+        # Note: We return specs for fractions (using mean). Counts can be derived
+        # from fractions * window_length, but for simplicity we'll compute both.
+
+        vector_keys = {}
+
+        # Standard alphabets - we'll add specs for common characters
+        # The actual alphabet will be determined at compute_vector time
+        common_chars = set(DNA_ALPHABET + RNA_ALPHABET + PROTEIN_ALPHABET + "NX*")
+
+        for char in common_chars:
+            # Count: sum of binary indicators
+            vector_keys[f"count_{char.lower()}"] = AggregationSpec(aggregation_fn=np.sum)
+            # Fraction: mean of binary indicators
+            vector_keys[f"fraction_{char.lower()}"] = AggregationSpec(aggregation_fn=np.mean)
+
+        # GC fraction (for DNA/RNA)
+        vector_keys["gc_fraction"] = AggregationSpec(aggregation_fn=np.mean)
+
+        # Length (sum of 1s)
+        vector_keys["length"] = AggregationSpec(aggregation_fn=np.sum)
+
+        return vector_keys
+
+    def compute_vector(
+        self, record: SeqRecord, **kwargs
+    ) -> dict[str, np.ndarray]:
+        """Compute per-position feature values for the entire sequence.
+
+        This method computes binary indicators for each character at each position,
+        allowing for efficient window aggregation without sequence slicing.
+
+        Args:
+            record: The SeqRecord containing the sequence
+            **kwargs: Additional parameters (unused, for protocol compatibility)
+
+        Returns:
+            Dictionary mapping feature names to numpy arrays of per-position values.
+            - count_<char>: Binary array (1 where char present, 0 otherwise)
+            - fraction_<char>: Same as count (mean will give fraction)
+            - gc_fraction: Binary array for GC positions (DNA/RNA only)
+            - length: Array of 1s (sum will give length)
+        """
+        seq_str = get_seq_str(record)
+        seq_len = len(seq_str)
+
+        vectors = {}
+
+        # Create binary indicator arrays for ALL possible characters from vector_keys
+        # This ensures consistency between vector_keys and compute_vector
+        common_chars = set(DNA_ALPHABET + RNA_ALPHABET + PROTEIN_ALPHABET + "NX*")
+
+        for char in common_chars:
+            # Create binary array: 1 where character matches, 0 otherwise
+            indicator = np.array([1.0 if seq_str[i] == char else 0.0
+                                 for i in range(seq_len)])
+
+            # Store for both count and fraction (aggregation function differs)
+            vectors[f"count_{char.lower()}"] = indicator
+            vectors[f"fraction_{char.lower()}"] = indicator
+
+        # Add GC indicator (always include, will be 0 for protein)
+        gc_indicator = np.array([1.0 if seq_str[i] in "GC" else 0.0
+                                for i in range(seq_len)])
+        vectors["gc_fraction"] = gc_indicator
+
+        # Add length vector (all 1s)
+        vectors["length"] = np.ones(seq_len, dtype=float)
+
+        return vectors

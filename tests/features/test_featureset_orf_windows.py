@@ -352,3 +352,66 @@ class TestFeatureSetOrfWindowsWideFormat:
         assert "custom_name.feat_0" in result.columns
         assert "custom_name.feat_3" in result.columns
         assert "custom_name.feat_6" in result.columns
+
+
+class ToyPositionalCodonFeature:
+    """Toy positional feature that returns codon indices [0, 1, 2, ...] for testing."""
+
+    @property
+    def position_space(self):
+        """Return CODON position space."""
+        from biotooler.features.aggregation import PositionSpace
+        return PositionSpace.CODON
+
+    @property
+    def vector_keys(self):
+        """Return aggregation specs - using mean aggregation."""
+        import numpy as np
+
+        from biotooler.features.aggregation import AggregationSpec
+        return {"codon_idx": AggregationSpec(aggregation_fn=np.mean)}
+
+    def compute_vector(self, record, **kwargs):
+        """Return array [0, 1, 2, ...] for each codon."""
+        import numpy as np
+        seq_len = len(record.seq)
+        num_codons = seq_len // 3
+        return {"codon_idx": np.arange(num_codons, dtype=float)}
+
+
+def test_step_nt_does_not_subsample_codons():
+    """Regression test: step_nt moves window but aggregates all codons in range.
+
+    This test proves that step_nt does NOT subsample codons/residues; it only
+    moves the window start position. Each window aggregates all positions in
+    its range [window_start, window_end).
+
+    Given:
+    - 18 nt sequence (6 codons: indices 0, 1, 2, 3, 4, 5)
+    - window_nt=12 (4 codons)
+    - step_nt=6 (1 codon step)
+
+    Expected windows:
+    - Window at 0: codons 0-4 (nt 0-12), mean = (0+1+2+3)/4 = 1.5
+    - Window at 6: codons 2-6 (nt 6-18), mean = (2+3+4+5)/4 = 3.5
+
+    If step_nt incorrectly subsampled, window 6 might only aggregate
+    codons 2 and 4 (every other codon), giving mean=3.0 instead of 3.5.
+    """
+    feature = ToyPositionalCodonFeature()
+    fs = FeatureSet(feature, name="test")
+
+    # 18 nt = 6 codons
+    record = SeqRecord(Seq("ATGATGATGATGATGATG"), id="test")
+
+    result = fs.compute_orf_windows(
+        record, orf=(0, 18), window_nt=12, step_nt=6, drop_partial=True
+    )
+
+    # Window 0: codons 0, 1, 2, 3 -> mean = (0+1+2+3)/4 = 1.5
+    assert "test.codon_idx_0" in result.columns
+    assert abs(result["test.codon_idx_0"].iloc[0] - 1.5) < 1e-10
+
+    # Window 6: codons 2, 3, 4, 5 -> mean = (2+3+4+5)/4 = 3.5
+    assert "test.codon_idx_6" in result.columns
+    assert abs(result["test.codon_idx_6"].iloc[0] - 3.5) < 1e-10
