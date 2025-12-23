@@ -104,8 +104,8 @@ def test_chimera_feature_compute_vector_raises_not_implemented():
     # Check the error message is informative
     error_message = str(exc_info.value)
     assert "compute_vector" in error_message.lower()
-    assert "not yet implemented" in error_message.lower() or "stub" in error_message.lower()
-    assert "return_vec=True" in error_message or "positional" in error_message.lower()
+    assert "not yet implemented" in error_message.lower()
+    assert "return_vec=True" in error_message
 
 
 def test_chimera_feature_implements_positional_protocol():
