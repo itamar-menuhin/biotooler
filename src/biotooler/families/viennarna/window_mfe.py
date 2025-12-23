@@ -99,7 +99,7 @@ class WindowMFEFeature:
 
             # Compute MFE using ViennaRNA
             fc = RNA.fold_compound(rna_seq)
-            structure, mfe = fc.mfe()
+            _, mfe = fc.mfe()
 
             # Store with wide key
             result[f"MFE_{window_start}"] = mfe

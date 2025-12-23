@@ -70,9 +70,9 @@ class TestWindowMFEFeature:
         """Test that MFE is computed only for requested window positions."""
         from biotooler.families.viennarna.window_mfe import WindowMFEFeature
 
-        # Patch the require_viennarna to return our mock at the integration module level
+        # Patch require_viennarna to return our mock
         with patch(
-            "biotooler.families.viennarna.integration.lazy_import",
+            "biotooler.families.viennarna.integration.require_viennarna",
             return_value=mock_rna,
         ):
             feature = WindowMFEFeature(window_starts=[0, 10, 20], window_size=15)
@@ -115,7 +115,7 @@ class TestWindowMFEFeature:
         mock_rna.fold_compound = track_fold_compound
 
         with patch(
-            "biotooler.families.viennarna.integration.lazy_import",
+            "biotooler.families.viennarna.integration.require_viennarna",
             return_value=mock_rna,
         ):
             feature = WindowMFEFeature(window_starts=[0], window_size=20)
@@ -146,7 +146,7 @@ class TestWindowMFEFeature:
         mock_rna.fold_compound = track_fold_compound
 
         with patch(
-            "biotooler.families.viennarna.integration.lazy_import",
+            "biotooler.families.viennarna.integration.require_viennarna",
             return_value=mock_rna,
         ):
             feature = WindowMFEFeature(window_starts=[0], window_size=20)
@@ -164,7 +164,7 @@ class TestWindowMFEFeature:
         from biotooler.families.viennarna.window_mfe import WindowMFEFeature
 
         with patch(
-            "biotooler.families.viennarna.integration.lazy_import",
+            "biotooler.families.viennarna.integration.require_viennarna",
             return_value=mock_rna,
         ):
             feature = WindowMFEFeature(window_starts=[0, 10, 25], window_size=20)
@@ -194,7 +194,7 @@ class TestWindowMFEFeature:
         mock_rna.fold_compound = track_fold_compound
 
         with patch(
-            "biotooler.families.viennarna.integration.lazy_import",
+            "biotooler.families.viennarna.integration.require_viennarna",
             return_value=mock_rna,
         ):
             # Request only 3 specific windows out of many possible
