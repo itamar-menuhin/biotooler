@@ -15,12 +15,30 @@ from biotooler.features.aggregation import AggregationSpec, PositionSpace
 if TYPE_CHECKING:
     from biotooler.core.reference_sequences import ReferenceSequenceSet
 
-# Lazy import pyChimera at module level - will raise ImportError if not installed
-pychimera = lazy_import(  # type: ignore[misc]
-    "pychimera",
-    extra="chimera",
-    purpose="computing gene expression features using Chimera algorithms",
-)
+# Lazy import chimera at module level - will raise ImportError if not installed
+# Note: The package is called "chimera-ugem" but the module is "chimera"
+# To avoid conflicts with test packages named "chimera", we check if we got
+# the correct module and attempt recovery if needed
+try:
+    pychimera = lazy_import(  # type: ignore[misc]
+        "chimera",
+        extra="chimera",
+        purpose="computing gene expression features using Chimera algorithms",
+    )
+    
+    # Verify we got the correct chimera module (not a test package)
+    # The real chimera module should have calc_cARS
+    if not hasattr(pychimera, "calc_cARS"):
+        # We got the wrong module (probably tests/families/chimera)
+        # Raise ImportError so tests can skip gracefully
+        raise ImportError(
+            "Module 'chimera' found but it doesn't have calc_cARS. "
+            "This might be a naming conflict with test packages. "
+            'Install chimera-ugem with: pip install "biotooler[chimera]"'
+        )
+except ImportError:
+    # Re-raise to preserve original error message
+    raise
 
 
 class ChimeraFeature:
@@ -90,25 +108,17 @@ class ChimeraFeature:
 
         # Handle reference sequences
         if reference_set is not None:
-            # Validate that reference_set can provide the needed sequences
-            # Prefer protein_strings, but accept cds_strings if proteins can be derived
+            # cARS/PScARS algorithms work on DNA sequences, not proteins
+            # Get CDS strings from the reference set
             try:
-                # Try to get protein strings (will derive from CDS if needed)
-                self.reference_seqs = reference_set.protein_strings(
-                    strip_terminal_stop=True, error_on_internal_stop=False
+                self.reference_seqs = reference_set.cds_strings(
+                    require_multiple_of_three=False
                 )
-                self._sequence_type = "protein"
-            except Exception:
-                # Fall back to CDS strings
-                try:
-                    self.reference_seqs = reference_set.cds_strings(
-                        require_multiple_of_three=False
-                    )
-                    self._sequence_type = "cds"
-                except Exception as e:
-                    raise ValueError(
-                        f"reference_set cannot provide required sequences: {e}"
-                    ) from e
+                self._sequence_type = "cds"
+            except Exception as e:
+                raise ValueError(
+                    f"reference_set cannot provide CDS sequences: {e}"
+                ) from e
         elif reference_seqs is not None:
             self.reference_seqs = reference_seqs
             self._sequence_type = "cds"
@@ -161,7 +171,7 @@ class ChimeraFeature:
         common subsequences.
 
         Args:
-            record: SeqRecord containing the DNA sequence to analyze
+            record: SeqRecord containing the DNA/RNA sequence to analyze
             **kwargs: Additional parameters (unused)
 
         Returns:
@@ -169,53 +179,124 @@ class ChimeraFeature:
             For cARS, this is the maximal common substring length at each codon position.
 
         Raises:
-            NotImplementedError: Feature computation not yet implemented
+            ValueError: If algorithm is not supported
         """
-        # TODO: Implement vector computation using self._chimera.calc_cARS with return_vec=True
-        # Example implementation:
-        # from chimera import build_suffix_array, calc_cARS, nt2codon
-        # if self._suffix_array is None:
-        #     ref_cod = nt2codon(self.reference_seqs)
-        #     self._suffix_array = build_suffix_array(ref_cod)
-        # target_cod = nt2codon([str(record.seq)])
-        # cars_vec = calc_cARS(target_cod[0], self._suffix_array,
-        #                      win_params=self.win_params if "PS" in self.algorithm else None,
-        #                      max_len=self.max_len, max_pos=self.max_pos,
-        #                      return_vec=True)
-        # feature_name = f"{self.algorithm}_score"
-        # return {feature_name: cars_vec}
+        # Import from the pychimera lazy import to get the correct module
+        # (avoids conflicts with local test package names)
+        build_suffix_array = pychimera.build_suffix_array
+        calc_cARS = pychimera.calc_cARS
+        nt2codon = pychimera.nt2codon
 
-        raise NotImplementedError(
-            "ChimeraFeature compute_vector is not yet implemented. "
-            "This is a stub for future implementation using pyChimera's return_vec=True API."
+        # Only cARS/PScARS are supported for now
+        if self.algorithm not in ("cARS", "PScARS"):
+            raise NotImplementedError(
+                f"Algorithm '{self.algorithm}' is not yet implemented for vector computation. "
+                f"Only 'cARS' and 'PScARS' are currently supported."
+            )
+
+        # Normalize RNA to DNA (replace U with T)
+        target_seq = str(record.seq).upper().replace("U", "T")
+
+        # Normalize reference sequences (RNA to DNA)
+        normalized_refs = [ref.upper().replace("U", "T") for ref in self.reference_seqs]
+
+        # Build suffix array from reference sequences (cache if not already built)
+        if self._suffix_array is None:
+            ref_cod = nt2codon(normalized_refs)
+            # Include position-specific data if using PScARS
+            self._suffix_array = build_suffix_array(
+                ref_cod, pos_spec=("PS" in self.algorithm)
+            )
+
+        # Convert target sequence to codon representation
+        target_cod = nt2codon([target_seq])
+
+        # Handle empty sequence after codon conversion
+        if not target_cod or not target_cod[0]:
+            feature_name = f"{self.algorithm}_score"
+            return {feature_name: np.array([], dtype=np.float64)}
+
+        # Compute cARS vector (per-position values)
+        cars_vec = calc_cARS(
+            target_cod[0],
+            self._suffix_array,
+            win_params=self.win_params if "PS" in self.algorithm else None,
+            max_len=self.max_len,
+            max_pos=self.max_pos,
+            return_vec=True,
         )
 
-    def __call__(self, record: SeqRecord) -> dict[str, Scalar]:
+        feature_name = f"{self.algorithm}_score"
+        return {feature_name: np.array(cars_vec, dtype=np.float64)}
+
+    def __call__(
+        self, record: SeqRecord, orf_nt_span: tuple[int, int] | None = None
+    ) -> dict[str, Scalar]:
         """Compute Chimera features for the target sequence.
 
         Args:
-            record: DNA SeqRecord to analyze (for cARS) or protein (for cMap)
+            record: DNA/RNA SeqRecord to analyze (for cARS) or protein (for cMap)
+            orf_nt_span: Optional tuple (start, end) for extracting subsequence
+                in nucleotide coordinates. If provided, extracts record.seq[start:end]
+                before computing features.
 
         Returns:
-            Dictionary mapping feature names to scalar values
-            Currently returns empty dict (stub implementation)
+            Dictionary mapping feature names to scalar values.
+            For cARS/PScARS: returns {f"{algorithm}_score": float}
 
         Raises:
-            NotImplementedError: Feature computation not yet implemented
+            ValueError: If reference_set was not provided or algorithm not supported
         """
-        # TODO: Implement feature computation using self._chimera
-        # Example implementation:
-        # if self.algorithm in ("cARS", "PScARS"):
-        #     from chimera import build_suffix_array, calc_cARS, nt2codon
-        #     ref_cod = nt2codon(self.reference_seqs)
-        #     SA = build_suffix_array(ref_cod)
-        #     target_cod = nt2codon([str(record.seq)])
-        #     score = calc_cARS(target_cod[0], SA,
-        #                      win_params=self.win_params if "PS" in self.algorithm else None,
-        #                      max_len=self.max_len, max_pos=self.max_pos)
-        #     return {f"{self.algorithm}_score": score}
+        # Import from the pychimera lazy import to get the correct module
+        # (avoids conflicts with local test package names)
+        build_suffix_array = pychimera.build_suffix_array
+        calc_cARS = pychimera.calc_cARS
+        nt2codon = pychimera.nt2codon
 
-        raise NotImplementedError(
-            "ChimeraFeature computation is not yet implemented. "
-            "This is a stub for future implementation."
+        # Only cARS/PScARS are supported for now
+        if self.algorithm not in ("cARS", "PScARS"):
+            raise NotImplementedError(
+                f"Algorithm '{self.algorithm}' is not yet implemented. "
+                f"Only 'cARS' and 'PScARS' are currently supported."
+            )
+
+        # Extract subsequence if orf_nt_span is provided
+        target_seq = str(record.seq)
+        if orf_nt_span is not None:
+            start, end = orf_nt_span
+            target_seq = target_seq[start:end]
+
+        # Normalize RNA to DNA (replace U with T)
+        target_seq = target_seq.upper().replace("U", "T")
+
+        # Normalize reference sequences (RNA to DNA)
+        normalized_refs = [ref.upper().replace("U", "T") for ref in self.reference_seqs]
+
+        # Build suffix array from reference sequences (cache if not already built)
+        if self._suffix_array is None:
+            ref_cod = nt2codon(normalized_refs)
+            # Include position-specific data if using PScARS
+            self._suffix_array = build_suffix_array(
+                ref_cod, pos_spec=("PS" in self.algorithm)
+            )
+
+        # Convert target sequence to codon representation
+        target_cod = nt2codon([target_seq])
+
+        # Handle empty sequence after codon conversion
+        if not target_cod or not target_cod[0]:
+            feature_name = f"{self.algorithm}_score"
+            return {feature_name: 0.0}
+
+        # Compute cARS score
+        score = calc_cARS(
+            target_cod[0],
+            self._suffix_array,
+            win_params=self.win_params if "PS" in self.algorithm else None,
+            max_len=self.max_len,
+            max_pos=self.max_pos,
+            return_vec=False,
         )
+
+        feature_name = f"{self.algorithm}_score"
+        return {feature_name: float(score)}
