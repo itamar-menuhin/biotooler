@@ -1,12 +1,12 @@
 """ViennaRNA feature family for biotooler.
 
-RNA secondary structure prediction and analysis using ViennaRNA.
+RNA secondary structure prediction and analysis using ViennaRNA. 
 """
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from biotooler.families.viennarna.window_mfe import WindowMFEFeature
+    from biotooler. families.viennarna.window_mfe import WindowMFEFeature
 
 __all__ = ["FAMILY_META", "get_features", "WindowMFEFeature"]
 
@@ -24,14 +24,14 @@ def get_features() -> list[type]:
 
     This function lazily imports the feature module to keep the family
     import lightweight. The ViennaRNA dependency is only loaded when
-    this function is called.
+    this function is called. 
 
     Returns:
         List of Feature classes (not instances) provided by this family.
         Users can instantiate these classes as needed.
 
     Raises:
-        ImportError: If ViennaRNA is not installed.
+        ImportError:  If ViennaRNA is not installed.
             The error message includes installation instructions.
     """
     # Import integration to verify ViennaRNA is available
@@ -41,9 +41,10 @@ def get_features() -> list[type]:
     require_viennarna()
 
     # Import feature classes
-    from biotooler.families.viennarna.window_mfe import WindowMFEFeature
+    from biotooler.families.viennarna.accessibility import ViennaRNAAccessibility
+    from biotooler. families.viennarna.window_mfe import WindowMFEFeature
 
-    return [WindowMFEFeature]
+    return [ViennaRNAAccessibility, WindowMFEFeature]
 
 
 def __getattr__(name: str):
@@ -57,4 +58,3 @@ def __getattr__(name: str):
 
         return WindowMFEFeature
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
