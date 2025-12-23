@@ -29,7 +29,6 @@ def get_features() -> list[type]:
     Returns:
         List of Feature classes (not instances) provided by this family.
         Users can instantiate these classes as needed.
-        Currently returns an empty list as no features are implemented yet.
 
     Raises:
         ImportError: If ViennaRNA is not installed.
@@ -41,5 +40,7 @@ def get_features() -> list[type]:
     # This will raise ImportError with helpful message if RNA is not installed
     require_viennarna()
 
-    # No features implemented yet, but the above ensures proper error handling
-    return []
+    # Import features after verifying ViennaRNA is available
+    from biotooler.families.viennarna.accessibility import ViennaRNAAccessibility
+
+    return [ViennaRNAAccessibility]
