@@ -6,9 +6,10 @@ RNA secondary structure prediction and analysis using ViennaRNA.
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from biotooler.families.viennarna.context_window_fold import ContextWindowFoldFeature
     from biotooler.families.viennarna.window_mfe import WindowMFEFeature
 
-__all__ = ["FAMILY_META", "get_features", "WindowMFEFeature"]
+__all__ = ["FAMILY_META", "get_features", "ContextWindowFoldFeature", "WindowMFEFeature"]
 
 # Family metadata for discovery and documentation
 FAMILY_META = {
@@ -42,13 +43,14 @@ def get_features() -> list[type]:
 
     # Import feature classes
     from biotooler.families.viennarna.accessibility import ViennaRNAAccessibility
+    from biotooler.families.viennarna.context_window_fold import ContextWindowFoldFeature
     from biotooler.families.viennarna.window_mfe import WindowMFEFeature
 
-    return [ViennaRNAAccessibility, WindowMFEFeature]
+    return [ViennaRNAAccessibility, ContextWindowFoldFeature, WindowMFEFeature]
 
 
 def __getattr__(name: str):
-    """Lazy import for WindowMFEFeature to maintain backward compatibility.
+    """Lazy import for feature classes to maintain backward compatibility.
 
     This allows code like `from biotooler.families.viennarna import WindowMFEFeature`
     to work while keeping imports lightweight and not loading ViennaRNA until needed.
@@ -57,4 +59,8 @@ def __getattr__(name: str):
         from biotooler.families.viennarna.window_mfe import WindowMFEFeature
 
         return WindowMFEFeature
+    if name == "ContextWindowFoldFeature":
+        from biotooler.families.viennarna.context_window_fold import ContextWindowFoldFeature
+
+        return ContextWindowFoldFeature
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
