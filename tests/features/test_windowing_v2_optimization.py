@@ -111,12 +111,12 @@ class TestUnionOfWindowsOptimization:
         # 30 nt = 10 codons
         record = SeqRecord(Seq("ATG" * 10), id="test")
 
-        # Windows with step=6: 0-12 (codons 0-4), 6-18 (2-6), 12-24 (4-8), 18-30 (6-10)
-        # Union should be all codons 0-9
+        # Windows with step=6: 0-12 (codons 0-3), 6-18 (2-5), 12-24 (4-7), 18-30 (6-9)
+        # Union should be all codons 0-9 (10 codons total)
         fs.compute_orf_windows_v2(record, orf=(0, 30), window_nt=12, step_nt=6)
 
         positions = feature.last_positions_arg
-        expected_union = set(range(10))  # All 10 codons
+        expected_union = set(range(10))  # Codons 0 through 9
 
         assert set(positions) == expected_union
 
@@ -132,7 +132,7 @@ class TestSparseWindowOptimization:
         # 100 codons (300 nt), large step creates sparse windows
         record = SeqRecord(Seq("ATG" * 100), id="test")
 
-        # Windows: 0-12 (codons 0-4), 30-42 (10-14), 60-72 (20-24), 90-102 (30-34), etc.
+        # Windows: 0-12 (codons 0-3), 30-42 (codons 10-13), 60-72 (codons 20-23), etc.
         fs.compute_orf_windows_v2(record, orf=(0, 300), window_nt=12, step_nt=30)
 
         positions = feature.last_positions_arg
@@ -140,9 +140,8 @@ class TestSparseWindowOptimization:
         # Should have fewer positions than full sequence
         assert len(positions) < 100
 
-        # With step=30 (10 codons) and window=12 (4 codons), we get 10 windows
-        # covering positions 0-4, 10-14, 20-24, 30-34, 40-44, 50-54, 60-64, 70-74, 80-84, 90-94
-        # Total: 40 positions out of 100
+        # With step=30 nt (10 codons) and window=12 nt (4 codons), we get 10 windows
+        # Each window covers 4 codons, 10 windows total = 40 positions out of 100
         assert len(positions) == 40
 
     def test_overlapping_windows_union_is_larger(self):

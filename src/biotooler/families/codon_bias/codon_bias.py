@@ -167,7 +167,7 @@ class CodonBiasFeature:
         """
         # Note: positions parameter is intentionally ignored for codon_bias features
         # because they require full sequence context for accurate computation
-        
+
         # Validate alphabet
         _validate_alphabet(record)
 
