@@ -25,16 +25,16 @@ try:
         extra="chimera",
         purpose="computing gene expression features using Chimera algorithms",
     )
-    
+
     # Verify we got the correct chimera module (not a test package)
     # The real chimera module should have calc_cARS
     if not hasattr(pychimera, "calc_cARS"):
         # We got the wrong module (probably tests/families/chimera)
         # Raise ImportError so tests can skip gracefully
         raise ImportError(
-            "Module 'chimera' found but it doesn't have calc_cARS. "
+            "Module 'chimera' (pychimera) found but it doesn't have calc_cARS. "
             "This might be a naming conflict with test packages. "
-            'Install chimera-ugem with: pip install "biotooler[chimera]"'
+            'Install chimera-ugem (pychimera) with: pip install "biotooler[chimera]"'
         )
 except ImportError:
     # Re-raise to preserve original error message

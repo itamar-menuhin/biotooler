@@ -36,7 +36,7 @@ def test_chimera_scalar_computation_deterministic():
 
 
 def test_chimera_missing_reference_set_error():
-    """Test that ChimeraFeature raises error when neither reference_seqs nor reference_set provided."""
+    """Test ChimeraFeature raises error when neither reference_seqs nor reference_set provided."""
     try:
         from biotooler.families.chimera.feature import ChimeraFeature
     except ImportError:

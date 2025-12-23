@@ -61,23 +61,24 @@ def test_chimera_feature_accepts_reference_set_with_cds_only():
     assert len(feature.reference_seqs) == 2
 
 
-def test_chimera_feature_falls_back_to_cds_strings():
-    """Test that ChimeraFeature falls back to CDS strings if protein derivation fails."""
+def test_chimera_feature_uses_cds_strings():
+    """Test that ChimeraFeature uses CDS strings directly (not proteins)."""
     try:
         from biotooler.families.chimera.feature import ChimeraFeature
     except ImportError:
         pytest.skip("pychimera not installed")
 
     # Create a reference set with CDS that has internal stops
+    # (would fail protein translation but that's okay since we use CDS)
     cds = {
-        "gene1": "ATGTAATAA",  # M * * (internal stop)
+        "gene1": "ATGTAATAA",  # M * * (internal stop in protein)
     }
     ref_set = ReferenceSequenceSet(cds)
 
-    # Create feature with reference_set - should fall back to CDS
+    # Create feature with reference_set - should use CDS directly
     feature = ChimeraFeature(reference_set=ref_set, algorithm="cARS")
 
-    # Should use CDS strings as fallback
+    # Should use CDS strings
     assert feature._sequence_type == "cds"
     assert len(feature.reference_seqs) == 1
     assert feature.reference_seqs[0] == "ATGTAATAA"
