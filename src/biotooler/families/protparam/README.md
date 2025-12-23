@@ -271,6 +271,45 @@ For the protein "MKALVSWGR":
 3. **Context-dependent properties**: pI and stability are sequence-based predictions
 4. **Very short sequences**: Statistics may be unreliable for peptides < 5 residues
 
+## Windowing correctness
+
+### Position space
+
+This family operates at the **protein sequence level** (amino acid sequences). Features are computed on complete protein sequences, not per-residue values. The underlying ProtParam algorithms analyze global sequence properties.
+
+### Vector computation
+
+Not applicable - this family does not use the PositionalFeature protocol. Instead, it computes protein physicochemical parameters by calling Biopython's `ProtParam.ProteinAnalysis` class with complete protein sequences:
+
+1. **Protein input**: If input is already protein, analyze directly
+2. **DNA/RNA input**: Translate to protein using `ensure_protein_record()` before analysis
+3. **Upstream library call**: Create `ProteinAnalysis(protein_seq)` with full sequence
+4. **Feature computation**: Call methods like `molecular_weight()`, `isoelectric_point()`, `gravy()`, etc.
+
+The upstream ProtParam library requires full protein sequences to compute properties like isoelectric point (depends on charged residue distribution) and instability index (uses empirical dipeptide instability values). These are inherently sequence-level properties that cannot be meaningfully computed per-residue.
+
+### Aggregation strategy
+
+Not applicable - ProtParam features are naturally sequence-level properties:
+- **Molecular weight**: Sum of all amino acid masses
+- **Isoelectric point**: pH where net charge is zero (requires full sequence charge distribution)
+- **GRAVY**: Average hydropathy across all residues
+- **Instability index**: Weighted sum of dipeptide instability values
+- **Aromaticity**: Fraction of aromatic residues (Phe, Trp, Tyr)
+
+These features are computed by the upstream Biopython library and returned as single scalar values per sequence.
+
+### Testing approach
+
+Windowing correctness for this family focuses on:
+1. **Full sequence usage**: Verify `ProteinAnalysis` is instantiated with complete protein sequences
+2. **Translation correctness**: For DNA/RNA inputs, ensure proper translation to protein before ProtParam analysis
+3. **ORF handling**: When ORFs are present, verify correct extraction and translation
+4. **Upstream library correctness**: Results should match direct Biopython ProtParam calculations
+5. **Edge cases**: Handle terminal stops, internal stops, and ambiguous amino acids correctly
+
+Tests validate that windowing (if applied to protein features) uses complete protein sequences per window, and that ProtParam is called with proper full-sequence context for each analysis.
+
 ## Maintenance notes
 
 ### Dependencies

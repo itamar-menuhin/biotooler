@@ -295,6 +295,40 @@ print(incremental_df["stats.count_a_0"].values[0])  # 2
 - **Speedup**: When s << W (e.g., step=1, window=100), incremental mode is ~W/s times faster
 - **Memory**: O(|Σ|) for count vector (typically 4-5 for DNA/RNA, 20-22 for protein)
 
+## Windowing correctness
+
+### Position space
+
+This family does not use the PositionalFeature protocol. Instead, it uses **incremental computation** for efficient sliding window analysis. Features are computed directly on window-level sequences rather than per-position values.
+
+### Vector computation
+
+Not applicable - this family uses the IncrementalFeature protocol with `init_state`, `step_state`, and `emit` methods rather than the PositionalFeature protocol with `compute_vector`.
+
+The incremental approach:
+1. `init_state`: Initializes a count vector for the first window by iterating through the window sequence
+2. `step_state`: Updates the count vector by subtracting outgoing characters and adding incoming characters
+3. `emit`: Computes feature values (counts and fractions) from the current count vector state
+
+This approach ensures correctness by maintaining exact character counts and computing fractions on demand.
+
+### Aggregation strategy
+
+Not applicable - features are computed directly on each window rather than aggregating per-position values. Each window produces:
+- Exact character counts (integers)
+- Character fractions (computed as count/length)
+- GC fraction for DNA/RNA sequences
+
+### Testing approach
+
+Windowing correctness is validated through:
+1. **Baseline vs incremental comparison**: Tests verify that incremental computation produces identical results to baseline (per-window) computation
+2. **Edge case handling**: Empty windows, single-character windows, and full-sequence windows
+3. **Alphabet consistency**: Alphabet detected from full sequence ensures consistent feature keys across all windows
+4. **Numerical precision**: Floating-point comparisons use tolerance < 1e-10 for fraction calculations
+
+See `tests/families/test_basic_stats.py` for complete test coverage validating both modes produce identical results.
+
 ## Maintenance notes
 
 ### Dependencies
