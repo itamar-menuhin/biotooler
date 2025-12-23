@@ -4,7 +4,7 @@
 
 The ViennaRNA family will provide RNA secondary structure prediction and analysis features using the ViennaRNA package. Features are planned for future releases.
 
-**Status**: Infrastructure only - no features implemented yet.
+**Status**: Active development - RNA accessibility (PU vector) and window MFE features implemented.
 
 ## Intuition
 

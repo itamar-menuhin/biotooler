@@ -82,13 +82,18 @@ class ViennaRNAAccessibility:
         probabilities (accessibility) for each nucleotide position. The sequence
         is automatically normalized from DNA to RNA (T->U) before computation.
 
-        The computation uses ViennaRNA's pf_fold function to calculate the partition
-        function and base pairing probabilities, then derives unpaired probabilities
+        The computation uses ViennaRNA's partition function and plist_from_probs
+        to obtain base pairing probabilities, then derives unpaired probabilities
         as 1 - (sum of pairing probabilities with all other positions).
 
         Args:
             record: SeqRecord containing the DNA or RNA sequence to analyze
-            **kwargs: Additional parameters (currently unused, reserved for future)
+            **kwargs: Additional parameters that may include:
+                - positions: Optional array of 0-based position indices. If provided,
+                  the feature still computes the full vector (for correct structural
+                  context), and the returned array will have the full length with
+                  valid values at all positions. The window engine will extract
+                  needed positions from the full vector.
 
         Returns:
             Dictionary with key "PU" mapping to numpy array of unpaired probabilities.
@@ -102,6 +107,7 @@ class ViennaRNAAccessibility:
             - Automatically converts DNA (with T) to RNA (with U)
             - Returns deterministic results for the same input sequence
             - Computation is performed on the full sequence for correct context
+            - positions parameter is accepted but full computation is always performed
         """
         # Lazy import ViennaRNA
         from biotooler.families.viennarna.integration import require_viennarna
@@ -115,32 +121,35 @@ class ViennaRNAAccessibility:
         if len(seq_str) == 0:
             return {"PU": np.array([], dtype=np.float64)}
 
-        # Compute partition function and base pairing probabilities
-        # This uses ViennaRNA's RNA.pf_fold to get the full partition function
+        # Compute partition function
         fc = RNA.fold_compound(seq_str)
         fc.pf()  # Compute partition function
 
-        # Get base pairing probability matrix
-        # bpp is a tuple of tuples where bpp[i][j] is the probability of pairing between i and j
-        # ViennaRNA uses 1-based indexing, so bpp[0] is padding
-        bpp = fc.bpp()
+        # Get base pairing probabilities as a list of (i, j, p) tuples
+        # ViennaRNA uses 1-based indexing for i and j
+        # plist_from_probs(cutoff) returns pairs with probability >= cutoff
+        # Use cutoff=0.0 to get all pairs
+        pairs = fc.plist_from_probs(0.0)
 
         # Compute unpaired probabilities
         # For each position i, PU[i] = 1 - sum_j(P(i,j))
         # where P(i,j) is the probability that positions i and j are paired
         seq_len = len(seq_str)
-        pu_values = np.ones(seq_len, dtype=np.float64)
+        paired_prob = np.zeros(seq_len, dtype=np.float64)
 
-        # Iterate through positions
-        # bpp uses 1-based indexing: bpp[1..n] for n nucleotides
-        for i in range(1, seq_len + 1):
-            # Sum all pairing probabilities for position i
-            # bpp[i][j] gives the probability that i pairs with j
-            paired_prob = 0.0
-            if i < len(bpp):
-                for j in range(len(bpp[i])):
-                    paired_prob += bpp[i][j]
-            # Unpaired probability is 1 - sum of pairing probabilities
-            pu_values[i - 1] = 1.0 - paired_prob
+        # Accumulate paired probabilities from the pair list
+        # Each pair (i, j, p) contributes probability p to both positions i and j
+        for pair in pairs:
+            if pair.p > 0:
+                # Convert from 1-based to 0-based indexing
+                i_idx = pair.i - 1
+                j_idx = pair.j - 1
+                # Ensure indices are valid
+                if 0 <= i_idx < seq_len and 0 <= j_idx < seq_len:
+                    paired_prob[i_idx] += pair.p
+                    paired_prob[j_idx] += pair.p
+
+        # Compute unpaired probabilities
+        pu_values = 1.0 - paired_prob
 
         return {"PU": pu_values}

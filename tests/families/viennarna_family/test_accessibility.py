@@ -344,3 +344,120 @@ class TestViennaRNAAccessibilityStructure:
         # Allow some flexibility due to non-Watson-Crick interactions and energy model
         assert len(pu_values) == len(poly_a_seq)
         assert np.mean(pu_values) > 0.5, "Poly-A should have generally high accessibility"
+
+
+class TestViennaRNAAccessibilityPositions:
+    """Test positions argument support."""
+
+    def test_positions_argument_full_vs_sparse(self):
+        """Test that positions argument produces correct values.
+
+        When positions are specified, the full vector is still computed (for
+        structural context correctness), and values at those positions should
+        match the full computation.
+        """
+        from biotooler.families.viennarna.accessibility import ViennaRNAAccessibility
+
+        feature = ViennaRNAAccessibility()
+
+        # Use a hairpin sequence with interesting structure
+        seq = "CGCGUUUUCGCG"
+        record = SeqRecord(Seq(seq), id="test")
+
+        # Compute full vector
+        result_full = feature.compute_vector(record)
+        pu_full = result_full["PU"]
+
+        # Compute with positions argument
+        # Select a few positions to check
+        positions = np.array([0, 4, 7, 11], dtype=np.int64)
+        result_positions = feature.compute_vector(record, positions=positions)
+        pu_positions = result_positions["PU"]
+
+        # The returned vector should still be full length
+        assert len(pu_positions) == len(seq), (
+            "Vector length should match sequence length even with positions argument"
+        )
+
+        # Values at the specified positions should match full computation
+        for pos in positions:
+            np.testing.assert_almost_equal(
+                pu_full[pos], pu_positions[pos], decimal=10,
+                err_msg=f"Position {pos} value differs between full and sparse computation"
+            )
+
+    def test_positions_argument_preserves_all_values(self):
+        """Test that positions argument doesn't affect computation correctness.
+
+        The full vector should be computed for structural correctness,
+        so all values should be valid and identical to full computation.
+        """
+        from biotooler.families.viennarna.accessibility import ViennaRNAAccessibility
+
+        feature = ViennaRNAAccessibility()
+
+        seq = "ACGUACGUACGUACGU"
+        record = SeqRecord(Seq(seq), id="test")
+
+        # Compute full vector
+        result_full = feature.compute_vector(record)
+        pu_full = result_full["PU"]
+
+        # Compute with positions argument (even indices)
+        positions = np.arange(0, len(seq), 2, dtype=np.int64)
+        result_positions = feature.compute_vector(record, positions=positions)
+        pu_positions = result_positions["PU"]
+
+        # All values should match exactly
+        np.testing.assert_array_almost_equal(
+            pu_full, pu_positions, decimal=10,
+            err_msg="Full computation should be identical regardless of positions argument"
+        )
+
+
+class TestViennaRNAAccessibilityValueRange:
+    """Test PU value range with epsilon."""
+
+    def test_pu_values_within_valid_range_with_epsilon(self):
+        """Test that PU values are within [0, 1] with small numerical tolerance.
+
+        Due to floating-point arithmetic, values might be slightly outside
+        the strict [0, 1] range but should be within a small epsilon.
+        """
+        from biotooler.families.viennarna.accessibility import ViennaRNAAccessibility
+
+        feature = ViennaRNAAccessibility()
+
+        # Test with various sequences
+        test_sequences = [
+            "ACGUACGUACGUACGU",
+            "CGCGUUUUCGCG",  # hairpin
+            "AAAAAAAA",  # poly-A
+            "GCGCGCGCGCGC",  # strong pairing
+            "AAAUUUGGGCCC",  # mixed
+        ]
+
+        epsilon = 1e-6  # Small tolerance for numerical errors
+
+        for seq in test_sequences:
+            record = SeqRecord(Seq(seq), id="test")
+            result = feature.compute_vector(record)
+            pu_values = result["PU"]
+
+            # Check that all values are within [0-epsilon, 1+epsilon]
+            assert np.all(pu_values >= -epsilon), (
+                f"PU values should be >= -{epsilon} ({-epsilon}), "
+                f"but got min={np.min(pu_values)} for sequence {seq}"
+            )
+            assert np.all(pu_values <= 1.0 + epsilon), (
+                f"PU values should be <= 1+epsilon ({1.0 + epsilon}), "
+                f"but got max={np.max(pu_values)} for sequence {seq}"
+            )
+
+            # Also check strict bounds (should pass in practice)
+            assert np.all(pu_values >= 0.0), (
+                f"PU values should be >= 0.0, but got min={np.min(pu_values)} for sequence {seq}"
+            )
+            assert np.all(pu_values <= 1.0), (
+                f"PU values should be <= 1.0, but got max={np.max(pu_values)} for sequence {seq}"
+            )
