@@ -141,11 +141,43 @@ print(result)  # {'PScARS_score': 38.7}
 
 ## Edge cases and validation
 
+### Windowing Support
+
+**Important: Chimera features support windowing only via the positional vector API.**
+
+The cARS score is mathematically defined as an average over maximal common subsequences at every position in the target sequence. **Slicing the target sequence before computing cARS would be incorrect** because it would change which subsequences are maximal at each position, producing mathematically invalid results.
+
+To support windowing correctly, `ChimeraFeature` implements the `PositionalFeature` protocol:
+
+- **`position_space`**: Returns `PositionSpace.CODON` (operates on codon-level sequences)
+- **`vector_keys`**: Returns aggregation specifications using mean (matching scalar cARS definition)
+- **`compute_vector`**: Computes per-position maximal common substring lengths across the full sequence using pyChimera's `return_vec=True` API
+
+This design ensures that windowing is correct-by-construction and prevents silent mathematical errors.
+
+**Example with windowing:**
+
+```python
+from biotooler.families.chimera import ChimeraFeature
+from biotooler.features.sets import FeatureSet
+
+# Create chimera feature
+feature = ChimeraFeature(reference_genes, algorithm="cARS")
+
+# Use with FeatureSet for windowed computation
+feature_set = FeatureSet(features={"chimera": feature})
+
+# Compute on ORF windows (uses PositionalFeature protocol)
+results = feature_set.compute_orf_windows_v2(record, orf_candidates, window_size=50)
+# Each window gets correct cARS score computed from per-position vectors
+```
+
 ### Validated
 
 - Lazy import behavior verified in tests
 - Module structure follows biotooler family conventions
 - Integration with lazy_import helper confirmed
+- PositionalFeature protocol implementation verified in tests
 
 ### Known limitations
 
@@ -154,6 +186,7 @@ print(result)  # {'PScARS_score': 38.7}
 - Suffix array preprocessing required for reference sequences (can be cached)
 - Optimal for coding sequences; less meaningful for non-coding regions
 - Reference set quality impacts prediction accuracy
+- **Windowing requires PositionalFeature protocol** - no silent fallback to slicing
 
 ## Maintenance notes
 
@@ -178,5 +211,7 @@ print(result)  # {'PScARS_score': 38.7}
 
 - Lazy import tests ensure pyChimera is not loaded on module import
 - Feature instantiation tests verify proper error messages without pyChimera
+- PositionalFeature protocol tests verify correct implementation of position_space, vector_keys, and compute_vector
 - Integration tests will validate cARS scores against known examples
 - Performance tests for suffix array construction and querying
+- Windowing tests will verify correct aggregation of per-position vectors

@@ -110,3 +110,46 @@ This new approach provides several advantages:
 2. **Reusability**: Per-position values can be cached and reused across multiple windows
 3. **Flexibility**: Different aggregation functions can be applied to the same per-position values
 4. **Performance**: For dense window coverage, computing once and aggregating many times is more efficient
+
+## Special Cases: Features Requiring Positional APIs
+
+Some features have mathematical definitions that make windowing via slicing incorrect. These features **must** use the positional API to support windowing.
+
+### Chimera Features (cARS/PScARS)
+
+The Chimera Average Repetitive Substring (cARS) score is defined as an average over maximal common subsequences at every position in the target sequence. **Slicing the target sequence before computing cARS would be incorrect** because:
+
+1. The maximal common subsequences are computed relative to the full target sequence
+2. Slicing changes which subsequences are maximal at each position
+3. This would produce mathematically incorrect results that don't reflect the true cARS definition
+
+**Correct approach for Chimera windowing:**
+
+The `ChimeraFeature` class implements the `PositionalFeature` protocol and uses pyChimera's `return_vec=True` API to compute per-position maximal common substring lengths across the full sequence. These per-position values are then aggregated into windows using mean aggregation (matching the scalar cARS definition).
+
+```python
+from biotooler.families.chimera import ChimeraFeature
+
+# ChimeraFeature implements PositionalFeature protocol
+feature = ChimeraFeature(reference_seqs=ref_genes, algorithm="cARS")
+
+# position_space: CODON (operates on codon-level sequences)
+assert feature.position_space == PositionSpace.CODON
+
+# vector_keys: Returns aggregation spec using mean
+assert "cARS_score" in feature.vector_keys
+assert feature.vector_keys["cARS_score"].aggregation_fn == np.mean
+
+# compute_vector: Computes per-codon maximal common substring lengths
+# (uses pyChimera's calc_cARS with return_vec=True internally)
+cars_vectors = feature.compute_vector(record)
+# Returns: {"cARS_score": np.array([len1, len2, ..., lenN])}
+```
+
+**Why this matters:**
+
+Without the positional API, windowing would require either:
+1. Silently producing incorrect results by slicing before computation
+2. Raising an error to prevent incorrect usage
+
+By implementing the `PositionalFeature` protocol, Chimera features can support windowing correctly by construction, with no possibility of silent mathematical errors.
