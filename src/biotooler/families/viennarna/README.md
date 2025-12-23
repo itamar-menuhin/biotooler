@@ -4,7 +4,7 @@
 
 The ViennaRNA family provides RNA secondary structure prediction and analysis features using the ViennaRNA package. This family implements two types of windowing computations:
 
-1. **Window MFE (Minimum Free Energy)**: Substring-defined features that compute MFE for specific window substrings
+1. **Window MFE (minimum free energy)**: Substring-defined features that compute MFE for specific window substrings
 2. **Accessibility (PU - Unpaired Probability)**: Vector-based features that compute per-nucleotide unpaired probabilities across the full sequence
 
 **Implemented Features**:
@@ -49,7 +49,7 @@ Where:
 
 ViennaRNA computes MFE using the **nearest-neighbor model**, which sums contributions from adjacent base pairs and structural motifs (loops, bulges, hairpins). The algorithm uses dynamic programming (Zuker algorithm) to find the optimal structure.
 
-**Upstream Algorithm**: ViennaRNA's `RNA.fold_compound(sequence).mfe()` returns both the dot-bracket structure notation and the MFE value. See [ViennaRNA RNA folding](https://www.tbi.univie.ac.at/RNA/ViennaRNA/doc/html/group__mfe__fold.html).
+**Upstream Algorithm**: ViennaRNA's `RNA.fold_compound(sequence).mfe()` returns both the dot-bracket structure notation and the MFE value. See [ViennaRNA folding documentation](https://www.tbi.univie.ac.at/RNA/ViennaRNA/doc/html/group__mfe__fold.html).
 
 ### Partition Function and Unpaired Probability
 
@@ -390,7 +390,7 @@ print(result_df)
 - Accepts both DNA (A, C, G, T) and RNA (A, C, G, U) sequences
 - DNA sequences are automatically normalized to RNA (T → U) before folding
 - Uppercase and lowercase sequences are both supported (normalized to uppercase)
-- Non-standard nucleotides (N, Y, R, etc.) may cause errors - ViennaRNA expects standard ACGU alphabet
+- Non-standard nucleotides (N, Y, R, etc.) are not supported by ViennaRNA's default energy model and will cause the underlying library to raise errors or produce undefined results
 
 **Window Bounds**:
 - Windows extending beyond sequence end are automatically skipped
@@ -436,8 +436,8 @@ print(result_df)
 
 **Window Start Semantics**: 
 - WindowMFEFeature with `window_starts=[0, 10]` and `window_size=15` computes:
-  - Window 1: seq[0:15]
-  - Window 2: seq[10:25]
+  - Window 1: sequence[0:15]
+  - Window 2: sequence[10:25]
 - Overlapping windows are allowed and computed independently
 
 ## Windowing correctness
