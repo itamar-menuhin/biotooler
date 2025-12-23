@@ -19,17 +19,18 @@ def get_features() -> list[type]:
 
     This function lazily imports the feature module to keep the family
     import lightweight. The metapredict dependency is only loaded when
-    this function is called.
+    DisorderProfileMetapredict is used.
 
     Returns:
         List of Feature classes (not instances) provided by this family.
         Users can instantiate these classes as needed.
 
     Raises:
-        ImportError: If metapredict is not installed.
-            The error message includes installation instructions.
+        ImportError: If metapredict is not installed (when using
+            DisorderProfileMetapredict).
     """
     # Lazy import feature classes to avoid loading dependencies at family import
+    from biotooler.families.disorder.derived import DisorderDerivedScalars
     from biotooler.families.disorder.metapredict_backend import DisorderProfileMetapredict
 
-    return [DisorderProfileMetapredict]
+    return [DisorderProfileMetapredict, DisorderDerivedScalars]
