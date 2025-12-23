@@ -17,6 +17,9 @@ chimera = [
 codon_bias = [
     "codon-bias",
 ]
+disorder = [
+    "metapredict>=3.0",
+]
 viennarna = [
     "ViennaRNA",
 ]
