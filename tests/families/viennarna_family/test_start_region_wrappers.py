@@ -155,8 +155,8 @@ class TestWindowMFEStartRegion:
         sequence = "ACGTACGTACGTACGTACGTACGTACGTACGT"
         record = SeqRecord(Seq(sequence), id="test")
 
-        # Region with region_start >= region_end after step adjustment produces no windows
-        # When region_start=10, region_end=10, step=10 -> range(10, 10, 10) = []
+        # When region_start=10, region_end=11, step=100 -> range(10, 11, 100) = [10]
+        # This produces one window at position 10
         wrapper = WindowMFEStartRegion(
             region_start=10, region_end=11, window_size=10, step=100
         )
