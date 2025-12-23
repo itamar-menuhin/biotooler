@@ -29,12 +29,6 @@ def get_features() -> list[type]:
         ImportError: If metapredict is not installed.
             The error message includes installation instructions.
     """
-    # Import integration to verify metapredict is available
-    from biotooler.families.disorder.integration import require_metapredict
-
-    # This will raise ImportError with helpful message if metapredict is not installed
-    require_metapredict()
-
     # Future feature classes will be imported here
     # For now, return an empty list as no features are implemented yet
     return []
