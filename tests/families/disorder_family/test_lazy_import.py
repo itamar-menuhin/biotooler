@@ -42,12 +42,12 @@ def test_import_disorder_does_not_load_metapredict():
     assert "metapredict" not in sys.modules
 
 
-def test_get_features_returns_empty_list():
-    """Test that get_features() returns empty list when no features implemented.
+def test_get_features_returns_feature_list():
+    """Test that get_features() returns list of feature classes.
 
-    Since the disorder family has no features implemented yet, get_features()
-    should return an empty list without requiring metapredict to be installed.
-    When features are added, they will use lazy_import at their module level.
+    The disorder family now has features implemented, but get_features()
+    should still not require metapredict to be installed at import time.
+    metapredict is only loaded when features are actually instantiated and used.
     """
     # Clear any previously imported modules
     modules_to_clear = [
@@ -61,11 +61,16 @@ def test_get_features_returns_empty_list():
     # Import the disorder family module
     from biotooler.families.disorder import get_features
 
-    # Calling get_features() should return empty list without requiring metapredict
+    # Calling get_features() should return a list of feature classes
     features = get_features()
-    assert features == [], "Expected empty list as no features are implemented yet"
+    assert isinstance(features, list), "Expected get_features() to return a list"
+    assert len(features) > 0, "Expected at least one feature to be implemented"
 
-    # metapredict should still not be imported
+    # Verify features are classes, not instances
+    for feature in features:
+        assert isinstance(feature, type), "Expected feature classes, not instances"
+
+    # metapredict should still not be imported (lazy import happens in compute_vector)
     assert "metapredict" not in sys.modules
 
 
@@ -75,12 +80,22 @@ def test_require_metapredict_raises_import_error():
     The require_metapredict() helper from integration module should raise
     an ImportError with a helpful message about how to install metapredict.
     This will be used by future feature implementations.
+
+    This test only runs when metapredict is NOT installed.
     """
+    # Check if metapredict is available
+    try:
+        import metapredict  # noqa: F401
+
+        pytest.skip("Test only valid when metapredict is not installed")
+    except ImportError:
+        pass
+
     # Clear any previously imported modules
     modules_to_clear = [
         module
         for module in list(sys.modules.keys())
-        if module.startswith("biotooler.families.disorder") or module.startswith("metapredict")
+        if (module.startswith("biotooler.families.disorder") or module.startswith("metapredict"))
     ]
     for module in modules_to_clear:
         del sys.modules[module]
