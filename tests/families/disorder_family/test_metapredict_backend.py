@@ -86,8 +86,7 @@ class TestDisorderProfileMetapredictBasic:
             result = feature.compute_vector(record)
 
             assert len(result["DISORDER_P"]) == len(seq), (
-                f"Expected DISORDER_P vector length {len(seq)}, "
-                f"got {len(result['DISORDER_P'])}"
+                f"Expected DISORDER_P vector length {len(seq)}, got {len(result['DISORDER_P'])}"
             )
 
     def test_disorder_p_values_in_valid_range(self):
@@ -217,7 +216,7 @@ class TestDisorderProfileMetapredictTranslation:
         feature = DisorderProfileMetapredict()
 
         # Create RNA record (same sequence as DNA test but with U instead of T)
-        rna_seq = "AUGAAAGCCCUGGUGSCCUGGGGCCGC"  # Encodes MKALVSWGR
+        rna_seq = "AUGAAAGCCCUGGUGUCCUGGGGCCGC"  # Encodes MKALVSWGR
         rna_record = SeqRecord(Seq(rna_seq), id="test_rna")
         rna_record.annotations["molecule_type"] = "RNA"
 
@@ -266,7 +265,7 @@ class TestDisorderProfileMetapredictTranslation:
 
         # Define protein sequence and its encoding RNA
         protein_seq = "MKALVSWGR"
-        rna_seq = "AUGAAAGCCCUGGUGSCCUGGGGCCGC"  # Encodes MKALVSWGR
+        rna_seq = "AUGAAAGCCCUGGUGUCCUGGGGCCGC"  # Encodes MKALVSWGR
 
         # Compute on protein directly
         protein_record = SeqRecord(Seq(protein_seq), id="test_protein")

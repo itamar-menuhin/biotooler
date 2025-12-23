@@ -107,9 +107,7 @@ class DisorderProfileMetapredict:
             "DISORDER_P": AggregationSpec(aggregation_fn=np.mean),
         }
 
-    def compute_vector(
-        self, record: SeqRecord, **kwargs
-    ) -> dict[str, np.ndarray]:
+    def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
         """Compute per-residue disorder probabilities for the entire sequence.
 
         This method uses metapredict to predict intrinsic disorder probabilities
@@ -175,9 +173,7 @@ class DisorderProfileMetapredict:
         try:
             disorder_probs = metapredict.predict_disorder(protein_seq)
         except Exception as e:
-            raise ValueError(
-                f"Failed to predict disorder for record {record.id!r}: {e}"
-            ) from e
+            raise ValueError(f"Failed to predict disorder for record {record.id!r}: {e}") from e
 
         # Ensure the result is a numpy array and has the expected length
         disorder_probs = np.array(disorder_probs, dtype=np.float64)
