@@ -121,6 +121,8 @@ class ViennaRNAAccessibility:
         fc.pf()  # Compute partition function
 
         # Get base pairing probability matrix
+        # bpp is a tuple of tuples where bpp[i][j] is the probability of pairing between i and j
+        # ViennaRNA uses 1-based indexing, so bpp[0] is padding
         bpp = fc.bpp()
 
         # Compute unpaired probabilities
@@ -129,14 +131,15 @@ class ViennaRNAAccessibility:
         seq_len = len(seq_str)
         pu_values = np.ones(seq_len, dtype=np.float64)
 
-        # Iterate through base pairing probabilities
-        # bpp is a list of dictionaries, where bpp[i] contains pairing info for position i
-        for i in range(1, seq_len + 1):  # ViennaRNA uses 1-based indexing
+        # Iterate through positions
+        # bpp uses 1-based indexing: bpp[1..n] for n nucleotides
+        for i in range(1, seq_len + 1):
+            # Sum all pairing probabilities for position i
+            # bpp[i][j] gives the probability that i pairs with j
             paired_prob = 0.0
-            if i <= len(bpp):
-                # Sum all pairing probabilities for position i
-                for _j, prob in bpp[i].items():
-                    paired_prob += prob
+            if i < len(bpp):
+                for j in range(len(bpp[i])):
+                    paired_prob += bpp[i][j]
             # Unpaired probability is 1 - sum of pairing probabilities
             pu_values[i - 1] = 1.0 - paired_prob
 
