@@ -367,7 +367,10 @@ class BasicStatsFeature:
 
         Args:
             record: The SeqRecord containing the sequence
-            **kwargs: Additional parameters (unused, for protocol compatibility)
+            **kwargs: Additional parameters that may include:
+                - positions: Optional array of position indices. If provided,
+                  only computes values for those positions. If not provided,
+                  computes for all positions in the sequence.
 
         Returns:
             Dictionary mapping feature names to numpy arrays of per-position values.
@@ -378,6 +381,13 @@ class BasicStatsFeature:
         """
         seq_str = get_seq_str(record)
         seq_len = len(seq_str)
+        positions = kwargs.get("positions", None)
+
+        # Determine which positions to compute
+        if positions is not None:
+            position_indices = positions
+        else:
+            position_indices = np.arange(seq_len)
 
         vectors = {}
 
@@ -387,8 +397,7 @@ class BasicStatsFeature:
 
         for char in common_chars:
             # Create binary array: 1 where character matches, 0 otherwise
-            indicator = np.array([1.0 if seq_str[i] == char else 0.0
-                                 for i in range(seq_len)])
+            indicator = np.array([1.0 if seq_str[i] == char else 0.0 for i in position_indices])
 
             # Store for both count and fraction (aggregation function differs)
             vectors[f"count_{char.lower()}"] = indicator
@@ -396,10 +405,10 @@ class BasicStatsFeature:
 
         # Add GC indicator (always include, will be 0 for protein)
         gc_indicator = np.array([1.0 if seq_str[i] in "GC" else 0.0
-                                for i in range(seq_len)])
+                                for i in position_indices])
         vectors["gc_fraction"] = gc_indicator
 
         # Add length vector (all 1s)
-        vectors["length"] = np.ones(seq_len, dtype=float)
+        vectors["length"] = np.ones(len(position_indices), dtype=float)
 
         return vectors
