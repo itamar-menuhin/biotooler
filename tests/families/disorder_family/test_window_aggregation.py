@@ -264,12 +264,16 @@ class TestDisorderWindowAggregationTranslation:
             # DNA path
             dna_record = SeqRecord(Seq(dna_seq), id="test_dna")
             dna_record.annotations["molecule_type"] = "DNA"
-            dna_result = fs.compute_orf_windows_v2(dna_record, orf=(0, 12), window_nt=12, step_nt=12)
+            dna_result = fs.compute_orf_windows_v2(
+                dna_record, orf=(0, 12), window_nt=12, step_nt=12
+            )
 
             # RNA path
             rna_record = SeqRecord(Seq(rna_seq), id="test_rna")
             rna_record.annotations["molecule_type"] = "RNA"
-            rna_result = fs.compute_orf_windows_v2(rna_record, orf=(0, 12), window_nt=12, step_nt=12)
+            rna_result = fs.compute_orf_windows_v2(
+                rna_record, orf=(0, 12), window_nt=12, step_nt=12
+            )
 
             # Both should produce same value
             dna_value = dna_result["disorder.DISORDER_P_0"].iloc[0]
