@@ -38,8 +38,8 @@ class ViennaRNAAccessibility:
         >>> feature = ViennaRNAAccessibility()
         >>> record = SeqRecord(Seq("ACGUACGU"), id="test")
         >>> result = feature.compute_vector(record)
-        >>> print(result["PU"])  # Array of unpaired probabilities
-        [0.95, 0.82, 0.45, 0.38, 0.45, 0.82, 0.95, 0.95]
+        >>> print(result["PU"])  # Array of unpaired probabilities (example values)
+        # Output will be an array of floats between 0.0 and 1.0
 
     Notes:
         - Input sequences are automatically normalized from DNA to RNA (T->U)

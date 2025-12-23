@@ -121,16 +121,16 @@ class TestViennaRNAAccessibilityDeterminism:
 
         feature = ViennaRNAAccessibility()
 
-        # Two sequences with different pairing potential
-        # CGCGCGCG can form stable pairs
-        # ACACACAC has less stable pairs
+        # Two sequences with clearly different pairing potential
+        # CGCGCGCG has strong C-G pairing potential (stable structure)
+        # AUAUAUAU has weaker A-U pairing potential (less stable structure)
         record1 = SeqRecord(Seq("CGCGCGCG"), id="test1")
-        record2 = SeqRecord(Seq("ACACACAC"), id="test2")
+        record2 = SeqRecord(Seq("AUAUAUAU"), id="test2")
 
         result1 = feature.compute_vector(record1)
         result2 = feature.compute_vector(record2)
 
-        # Results should differ due to different pairing potentials
+        # Results should differ due to different pairing stabilities
         assert not np.array_equal(result1["PU"], result2["PU"])
 
 
