@@ -117,7 +117,7 @@ class TestContextWindowFoldFeature:
             )
 
         # Test invalid mode
-        with pytest.raises(ValueError, match="mode must be 'mfe' or 'pf'"):
+        with pytest.raises(ValueError, match="mode must be 'mfe'"):
             ContextWindowFoldFeature(
                 starts_nt=[0, 10],
                 window_size_nt=20,

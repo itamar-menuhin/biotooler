@@ -66,11 +66,11 @@ class ContextWindowFoldFeature:
             window_size_nt: Size of each window in nucleotides
             flank_left_nt: Number of nucleotides to include as left flank (default: 0)
             flank_right_nt: Number of nucleotides to include as right flank (default: 0)
-            mode: Folding mode - "mfe" for minimum free energy (default: "mfe")
+            mode: Folding mode - currently only "mfe" is supported (default: "mfe")
 
         Raises:
             ValueError: If starts_nt is empty, window_size_nt is not positive,
-                        or flank sizes are negative
+                        flank sizes are negative, or mode is not "mfe"
         """
         if not starts_nt:
             raise ValueError("starts_nt must not be empty")
@@ -80,8 +80,8 @@ class ContextWindowFoldFeature:
             raise ValueError("flank_left_nt must be non-negative")
         if flank_right_nt < 0:
             raise ValueError("flank_right_nt must be non-negative")
-        if mode not in ("mfe", "pf"):
-            raise ValueError(f"mode must be 'mfe' or 'pf', got {mode!r}")
+        if mode != "mfe":
+            raise ValueError(f"mode must be 'mfe', got {mode!r}")
 
         self.starts_nt = list(starts_nt)
         self.window_size_nt = window_size_nt
