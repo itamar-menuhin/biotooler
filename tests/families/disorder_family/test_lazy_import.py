@@ -95,8 +95,7 @@ def test_require_metapredict_raises_import_error():
     modules_to_clear = [
         module
         for module in list(sys.modules.keys())
-        if module.startswith("biotooler.families.disorder")
-        or module.startswith("metapredict")
+        if (module.startswith("biotooler.families.disorder") or module.startswith("metapredict"))
     ]
     for module in modules_to_clear:
         del sys.modules[module]
@@ -111,6 +110,6 @@ def test_require_metapredict_raises_import_error():
     # Check the error message contains the required information
     error_message = str(exc_info.value)
     assert "metapredict" in error_message.lower(), "Error message should mention metapredict"
-    assert (
-        'pip install "biotooler[disorder]"' in error_message
-    ), "Error message should include installation instructions"
+    assert 'pip install "biotooler[disorder]"' in error_message, (
+        "Error message should include installation instructions"
+    )

@@ -37,7 +37,8 @@ class DisorderProfileMetapredict:
         table: NCBI genetic code table number for translation (default: 1)
         use_orf_if_present: If True, use attached ORF for translation (default: True)
         strip_terminal_stop: If True, strip terminal stop codon (default: True)
-        on_internal_stop: Action for internal stops: "error" or "ignore" (default: "error")
+        on_internal_stop: Action for internal stops: "error" (raise exception) or
+            "ignore" (continue translation) (default: "error")
 
     Examples:
         >>> from Bio.Seq import Seq
@@ -75,7 +76,8 @@ class DisorderProfileMetapredict:
             table: NCBI genetic code table for translation (default: 1)
             use_orf_if_present: Use attached ORF if present (default: True)
             strip_terminal_stop: Strip terminal stop codon (default: True)
-            on_internal_stop: "error" or "ignore" for internal stops (default: "error")
+            on_internal_stop: "error" (raise exception) or "ignore" (continue
+                translation) for internal stops (default: "error")
         """
         self.table = table
         self.use_orf_if_present = use_orf_if_present
@@ -170,9 +172,15 @@ class DisorderProfileMetapredict:
 
         # Compute disorder probabilities using metapredict
         # predict_disorder returns a numpy array of disorder probabilities
+        # It may raise ValueError for invalid amino acid sequences
         try:
             disorder_probs = metapredict.predict_disorder(protein_seq)
+        except (ValueError, KeyError) as e:
+            # ValueError: Invalid amino acid detected
+            # KeyError: Invalid sequence format
+            raise ValueError(f"Failed to predict disorder for record {record.id!r}: {e}") from e
         except Exception as e:
+            # Catch other unexpected errors from metapredict
             raise ValueError(f"Failed to predict disorder for record {record.id!r}: {e}") from e
 
         # Ensure the result is a numpy array and has the expected length
