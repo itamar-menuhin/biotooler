@@ -17,6 +17,9 @@ chimera = [
 codon_bias = [
     "codon-bias",
 ]
+viennarna = [
+    "ViennaRNA",
+]
 dev = [
     "pytest",
     "ruff",
