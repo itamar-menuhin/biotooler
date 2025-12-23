@@ -188,6 +188,41 @@ results = feature_set.compute_orf_windows_v2(record, orf_candidates, window_size
 - Reference set quality impacts prediction accuracy
 - **Windowing requires PositionalFeature protocol** - no silent fallback to slicing
 
+## Windowing correctness
+
+### Position space
+
+This family computes features at the **sequence level** (entire coding sequence), not per-position. The Chimera algorithms analyze codon-level patterns but return a single scalar score for the entire sequence.
+
+### Vector computation
+
+Not applicable - this family does not use the PositionalFeature protocol. The Chimera algorithms from the pyChimera upstream library compute a single adaptation score for the complete input sequence by:
+
+1. Converting the full DNA sequence to codons using `nt2codon()`
+2. Building suffix arrays from reference sequences
+3. Computing similarity scores by analyzing k-mer matches across the entire sequence
+4. Returning a single scalar value representing the adaptation score
+
+The pyChimera library is called with the complete sequence, ensuring full-context analysis. For position-specific variants (PScARS, PScMap), the library internally uses sliding windows over the full sequence to compute position-weighted scores, but still returns a single aggregate score.
+
+### Aggregation strategy
+
+Not applicable - the Chimera algorithms naturally produce sequence-level scores. There is no per-position computation to aggregate. The upstream pyChimera library handles all internal computations and returns final scalar values:
+- `cARS`: Codon Adaptation Related Score
+- `PScARS`: Position-Specific Codon Adaptation Related Score
+- `cMap`: Codon Mapping score
+- `PScMap`: Position-Specific Codon Mapping score
+
+### Testing approach
+
+Windowing correctness for this family focuses on:
+1. **Full sequence usage**: Verify pyChimera is called with complete input sequences, not window fragments
+2. **Reference set consistency**: Ensure reference sequences remain constant across all computations
+3. **Algorithm parameter validation**: Confirm `max_len`, `max_pos`, and `win_params` are correctly passed to pyChimera
+4. **Stub implementation**: Current implementation raises `NotImplementedError` - tests verify proper error handling
+
+When fully implemented, tests will validate that pyChimera's upstream algorithms correctly analyze full sequence context by comparing results with known reference calculations from the original Chimera publications.
+
 ## Maintenance notes
 
 ### Dependencies

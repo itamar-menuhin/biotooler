@@ -353,6 +353,45 @@ print(result)  # {'CAI': 1.0, 'ENC': 20.0}
 - Sequences must be coding sequences in correct reading frame for meaningful results
 - Very short sequences (<3 codons) may produce unreliable statistics
 
+## Windowing correctness
+
+### Position space
+
+This family operates at the **codon level** (groups of 3 nucleotides). Features are computed using codon frequencies and statistics rather than individual nucleotide positions.
+
+### Vector computation
+
+Not applicable - this family does not use the PositionalFeature protocol. Instead, it provides two computation modes:
+
+1. **Baseline mode** (`__call__`): Computes codon bias scores for complete sequences by calling the upstream codon-bias library's `get_score()` method with the full sequence string
+2. **Incremental mode** (`init_state`, `step_state`, `emit`): Uses the upstream library's `CodonCounter` to efficiently track codon counts across sliding windows
+
+Both modes ensure full-context correctness:
+- Baseline: Calls `codonbias.CAI(reference_seqs).get_score(seq_str)` with complete input sequence
+- Incremental: Uses `codonbias.stats.CodonCounter()` to maintain exact codon counts, updating as codons enter/leave windows
+
+The upstream codon-bias library computes scores from codon frequencies, which are naturally suited to incremental updates (adding/removing complete codons).
+
+### Aggregation strategy
+
+Not applicable - codon bias scores are computed directly for each window using codon frequency distributions. Each window produces scalar scores:
+- `cai`: Codon Adaptation Index
+- `enc`: Effective Number of Codons  
+- Additional metrics from configured models
+
+The incremental approach maintains exact codon counts in each window, ensuring scores match baseline computation within floating-point precision.
+
+### Testing approach
+
+Windowing correctness is validated through:
+1. **Baseline vs incremental equivalence**: Tests verify incremental computation produces identical scores to baseline for the same windows
+2. **Codon boundary alignment**: Window positions must align with codon boundaries (positions divisible by 3)
+3. **Reference set consistency**: Reference sequences remain constant across all window computations
+4. **Upstream library integration**: Verify correct usage of codonbias library APIs (`get_score()`, `CodonCounter()`)
+5. **Reading frame validation**: Ensure sequences maintain correct reading frame throughout
+
+Tests compare incremental results against baseline computations for multiple window sizes and step values, validating numerical precision < 1e-10.
+
 ## Maintenance notes
 
 ### Dependencies

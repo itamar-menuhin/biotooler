@@ -5,6 +5,41 @@ from pathlib import Path
 
 from scripts.check_family_docs import check_readme
 
+# Helper to generate complete windowing correctness section
+# For families WITHOUT upstream libraries
+WINDOWING_SECTION_NO_UPSTREAM = """
+## Windowing correctness
+
+### Position space
+This family uses RESIDUE position space.
+
+### Vector computation
+The compute_vector method processes the full sequence.
+
+### Aggregation strategy
+We use np.mean for averaging.
+
+### Testing approach
+Tests validate full-context computation.
+"""
+
+# For families WITH upstream libraries
+WINDOWING_SECTION_WITH_UPSTREAM = """
+## Windowing correctness
+
+### Position space
+This family uses RESIDUE position space.
+
+### Vector computation
+The compute_vector method calls the upstream library API with the full sequence.
+
+### Aggregation strategy
+We use np.mean for averaging.
+
+### Testing approach
+Tests validate full-context computation.
+"""
+
 
 class TestCheckFamilyDocs:
     """Tests for check_family_docs script."""
@@ -47,6 +82,20 @@ Content
 
 ## Edge cases and validation
 Content
+
+## Windowing correctness
+
+### Position space
+Content
+
+### Vector computation
+The upstream library API is used to compute vectors.
+
+### Aggregation strategy
+Content
+
+### Testing approach
+Content
 """
             readme_path.write_text(content)
             errors = check_readme(readme_path, "test_family")
@@ -84,6 +133,8 @@ Content
 
 ## Edge cases and validation
 Content
+
+""" + WINDOWING_SECTION_WITH_UPSTREAM + """
 
 ## Maintenance notes
 Content
@@ -125,6 +176,8 @@ Content
 ## Edge cases and validation
 Content
 
+""" + WINDOWING_SECTION_NO_UPSTREAM + """
+
 ## Maintenance notes
 Content
 """
@@ -164,6 +217,8 @@ Content
 ## Edge cases and validation
 Content
 
+""" + WINDOWING_SECTION_NO_UPSTREAM + """
+
 ## Maintenance notes
 Content
 """
@@ -202,6 +257,8 @@ Content
 ## Edge cases and validation
 Content
 
+""" + WINDOWING_SECTION_WITH_UPSTREAM + """
+
 ## Maintenance notes
 Content
 """
@@ -239,6 +296,8 @@ Content
 
 ## Edge cases and validation
 Content
+
+""" + WINDOWING_SECTION_WITH_UPSTREAM + """
 
 ## Maintenance notes
 Content
@@ -280,6 +339,8 @@ Content
 ## Edge cases and validation
 Content
 
+""" + WINDOWING_SECTION_NO_UPSTREAM + """
+
 ## Maintenance notes
 Content
 """
@@ -288,3 +349,248 @@ Content
             # Should fail because 'BANANA' contains 'NA' but not as a word
             assert len(errors) == 1
             assert "Upstream library links" in errors[0]
+
+    def test_missing_windowing_correctness(self):
+        """Test that missing Windowing correctness section is detected."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            readme_path = Path(tmpdir) / "README.md"
+            content = """
+# Test Family
+
+## What this family provides
+Content
+
+## Intuition
+Content
+
+## Mathematical formulation
+Content
+
+## Features and output schema
+Content
+
+## References
+- Link: https://example.com
+
+## Upstream library links
+- Link: https://example.com
+
+## Examples
+Content
+
+## Edge cases and validation
+Content
+
+## Maintenance notes
+Content
+"""
+            readme_path.write_text(content)
+            errors = check_readme(readme_path, "test_family")
+            # Missing "## Windowing correctness"
+            assert len(errors) == 1
+            assert "Windowing correctness" in errors[0]
+
+    def test_windowing_correctness_missing_subsections(self):
+        """Test that Windowing correctness section must have required subsections."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            readme_path = Path(tmpdir) / "README.md"
+            content = """
+# Test Family
+
+## What this family provides
+Content
+
+## Intuition
+Content
+
+## Mathematical formulation
+Content
+
+## Features and output schema
+Content
+
+## References
+- Link: https://example.com
+
+## Upstream library links
+N/A - no upstream library
+
+## Examples
+Content
+
+## Edge cases and validation
+Content
+
+## Windowing correctness
+This section exists but is incomplete.
+
+## Maintenance notes
+Content
+"""
+            readme_path.write_text(content)
+            errors = check_readme(readme_path, "test_family")
+            # Should have 4 errors - one for each missing subsection
+            assert len(errors) == 4
+            assert any("Position space" in e for e in errors)
+            assert any("Vector computation" in e for e in errors)
+            assert any("Aggregation strategy" in e for e in errors)
+            assert any("Testing approach" in e for e in errors)
+
+    def test_windowing_correctness_with_all_subsections(self):
+        """Test that complete Windowing correctness section passes."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            readme_path = Path(tmpdir) / "README.md"
+            content = """
+# Test Family
+
+## What this family provides
+Content
+
+## Intuition
+Content
+
+## Mathematical formulation
+Content
+
+## Features and output schema
+Content
+
+## References
+- Link: https://example.com
+
+## Upstream library links
+N/A - no upstream library
+
+## Examples
+Content
+
+## Edge cases and validation
+Content
+
+## Windowing correctness
+
+### Position space
+This family uses RESIDUE position space.
+
+### Vector computation
+The compute_vector method processes the full sequence.
+
+### Aggregation strategy
+We use np.mean for averaging.
+
+### Testing approach
+Tests validate full-context computation.
+
+## Maintenance notes
+Content
+"""
+            readme_path.write_text(content)
+            errors = check_readme(readme_path, "test_family")
+            assert len(errors) == 0
+
+    def test_windowing_correctness_with_upstream_library(self):
+        """Test that windowing section mentions upstream library when appropriate."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            readme_path = Path(tmpdir) / "README.md"
+            content = """
+# Test Family
+
+## What this family provides
+Content
+
+## Intuition
+Content
+
+## Mathematical formulation
+Content
+
+## Features and output schema
+Content
+
+## References
+- Link: https://example.com
+
+## Upstream library links
+- MyLibrary: https://github.com/example/mylibrary
+
+## Examples
+Content
+
+## Edge cases and validation
+Content
+
+## Windowing correctness
+
+### Position space
+This family uses RESIDUE position space.
+
+### Vector computation
+The compute_vector method processes the full sequence without mentioning how.
+
+### Aggregation strategy
+We use np.mean for averaging.
+
+### Testing approach
+Tests validate full-context computation.
+
+## Maintenance notes
+Content
+"""
+            readme_path.write_text(content)
+            errors = check_readme(readme_path, "test_family")
+            # Should have 1 error - Vector computation doesn't mention upstream library
+            assert len(errors) == 1
+            assert "Vector computation" in errors[0]
+            assert "upstream" in errors[0].lower() or "library" in errors[0].lower()
+
+    def test_windowing_correctness_with_upstream_library_properly_documented(self):
+        """Test that windowing section properly documents upstream library usage."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            readme_path = Path(tmpdir) / "README.md"
+            content = """
+# Test Family
+
+## What this family provides
+Content
+
+## Intuition
+Content
+
+## Mathematical formulation
+Content
+
+## Features and output schema
+Content
+
+## References
+- Link: https://example.com
+
+## Upstream library links
+- MyLibrary: https://github.com/example/mylibrary
+
+## Examples
+Content
+
+## Edge cases and validation
+Content
+
+## Windowing correctness
+
+### Position space
+This family uses RESIDUE position space.
+
+### Vector computation
+The compute_vector method calls the upstream library API with the full sequence.
+
+### Aggregation strategy
+We use np.mean for averaging.
+
+### Testing approach
+Tests validate full-context computation.
+
+## Maintenance notes
+Content
+"""
+            readme_path.write_text(content)
+            errors = check_readme(readme_path, "test_family")
+            assert len(errors) == 0
