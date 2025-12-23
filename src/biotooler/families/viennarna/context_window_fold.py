@@ -12,7 +12,7 @@ from biotooler.core.seq_utils import get_seq_str
 from biotooler.core.types import Scalar
 
 if TYPE_CHECKING:
-    pass  # RNA module imported lazily
+    from biotooler.families.viennarna.cache import ViennaFoldCache
 
 
 class ContextWindowFoldFeature:
@@ -58,6 +58,7 @@ class ContextWindowFoldFeature:
         flank_left_nt: int = 0,
         flank_right_nt: int = 0,
         mode: str = "mfe",
+        cache: "ViennaFoldCache | None" = None,
     ):
         """Initialize ContextWindowFoldFeature.
 
@@ -67,6 +68,7 @@ class ContextWindowFoldFeature:
             flank_left_nt: Number of nucleotides to include as left flank (default: 0)
             flank_right_nt: Number of nucleotides to include as right flank (default: 0)
             mode: Folding mode - currently only "mfe" is supported (default: "mfe")
+            cache: Optional ViennaFoldCache for reusing fold results (default: None)
 
         Raises:
             ValueError: If starts_nt is empty, window_size_nt is not positive,
@@ -88,6 +90,7 @@ class ContextWindowFoldFeature:
         self.flank_left_nt = flank_left_nt
         self.flank_right_nt = flank_right_nt
         self.mode = mode
+        self.cache = cache
 
     def __call__(self, record: SeqRecord) -> dict[str, Scalar]:
         """Compute context fold metrics for requested window positions.
@@ -103,10 +106,7 @@ class ContextWindowFoldFeature:
         Raises:
             ImportError: If ViennaRNA is not installed
         """
-        # Import RNA module lazily
-        from biotooler.families.viennarna.integration import require_viennarna
-
-        RNA = require_viennarna()
+        from biotooler.families.viennarna.cache import get_context_mfe_cached
 
         # Get sequence string
         seq_str = get_seq_str(record)
@@ -122,25 +122,22 @@ class ContextWindowFoldFeature:
             if window_end > seq_len:
                 continue
 
-            # Compute context slice boundaries
-            ctx_start = max(0, start - self.flank_left_nt)
-            ctx_end = min(seq_len, window_end + self.flank_right_nt)
-
-            # Extract context slice
-            ctx_seq = seq_str[ctx_start:ctx_end]
-
-            # Normalize DNA to RNA (T->U)
-            rna_seq = ctx_seq.replace("T", "U")
-
-            # Compute MFE using ViennaRNA
-            fc = RNA.fold_compound(rna_seq)
-            structure, mfe = fc.mfe()
+            # Use cached fold computation with flanks
+            structure, mfe = get_context_mfe_cached(
+                seq_str=seq_str,
+                window_start=start,
+                window_size=self.window_size_nt,
+                flank_left=self.flank_left_nt,
+                flank_right=self.flank_right_nt,
+                cache=self.cache,
+            )
 
             # Store context MFE
             result[f"CTX_MFE_{start}"] = mfe
 
             # Compute PAIR_OUT_FRAC: fraction of window nts paired to outside window
             # Window positions in context slice coordinates
+            ctx_start = max(0, start - self.flank_left_nt)
             window_ctx_start = start - ctx_start
             window_ctx_end = window_ctx_start + self.window_size_nt
 
