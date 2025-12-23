@@ -1,9 +1,11 @@
 """ProtParam feature computation using Bio.SeqUtils.ProtParam."""
 
+import numpy as np
 from Bio.SeqRecord import SeqRecord
 
 from biotooler.core.protein_family import ProteinFamilyFeature
 from biotooler.core.types import Scalar
+from biotooler.features.aggregation import AggregationSpec, PositionSpace
 
 
 class ProtParamFeature(ProteinFamilyFeature):
@@ -136,3 +138,71 @@ class ProtParamFeature(ProteinFamilyFeature):
             ) from e
 
         return result
+
+    @property
+    def position_space(self) -> PositionSpace:
+        """The position space for this feature (RESIDUE).
+
+        Returns:
+            PositionSpace.RESIDUE indicating features are computed per amino acid residue
+        """
+        return PositionSpace.RESIDUE
+
+    @property
+    def vector_keys(self) -> dict[str, AggregationSpec]:
+        """Mapping of feature keys to aggregation specifications.
+
+        For ProtParam, we compute per-residue values for metrics that can be decomposed:
+        - aromaticity: Mean of binary indicators (1 for aromatic AAs: F, W, Y)
+        - gravy: Mean of Kyte-Doolittle hydropathy values per residue
+
+        Note: molecular_weight, isoelectric_point, and instability_index cannot be
+        meaningfully computed per-position, so they are not included in vector_keys.
+
+        Returns:
+            Dictionary mapping feature names to AggregationSpec objects that define
+            how per-residue values should be aggregated into window values.
+        """
+        return {
+            "aromaticity": AggregationSpec(aggregation_fn=np.mean),
+            "gravy": AggregationSpec(aggregation_fn=np.mean),
+        }
+
+    def compute_vector(
+        self, record: SeqRecord, **kwargs
+    ) -> dict[str, np.ndarray]:
+        """Compute per-residue feature values for the entire protein sequence.
+
+        This method computes per-residue values for decomposable ProtParam metrics,
+        allowing for efficient sliding window analysis without sequence slicing.
+
+        Args:
+            record: Protein SeqRecord to analyze (molecule_type="protein")
+            **kwargs: Additional parameters (unused, for protocol compatibility)
+
+        Returns:
+            Dictionary mapping feature names to numpy arrays of per-residue values:
+            - aromaticity: Binary array (1 for F/W/Y, 0 otherwise)
+            - gravy: Kyte-Doolittle hydropathy value per residue
+        """
+        from Bio.SeqUtils import ProtParamData
+
+        protein_seq = str(record.seq)
+
+        vectors = {}
+
+        # Aromaticity: binary indicator for aromatic amino acids (F, W, Y)
+        aromatic_aas = set("FWY")
+        aromaticity_vec = np.array(
+            [1.0 if aa in aromatic_aas else 0.0 for aa in protein_seq]
+        )
+        vectors["aromaticity"] = aromaticity_vec
+
+        # GRAVY: Kyte-Doolittle hydropathy values
+        # Use 0.0 for unknown amino acids (though ProteinAnalysis would error on them)
+        gravy_vec = np.array(
+            [ProtParamData.kd.get(aa, 0.0) for aa in protein_seq]
+        )
+        vectors["gravy"] = gravy_vec
+
+        return vectors

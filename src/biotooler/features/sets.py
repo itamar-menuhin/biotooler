@@ -332,27 +332,53 @@ class FeatureSet:
             )
 
             # Routing logic:
-            # 1. If feature has incremental interface, use legacy path (allows mixed behavior)
-            # 2. Else if feature has positional interface with non-empty vector_keys, use v2 path
+            # 1. If feature has positional interface with non-empty vector_keys, check if complete
+            #    - If complete (all outputs in vector_keys), prefer v2 path
+            #    - If incomplete (mixed models like CodonBiasFeature with CAI+ENC), use incremental
+            # 2. Else if feature has incremental interface, use legacy path
             # 3. Otherwise, use legacy path
+            #
+            # This ensures V2 windowing is used by default when features fully support it,
+            # while allowing incremental path for mixed/hybrid features.
 
-            if has_incremental:
-                # Prefer incremental path for features that implement it
-                # (e.g., CodonBiasFeature with mixed models)
-                non_positional_features.append((feat_name, feat_fn))
-            elif has_positional:
+            if has_positional:
                 try:
                     vector_keys = feat_fn.vector_keys  # type: ignore[union-attr]
                     if vector_keys:
-                        # Use positional path for pure positional features
-                        positional_features.append((feat_name, feat_fn))
+                        # Check if mixed feature (has incremental + some models
+                        # without get_vector). For features like CodonBiasFeature,
+                        # check if names/outputs match vector_keys
+                        is_mixed = False
+                        if has_incremental and hasattr(feat_fn, 'names'):
+                            # CodonBiasFeature case: check if all model names are in vector_keys
+                            names = getattr(feat_fn, 'names', [])
+                            if names and set(names) != set(vector_keys.keys()):
+                                is_mixed = True
+
+                        if is_mixed:
+                            # Mixed feature: use incremental path to handle all models
+                            non_positional_features.append((feat_name, feat_fn))
+                        else:
+                            # Pure positional: use V2 path
+                            positional_features.append((feat_name, feat_fn))
+                    elif has_incremental:
+                        # Empty vector_keys but has incremental
+                        # (e.g., CodonBiasFeature with ENC only)
+                        non_positional_features.append((feat_name, feat_fn))
                     else:
-                        # Empty vector_keys means no positional behavior
+                        # Empty vector_keys and no incremental
                         non_positional_features.append((feat_name, feat_fn))
                 except Exception:
-                    # If accessing vector_keys raises an exception, treat as non-positional
-                    non_positional_features.append((feat_name, feat_fn))
+                    # If accessing vector_keys raises an exception, try incremental
+                    if has_incremental:
+                        non_positional_features.append((feat_name, feat_fn))
+                    else:
+                        non_positional_features.append((feat_name, feat_fn))
+            elif has_incremental:
+                # Only has incremental, no positional
+                non_positional_features.append((feat_name, feat_fn))
             else:
+                # Neither positional nor incremental - use legacy fallback
                 non_positional_features.append((feat_name, feat_fn))
 
         # Process positional features using v2 semantics
