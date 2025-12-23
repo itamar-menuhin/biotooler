@@ -446,7 +446,7 @@ class TestViennaRNAAccessibilityValueRange:
 
             # Check that all values are within [0-epsilon, 1+epsilon]
             assert np.all(pu_values >= -epsilon), (
-                f"PU values should be >= -epsilon ({-epsilon}), "
+                f"PU values should be >= -{epsilon} ({-epsilon}), "
                 f"but got min={np.min(pu_values)} for sequence {seq}"
             )
             assert np.all(pu_values <= 1.0 + epsilon), (
