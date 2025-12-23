@@ -173,7 +173,7 @@ class ChimeraFeature:
         """
         # TODO: Implement vector computation using self._chimera.calc_cARS with return_vec=True
         # Example implementation:
-        # from chimera import build_suffix_array, calc_cARS, nt2codon
+        # from pychimera import build_suffix_array, calc_cARS, nt2codon
         # if self._suffix_array is None:
         #     ref_cod = nt2codon(self.reference_seqs)
         #     self._suffix_array = build_suffix_array(ref_cod)
@@ -206,7 +206,7 @@ class ChimeraFeature:
         # TODO: Implement feature computation using self._chimera
         # Example implementation:
         # if self.algorithm in ("cARS", "PScARS"):
-        #     from chimera import build_suffix_array, calc_cARS, nt2codon
+        #     from pychimera import build_suffix_array, calc_cARS, nt2codon
         #     ref_cod = nt2codon(self.reference_seqs)
         #     SA = build_suffix_array(ref_cod)
         #     target_cod = nt2codon([str(record.seq)])
