@@ -7,10 +7,12 @@ from collections import OrderedDict
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 from Bio.SeqRecord import SeqRecord
 
 from biotooler.core.lazy_import import lazy_import
 from biotooler.core.seq_utils import get_seq_str
+from biotooler.features.aggregation import AggregationSpec, PositionSpace, geometric_mean
 
 if TYPE_CHECKING:
     from biotooler.core.reference_sequences import ReferenceSequenceSet
@@ -90,6 +92,98 @@ class CodonBiasFeature:
         # Initialize bounded cache for model building
         self._model_cache: OrderedDict[str, list[Any]] = OrderedDict()
         self._max_cache_size = max_cache_size
+
+    @property
+    def position_space(self) -> PositionSpace:
+        """The position space for this feature (CODON).
+
+        Returns:
+            PositionSpace.CODON indicating features are computed per codon
+        """
+        return PositionSpace.CODON
+
+    @property
+    def vector_keys(self) -> dict[str, AggregationSpec]:
+        """Mapping of feature keys to aggregation specifications.
+
+        Returns:
+            Dictionary mapping feature names to AggregationSpec objects that define
+            how per-codon values should be aggregated into window values.
+
+            Aggregation functions by score type:
+            - CAI, tAI: geometric_mean (they are defined as geometric means)
+            - FOP: np.mean (proportion/frequency metric)
+            - RSCU, RCBS, CPB: np.mean (for scores without get_vector, fallback to legacy)
+            - ENC: Not applicable (no get_vector support, uses legacy incremental path)
+        """
+        vector_keys = {}
+        for name, model in zip(self.names, self.models, strict=True):
+            # Determine aggregation function based on score type
+            score_class_name = type(model).__name__
+
+            # Check if model supports get_vector
+            has_get_vector = hasattr(model, "get_vector") and callable(
+                getattr(model, "get_vector", None)
+            )
+
+            if not has_get_vector:
+                # For scores without get_vector (like ENC), we don't expose them
+                # in vector_keys - they'll fall back to legacy incremental mode
+                continue
+
+            # Determine aggregation function based on score type
+            if score_class_name in ("CodonAdaptationIndex", "TrnaAdaptationIndex"):
+                # Geometric mean for CAI and tAI (as per mathematical definitions)
+                agg_fn = geometric_mean
+            else:
+                # Arithmetic mean for FOP, RSCU, RCBS, CPB
+                agg_fn = np.mean
+
+            vector_keys[name] = AggregationSpec(aggregation_fn=agg_fn)
+
+        return vector_keys
+
+    def compute_vector(
+        self, record: SeqRecord, **kwargs
+    ) -> dict[str, np.ndarray]:
+        """Compute per-codon feature values for the entire sequence.
+
+        This method uses the codonbias score's get_vector() method to compute
+        per-codon values across the full sequence context, without any slicing.
+        This ensures that each positional value is computed with full sequence
+        context information.
+
+        Args:
+            record: The SeqRecord containing the sequence
+            **kwargs: Additional parameters (unused, for protocol compatibility)
+
+        Returns:
+            Dictionary mapping feature names to numpy arrays of per-codon values.
+            Only scores that support get_vector() are included.
+        """
+        # Validate alphabet
+        _validate_alphabet(record)
+
+        # Get sequence and convert RNA to DNA
+        seq_str = get_seq_str(record)
+        seq_str = _convert_rna_to_dna(seq_str)
+
+        vectors = {}
+        for name, model in zip(self.names, self.models, strict=True):
+            # Check if model supports get_vector
+            has_get_vector = hasattr(model, "get_vector") and callable(
+                getattr(model, "get_vector", None)
+            )
+
+            if not has_get_vector:
+                # Skip models without get_vector (they use legacy incremental path)
+                continue
+
+            # Use get_vector to compute per-codon values with full context
+            vector = model.get_vector(seq_str)
+            vectors[name] = vector
+
+        return vectors
 
     @classmethod
     def from_reference(

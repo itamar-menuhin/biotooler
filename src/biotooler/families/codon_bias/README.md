@@ -224,12 +224,40 @@ CPS = average CPB across all adjacent codon pairs
 
 ### Implementation Notes
 
-Each model in the codonbias package implements a `get_score(sequence)` method that returns a scalar value. For efficient computation on large sequences or sliding windows:
+The `CodonBiasFeature` class implements the `PositionalFeature` protocol for modern windowing (v2), which provides efficient and accurate codon bias computation using **full-context vectors with window aggregation**:
 
-1. **Baseline mode**: Calls `get_score(seq, slice=slice(start, end))` for each window independently
-2. **Rolling mode**: Maintains running codon counts and incrementally updates scores using model-specific weight tables (when accessible via public API)
+#### Windowing v2 (PositionalFeature Protocol)
 
-Models that support rolling updates include CAI, tAI, and FOP (when weights are accessible). Models like ENC that require holistic computation always use baseline mode.
+For scores that support `get_vector()` (CAI, FOP, RSCU, RCBS, CPB):
+
+1. **Full-context vector computation**: Each score's `get_vector(sequence)` is called **once** on the entire sequence to compute per-codon values with full context
+2. **Window aggregation**: Per-codon values are aggregated into windows using the appropriate aggregation function:
+   - **CAI, tAI**: Geometric mean (as per mathematical definition: `exp(mean(log(weights)))`)
+   - **FOP, RSCU, RCBS, CPB**: Arithmetic mean
+3. **No sequence slicing**: The sequence is **never sliced**—each codon's value is computed with awareness of the full sequence context
+
+This approach ensures that:
+- Each positional value has full sequence context (e.g., for RSCU calculations that depend on codon frequencies)
+- Window aggregation is mathematically correct (e.g., geometric mean for CAI)
+- Computation is efficient (single vector computation, then efficient array slicing for windows)
+
+**Example**:
+```python
+# For a sequence with 10 codons:
+# 1. Compute full-context vector: cai.get_vector(seq) -> [w0, w1, w2, ..., w9]
+# 2. For window covering codons 2-5: geometric_mean([w2, w3, w4, w5])
+# 3. No slicing of the original sequence—values already computed with full context
+```
+
+#### Legacy Incremental Mode (IncrementalFeature)
+
+For scores without `get_vector()` (like ENC):
+
+1. **Incremental codon counting**: Maintains rolling codon counts as windows slide
+2. **Fallback computation**: Uses `get_score()` directly when incremental computation is not possible
+3. **Baseline slicing**: As a last resort, calls `get_score(seq, slice=slice(start, end))` for each window
+
+Models like ENC that require holistic computation (considering all codon families) use this legacy mode.
 
 ## Features and output schema
 
@@ -247,9 +275,17 @@ Dictionary mapping feature names to scalar float values:
 }
 ```
 
-### Modes
-1. **Baseline mode**: Calls `model.get_score(seq_str, slice=slice(start, end))` for each window
-2. **Rolling mode**: Maintains codon counts and recomputes incrementally (when weights are accessible)
+### Windowing Modes
+
+1. **Windowing v2** (`compute_orf_windows_v2`): Uses `PositionalFeature` protocol
+   - Full-context vector computation via `get_vector()`
+   - Window aggregation with proper aggregation functions
+   - Works for: CAI, FOP, RSCU, RCBS, CPB
+   
+2. **Legacy windowing** (`compute_orf_windows`): Uses `IncrementalFeature` protocol
+   - Incremental codon counting and rolling computation
+   - Fallback to baseline `get_score()` when needed
+   - Works for: All scores, including ENC
 
 ## References
 
