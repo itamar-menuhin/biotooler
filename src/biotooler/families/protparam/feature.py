@@ -155,17 +155,33 @@ class ProtParamFeature(ProteinFamilyFeature):
         For ProtParam, we compute per-residue values for metrics that can be decomposed:
         - aromaticity: Mean of binary indicators (1 for aromatic AAs: F, W, Y)
         - gravy: Mean of Kyte-Doolittle hydropathy values per residue
+        - molecular_weight: Sum of per-residue weights minus water losses
 
-        Note: molecular_weight, isoelectric_point, and instability_index cannot be
-        meaningfully computed per-position, so they are not included in vector_keys.
+        Note: isoelectric_point and instability_index cannot be meaningfully
+        decomposed per-position, so they are not included in vector_keys.
 
         Returns:
             Dictionary mapping feature names to AggregationSpec objects that define
             how per-residue values should be aggregated into window values.
         """
+        # Custom aggregation function for molecular weight that accounts for peptide bonds
+        def aggregate_molecular_weight(values: np.ndarray) -> float:
+            """Aggregate molecular weights accounting for water loss in peptide bonds.
+            
+            For a window of n residues, the total molecular weight is:
+            sum(residue_weights) - (n-1) * 18.01528 (water lost in peptide bonds)
+            """
+            if len(values) == 0:
+                return 0.0
+            # Sum residue weights and subtract water molecules lost in peptide bonds
+            water_weight = 18.01528
+            total = np.sum(values) - (len(values) - 1) * water_weight
+            return float(total)
+        
         return {
             "aromaticity": AggregationSpec(aggregation_fn=np.mean),
             "gravy": AggregationSpec(aggregation_fn=np.mean),
+            "molecular_weight": AggregationSpec(aggregation_fn=aggregate_molecular_weight),
         }
 
     def compute_vector(
@@ -184,8 +200,11 @@ class ProtParamFeature(ProteinFamilyFeature):
             Dictionary mapping feature names to numpy arrays of per-residue values:
             - aromaticity: Binary array (1 for F/W/Y, 0 otherwise)
             - gravy: Kyte-Doolittle hydropathy value per residue
+            - molecular_weight: Residue molecular weight (will be adjusted for
+              peptide bonds during aggregation)
         """
         from Bio.SeqUtils import ProtParamData
+        from Bio.SeqUtils.ProtParam import ProteinAnalysis
 
         protein_seq = str(record.seq)
 
@@ -204,5 +223,13 @@ class ProtParamFeature(ProteinFamilyFeature):
             [ProtParamData.kd.get(aa, 0.0) for aa in protein_seq]
         )
         vectors["gravy"] = gravy_vec
+
+        # Molecular weight: per-residue weights
+        # We compute individual residue weights; the aggregation function will
+        # handle subtracting water molecules for peptide bonds
+        mw_vec = np.array(
+            [ProteinAnalysis(aa).molecular_weight() for aa in protein_seq]
+        )
+        vectors["molecular_weight"] = mw_vec
 
         return vectors
