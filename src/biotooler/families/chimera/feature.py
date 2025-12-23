@@ -135,6 +135,9 @@ class ChimeraFeature:
         # Initialize suffix array storage
         self._suffix_array = None
 
+        # Normalize reference sequences once (RNA to DNA)
+        self._normalized_refs = [ref.upper().replace("U", "T") for ref in self.reference_seqs]
+
     @property
     def position_space(self) -> PositionSpace:
         """Return the position space for this feature.
@@ -162,6 +165,18 @@ class ChimeraFeature:
             feature_name: AggregationSpec(aggregation_fn=np.mean),
         }
 
+    def _get_chimera_functions(self):
+        """Get chimera functions from the lazy import.
+
+        Returns tuple of (build_suffix_array, calc_cARS, nt2codon) functions.
+        This avoids import conflicts with test packages.
+        """
+        return (
+            pychimera.build_suffix_array,
+            pychimera.calc_cARS,
+            pychimera.nt2codon,
+        )
+
     def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
         """Compute per-position cARS values for the entire sequence.
 
@@ -181,11 +196,8 @@ class ChimeraFeature:
         Raises:
             ValueError: If algorithm is not supported
         """
-        # Import from the pychimera lazy import to get the correct module
-        # (avoids conflicts with local test package names)
-        build_suffix_array = pychimera.build_suffix_array
-        calc_cARS = pychimera.calc_cARS
-        nt2codon = pychimera.nt2codon
+        # Get chimera functions
+        build_suffix_array, calc_cARS, nt2codon = self._get_chimera_functions()
 
         # Only cARS/PScARS are supported for now
         if self.algorithm not in ("cARS", "PScARS"):
@@ -197,12 +209,9 @@ class ChimeraFeature:
         # Normalize RNA to DNA (replace U with T)
         target_seq = str(record.seq).upper().replace("U", "T")
 
-        # Normalize reference sequences (RNA to DNA)
-        normalized_refs = [ref.upper().replace("U", "T") for ref in self.reference_seqs]
-
         # Build suffix array from reference sequences (cache if not already built)
         if self._suffix_array is None:
-            ref_cod = nt2codon(normalized_refs)
+            ref_cod = nt2codon(self._normalized_refs)
             # Include position-specific data if using PScARS
             self._suffix_array = build_suffix_array(
                 ref_cod, pos_spec=("PS" in self.algorithm)
@@ -247,11 +256,8 @@ class ChimeraFeature:
         Raises:
             ValueError: If reference_set was not provided or algorithm not supported
         """
-        # Import from the pychimera lazy import to get the correct module
-        # (avoids conflicts with local test package names)
-        build_suffix_array = pychimera.build_suffix_array
-        calc_cARS = pychimera.calc_cARS
-        nt2codon = pychimera.nt2codon
+        # Get chimera functions
+        build_suffix_array, calc_cARS, nt2codon = self._get_chimera_functions()
 
         # Only cARS/PScARS are supported for now
         if self.algorithm not in ("cARS", "PScARS"):
@@ -269,12 +275,9 @@ class ChimeraFeature:
         # Normalize RNA to DNA (replace U with T)
         target_seq = target_seq.upper().replace("U", "T")
 
-        # Normalize reference sequences (RNA to DNA)
-        normalized_refs = [ref.upper().replace("U", "T") for ref in self.reference_seqs]
-
         # Build suffix array from reference sequences (cache if not already built)
         if self._suffix_array is None:
-            ref_cod = nt2codon(normalized_refs)
+            ref_cod = nt2codon(self._normalized_refs)
             # Include position-specific data if using PScARS
             self._suffix_array = build_suffix_array(
                 ref_cod, pos_spec=("PS" in self.algorithm)
