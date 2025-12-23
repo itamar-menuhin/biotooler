@@ -30,6 +30,12 @@ FAMILIES: dict[str, dict[str, Any]] = {
         "owner": "@itamar-menuhin",
         "heavy": False,  # No heavy optional dependencies
     },
+    "viennarna": {
+        "summary": "RNA secondary structure prediction and analysis using ViennaRNA",
+        "extra": "viennarna",  # pip install extra name
+        "owner": "@itamar-menuhin",
+        "heavy": True,  # Has heavy optional dependencies
+    },
 }
 
 
