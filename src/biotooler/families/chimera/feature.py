@@ -5,10 +5,12 @@ Gene expression prediction and sequence optimization using Chimera algorithms.
 
 from typing import TYPE_CHECKING
 
+import numpy as np
 from Bio.SeqRecord import SeqRecord
 
 from biotooler.core.lazy_import import lazy_import
 from biotooler.core.types import Scalar
+from biotooler.features.aggregation import AggregationSpec, PositionSpace
 
 if TYPE_CHECKING:
     from biotooler.core.reference_sequences import ReferenceSequenceSet
@@ -30,6 +32,11 @@ class ChimeraFeature:
 
     The pyChimera dependency is lazily loaded only when the feature module is imported
     to keep family-level imports lightweight.
+
+    This feature implements the PositionalFeature protocol, which means it computes
+    per-position values across the full sequence and then aggregates them into windows.
+    This is the correct way to compute cARS/PScARS for windowed sequences, as slicing
+    before computation would incorrectly change the maximal common subsequences.
 
     Args:
         reference_seqs: List of reference DNA sequences (host genes). Deprecated in favor
@@ -114,6 +121,74 @@ class ChimeraFeature:
         self.max_len = max_len
         self.max_pos = max_pos
         self.win_params = win_params
+
+        # Initialize suffix array storage
+        self._suffix_array = None
+
+    @property
+    def position_space(self) -> PositionSpace:
+        """Return the position space for this feature.
+
+        Chimera features compute per-codon values, as cARS operates on
+        codon-level sequences.
+
+        Returns:
+            PositionSpace.CODON
+        """
+        return PositionSpace.CODON
+
+    @property
+    def vector_keys(self) -> dict[str, AggregationSpec]:
+        """Return aggregation specifications for each feature key.
+
+        For cARS/PScARS, we return per-position maximal common substring lengths
+        that should be aggregated using mean (to match the scalar cARS definition).
+
+        Returns:
+            Dictionary mapping feature names to AggregationSpec objects
+        """
+        feature_name = f"{self.algorithm}_score"
+        return {
+            feature_name: AggregationSpec(aggregation_fn=np.mean),
+        }
+
+    def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
+        """Compute per-position cARS values for the entire sequence.
+
+        This method computes the cARS vector (maximal common substring length at each
+        position) across the full sequence. This is the correct way to handle windowing
+        for cARS, as slicing before computation would incorrectly change the maximal
+        common subsequences.
+
+        Args:
+            record: SeqRecord containing the DNA sequence to analyze
+            **kwargs: Additional parameters (unused)
+
+        Returns:
+            Dictionary mapping feature names to numpy arrays of per-position values.
+            For cARS, this is the maximal common substring length at each codon position.
+
+        Raises:
+            NotImplementedError: Feature computation not yet implemented
+        """
+        # TODO: Implement vector computation using self._chimera.calc_cARS with return_vec=True
+        # Example implementation:
+        # from chimera import build_suffix_array, calc_cARS, nt2codon
+        # if self._suffix_array is None:
+        #     ref_cod = nt2codon(self.reference_seqs)
+        #     self._suffix_array = build_suffix_array(ref_cod)
+        # target_cod = nt2codon([str(record.seq)])
+        # cars_vec = calc_cARS(target_cod[0], self._suffix_array,
+        #                      win_params=self.win_params if "PS" in self.algorithm else None,
+        #                      max_len=self.max_len, max_pos=self.max_pos,
+        #                      return_vec=True)
+        # feature_name = f"{self.algorithm}_score"
+        # return {feature_name: cars_vec}
+
+        raise NotImplementedError(
+            "ChimeraFeature compute_vector is not yet implemented. "
+            "This is a stub for future implementation using pyChimera's return_vec=True API."
+        )
 
     def __call__(self, record: SeqRecord) -> dict[str, Scalar]:
         """Compute Chimera features for the target sequence.
