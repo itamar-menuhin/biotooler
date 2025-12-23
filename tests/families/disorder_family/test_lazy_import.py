@@ -206,7 +206,7 @@ def test_missing_idrpred_pkg_error_mentions_extra():
     modules_to_clear = [
         module
         for module in list(sys.modules.keys())
-        if (module.startswith("biotooler.families.disorder") or module.startswith("idrpred"))
+        if module.startswith("biotooler.families.disorder") or module.startswith("idrpred")
     ]
     for module in modules_to_clear:
         del sys.modules[module]
