@@ -6,9 +6,9 @@ RNA secondary structure prediction and analysis using ViennaRNA.
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    pass  # No features implemented yet
+    from biotooler.families.viennarna.window_mfe import WindowMFEFeature
 
-__all__ = ["FAMILY_META", "get_features"]
+__all__ = ["FAMILY_META", "get_features", "WindowMFEFeature"]
 
 # Family metadata for discovery and documentation
 FAMILY_META = {
@@ -31,7 +31,7 @@ def get_features() -> list[type]:
         Users can instantiate these classes as needed.
 
     Raises:
-        ImportError: If ViennaRNA is not installed.
+        ImportError:  If ViennaRNA is not installed.
             The error message includes installation instructions.
     """
     # Import integration to verify ViennaRNA is available
@@ -40,7 +40,21 @@ def get_features() -> list[type]:
     # This will raise ImportError with helpful message if RNA is not installed
     require_viennarna()
 
-    # Import features after verifying ViennaRNA is available
+    # Import feature classes
     from biotooler.families.viennarna.accessibility import ViennaRNAAccessibility
+    from biotooler.families.viennarna.window_mfe import WindowMFEFeature
 
-    return [ViennaRNAAccessibility]
+    return [ViennaRNAAccessibility, WindowMFEFeature]
+
+
+def __getattr__(name: str):
+    """Lazy import for WindowMFEFeature to maintain backward compatibility.
+
+    This allows code like `from biotooler.families.viennarna import WindowMFEFeature`
+    to work while keeping imports lightweight and not loading ViennaRNA until needed.
+    """
+    if name == "WindowMFEFeature":
+        from biotooler.families.viennarna.window_mfe import WindowMFEFeature
+
+        return WindowMFEFeature
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
