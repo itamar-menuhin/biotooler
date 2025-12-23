@@ -20,6 +20,9 @@ codon_bias = [
 disorder = [
     "metapredict>=3.0",
 ]
+disorder-idrpred = [
+    "idrpred @ git+https://github.com/matthiasblum/idrpred@1.0.3",
+]
 viennarna = [
     "ViennaRNA",
 ]
