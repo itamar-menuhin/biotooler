@@ -20,7 +20,11 @@ def test_import_viennarna_does_not_load_rna():
     modules_to_clear = [
         module
         for module in list(sys.modules.keys())
-        if module.startswith("biotooler.families.viennarna") or module.startswith("RNA")
+        if (
+            module.startswith("biotooler.families.viennarna")
+            or module == "RNA"
+            or module.startswith("RNA.")
+        )
     ]
     for module in modules_to_clear:
         del sys.modules[module]
@@ -52,7 +56,11 @@ def test_get_features_raises_import_error_without_viennarna():
     modules_to_clear = [
         module
         for module in list(sys.modules.keys())
-        if module.startswith("biotooler.families.viennarna") or module.startswith("RNA")
+        if (
+            module.startswith("biotooler.families.viennarna")
+            or module == "RNA"
+            or module.startswith("RNA.")
+        )
     ]
     for module in modules_to_clear:
         del sys.modules[module]
@@ -84,7 +92,11 @@ def test_require_viennarna_raises_import_error_without_viennarna():
     modules_to_clear = [
         module
         for module in list(sys.modules.keys())
-        if module.startswith("biotooler.families.viennarna") or module.startswith("RNA")
+        if (
+            module.startswith("biotooler.families.viennarna")
+            or module == "RNA"
+            or module.startswith("RNA.")
+        )
     ]
     for module in modules_to_clear:
         del sys.modules[module]
