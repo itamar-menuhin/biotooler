@@ -18,9 +18,18 @@ REQUIRED_HEADINGS = [
     "## Maintenance notes",
 ]
 
+# Pattern for extracting subsections within a section (e.g., "### Subsection Name")
+# Matches from the subsection heading to the next subsection (###) or end of content
+SUBSECTION_PATTERN = r"{subsection}\s+(.*?)(?=###|\Z)"
+
 
 def _extract_section(content: str, heading: str) -> str | None:
-    """Extract content between a heading and the next heading or end of file."""
+    """Extract content between a heading and the next heading or end of file.
+
+    Uses negative lookahead (?!#) to ensure we only match level-2 headings (##),
+    not level-3 or deeper (###, ####, etc.), which allows proper extraction
+    of sections that contain subsections.
+    """
     match = re.search(
         rf"^{re.escape(heading)}(?!#)\s*(.*?)(?=^##(?!#)|\Z)", content, re.DOTALL | re.MULTILINE
     )
@@ -78,7 +87,7 @@ def check_readme(readme_path: Path, family_name: str) -> list[str]:
                     f"Family '{family_name}': 'Windowing correctness' section must "
                     f"include '{subsection}' subsection"
                 )
-        
+
         # Check that windowing section references upstream APIs when appropriate
         # If Upstream library links has actual links (not N/A), windowing should mention them
         if upstream_section:
@@ -86,9 +95,10 @@ def check_readme(readme_path: Path, family_name: str) -> list[str]:
             has_na = re.search(r"\bN/A\b", upstream_section)
             if has_upstream_link and not has_na:
                 # Family uses upstream library - check windowing docs reference it
+                pattern = SUBSECTION_PATTERN.format(subsection="### Vector computation")
                 vector_computation_match = re.search(
-                    r"### Vector computation\s+(.*?)(?=###|\Z)", 
-                    windowing_section, 
+                    pattern,
+                    windowing_section,
                     re.DOTALL
                 )
                 if vector_computation_match:

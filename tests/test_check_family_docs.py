@@ -5,7 +5,6 @@ from pathlib import Path
 
 from scripts.check_family_docs import check_readme
 
-
 # Helper to generate complete windowing correctness section
 # For families WITHOUT upstream libraries
 WINDOWING_SECTION_NO_UPSTREAM = """
@@ -24,7 +23,7 @@ We use np.mean for averaging.
 Tests validate full-context computation.
 """
 
-# For families WITH upstream libraries  
+# For families WITH upstream libraries
 WINDOWING_SECTION_WITH_UPSTREAM = """
 ## Windowing correctness
 
