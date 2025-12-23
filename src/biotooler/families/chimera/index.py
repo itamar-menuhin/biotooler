@@ -120,6 +120,8 @@ def get_reference_index(
     ref_hash = hashlib.sha256(concatenated.encode()).hexdigest()
 
     # Create cache key
+    # genetic_code_table is included for API consistency and future extensibility,
+    # even though ref_hash already captures the sequence content
     key = ChimeraIndexKey(
         alphabet=alphabet, genetic_code_table=genetic_code_table, ref_hash=ref_hash
     )
