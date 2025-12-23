@@ -167,7 +167,7 @@ class ProtParamFeature(ProteinFamilyFeature):
         # Custom aggregation function for molecular weight that accounts for peptide bonds
         def aggregate_molecular_weight(values: np.ndarray) -> float:
             """Aggregate molecular weights accounting for water loss in peptide bonds.
-            
+
             For a window of n residues, the total molecular weight is:
             sum(residue_weights) - (n-1) * 18.01528 (water lost in peptide bonds)
             """
@@ -177,7 +177,7 @@ class ProtParamFeature(ProteinFamilyFeature):
             water_weight = 18.01528
             total = np.sum(values) - (len(values) - 1) * water_weight
             return float(total)
-        
+
         return {
             "aromaticity": AggregationSpec(aggregation_fn=np.mean),
             "gravy": AggregationSpec(aggregation_fn=np.mean),
