@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -649,9 +650,6 @@ class FeatureSet:
             position_space = feat_fn.position_space  # type: ignore[union-attr]
             vector_keys = feat_fn.vector_keys  # type: ignore[union-attr]
 
-            # Compute per-position vectors for the full ORF
-            vectors = feat_fn.compute_vector(orf_record)  # type: ignore[union-attr]
-
             # Generate window boundaries using the shared indexing helper
             # Map PositionSpace enum to string for the helper function
             position_space_str = (
@@ -668,7 +666,11 @@ class FeatureSet:
                 start_offset=0,
             )
 
-            # Process each window
+            # Compute union of all window positions in position space
+            # This optimization allows features to compute only needed positions
+            union_positions_set = set()
+            window_position_ranges = []  # Store (start_nt, start_pos, end_pos) for each window
+
             for window_start_nt, window_end_nt in window_boundaries:
                 # Convert nucleotide positions to position space indices
                 if position_space == PositionSpace.CODON:
@@ -680,6 +682,27 @@ class FeatureSet:
                     window_start_pos = window_start_nt
                     window_end_pos = window_end_nt
 
+                window_position_ranges.append((window_start_nt, window_start_pos, window_end_pos))
+                union_positions_set.update(range(window_start_pos, window_end_pos))
+
+            # Convert to sorted array for compute_vector
+            union_positions = np.array(sorted(union_positions_set), dtype=np.int64)
+
+            # Compute per-position vectors
+            # Pass union_positions to allow features to optimize (compute only needed positions)
+            # Features that don't support this optimization can ignore it and compute all positions
+            vectors = feat_fn.compute_vector(orf_record, positions=union_positions)  # type: ignore[union-attr]
+
+            # Check if feature returned sparse (positions-indexed) or full vector
+            # If all union positions are consecutive starting from 0, it's full vector
+            is_full_vector = (
+                len(union_positions) > 0
+                and union_positions[0] == 0
+                and len(union_positions) == union_positions[-1] + 1
+            )
+
+            # Process each window and aggregate
+            for window_start_nt, window_start_pos, window_end_pos in window_position_ranges:
                 # Aggregate each vector key for this window
                 for key, agg_spec in vector_keys.items():
                     if key not in vectors:
@@ -688,7 +711,15 @@ class FeatureSet:
                         )
 
                     vector = vectors[key]
-                    window_values = vector[window_start_pos:window_end_pos]
+
+                    if is_full_vector:
+                        # Full vector: slice directly by positions
+                        window_values = vector[window_start_pos:window_end_pos]
+                    else:
+                        # Sparse vector: use searchsorted to find indices in union_positions
+                        idx_start = np.searchsorted(union_positions, window_start_pos)
+                        idx_end = np.searchsorted(union_positions, window_end_pos)
+                        window_values = vector[idx_start:idx_end]
 
                     # Apply aggregation function
                     aggregated_value = agg_spec.aggregation_fn(window_values)

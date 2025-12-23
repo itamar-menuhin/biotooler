@@ -194,7 +194,10 @@ class ProtParamFeature(ProteinFamilyFeature):
 
         Args:
             record: Protein SeqRecord to analyze (molecule_type="protein")
-            **kwargs: Additional parameters (unused, for protocol compatibility)
+            **kwargs: Additional parameters that may include:
+                - positions: Optional array of position indices. If provided,
+                  only computes values for those positions. If not provided,
+                  computes for all positions in the sequence.
 
         Returns:
             Dictionary mapping feature names to numpy arrays of per-residue values:
@@ -207,20 +210,27 @@ class ProtParamFeature(ProteinFamilyFeature):
         from Bio.SeqUtils.ProtParam import ProteinAnalysis
 
         protein_seq = str(record.seq)
+        positions = kwargs.get("positions", None)
+
+        # Determine which positions to compute
+        if positions is not None:
+            position_indices = positions
+        else:
+            position_indices = np.arange(len(protein_seq))
 
         vectors = {}
 
         # Aromaticity: binary indicator for aromatic amino acids (F, W, Y)
         aromatic_aas = set("FWY")
         aromaticity_vec = np.array(
-            [1.0 if aa in aromatic_aas else 0.0 for aa in protein_seq]
+            [1.0 if protein_seq[i] in aromatic_aas else 0.0 for i in position_indices]
         )
         vectors["aromaticity"] = aromaticity_vec
 
         # GRAVY: Kyte-Doolittle hydropathy values
         # Use 0.0 for unknown amino acids (though ProteinAnalysis would error on them)
         gravy_vec = np.array(
-            [ProtParamData.kd.get(aa, 0.0) for aa in protein_seq]
+            [ProtParamData.kd.get(protein_seq[i], 0.0) for i in position_indices]
         )
         vectors["gravy"] = gravy_vec
 
@@ -228,7 +238,7 @@ class ProtParamFeature(ProteinFamilyFeature):
         # We compute individual residue weights; the aggregation function will
         # handle subtracting water molecules for peptide bonds
         mw_vec = np.array(
-            [ProteinAnalysis(aa).molecular_weight() for aa in protein_seq]
+            [ProteinAnalysis(protein_seq[i]).molecular_weight() for i in position_indices]
         )
         vectors["molecular_weight"] = mw_vec
 

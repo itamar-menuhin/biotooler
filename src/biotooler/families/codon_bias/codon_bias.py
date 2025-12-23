@@ -155,12 +155,19 @@ class CodonBiasFeature:
 
         Args:
             record: The SeqRecord containing the sequence
-            **kwargs: Additional parameters (unused, for protocol compatibility)
+            **kwargs: Additional parameters that may include:
+                - positions: Optional array of codon indices. For codon bias features,
+                  this is currently ignored and all positions are computed, as the
+                  codonbias models require full sequence context. The windowing code
+                  will select the needed positions from the full vector.
 
         Returns:
             Dictionary mapping feature names to numpy arrays of per-codon values.
             Only scores that support get_vector() are included.
         """
+        # Note: positions parameter is intentionally ignored for codon_bias features
+        # because they require full sequence context for accurate computation
+
         # Validate alphabet
         _validate_alphabet(record)
 

@@ -194,7 +194,11 @@ class ChimeraFeature:
 
         Args:
             record: SeqRecord containing the DNA/RNA sequence to analyze
-            **kwargs: Additional parameters (unused)
+            **kwargs: Additional parameters that may include:
+                - positions: Optional array of codon indices. For Chimera features,
+                  this is currently ignored and all positions are computed, as the
+                  algorithm requires full sequence context. The windowing code will
+                  select the needed positions from the full vector.
 
         Returns:
             Dictionary mapping feature names to numpy arrays of per-position values.
@@ -203,6 +207,9 @@ class ChimeraFeature:
         Raises:
             ValueError: If algorithm is not supported
         """
+        # Note: positions parameter is intentionally ignored for Chimera features
+        # because the algorithm requires full sequence context for accurate computation
+
         # Get chimera functions
         build_suffix_array, calc_cARS, nt2codon = self._get_chimera_functions()
 

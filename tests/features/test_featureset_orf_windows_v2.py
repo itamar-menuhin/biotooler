@@ -31,8 +31,17 @@ class ToyResidueFeature:
     ) -> dict[str, np.ndarray]:
         """Compute per-residue GC indicator and count."""
         seq = str(record.seq).upper()
-        gc_vector = np.array([1.0 if b in "GC" else 0.0 for b in seq])
-        count_vector = np.ones(len(seq))
+        positions = kwargs.get("positions", None)
+
+        if positions is not None:
+            # Compute only for requested positions
+            gc_vector = np.array([1.0 if seq[i] in "GC" else 0.0 for i in positions])
+            count_vector = np.ones(len(positions))
+        else:
+            # Compute for all positions (backward compatibility)
+            gc_vector = np.array([1.0 if b in "GC" else 0.0 for b in seq])
+            count_vector = np.ones(len(seq))
+
         return {
             "gc": gc_vector,
             "count": count_vector,
@@ -61,12 +70,21 @@ class ToyCodonFeature:
         """Compute per-codon features."""
         seq = str(record.seq).upper()
         num_codons = len(seq) // 3
-        # 1.0 if codon starts with A, 0.0 otherwise
-        start_a = np.array(
-            [1.0 if seq[i * 3] == "A" else 0.0 for i in range(num_codons)]
-        )
-        # Codon index (0, 1, 2, ...)
-        codon_index = np.arange(num_codons, dtype=float)
+        positions = kwargs.get("positions", None)
+
+        if positions is not None:
+            # Compute only for requested codon positions
+            start_a = np.array(
+                [1.0 if seq[i * 3] == "A" else 0.0 for i in positions]
+            )
+            codon_index = np.array(positions, dtype=float)
+        else:
+            # Compute for all codons (backward compatibility)
+            start_a = np.array(
+                [1.0 if seq[i * 3] == "A" else 0.0 for i in range(num_codons)]
+            )
+            codon_index = np.arange(num_codons, dtype=float)
+
         return {
             "start_a": start_a,
             "codon_index": codon_index,
