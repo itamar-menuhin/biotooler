@@ -7,9 +7,18 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from biotooler.families.viennarna.context_window_fold import ContextWindowFoldFeature
+    from biotooler.families.viennarna.start_region_accessibility import AccessibilityStartRegion
+    from biotooler.families.viennarna.start_region_mfe import WindowMFEStartRegion
     from biotooler.families.viennarna.window_mfe import WindowMFEFeature
 
-__all__ = ["FAMILY_META", "get_features", "ContextWindowFoldFeature", "WindowMFEFeature"]
+__all__ = [
+    "FAMILY_META",
+    "get_features",
+    "ContextWindowFoldFeature",
+    "WindowMFEFeature",
+    "WindowMFEStartRegion",
+    "AccessibilityStartRegion",
+]
 
 # Family metadata for discovery and documentation
 FAMILY_META = {
@@ -44,9 +53,17 @@ def get_features() -> list[type]:
     # Import feature classes
     from biotooler.families.viennarna.accessibility import ViennaRNAAccessibility
     from biotooler.families.viennarna.context_window_fold import ContextWindowFoldFeature
+    from biotooler.families.viennarna.start_region_accessibility import AccessibilityStartRegion
+    from biotooler.families.viennarna.start_region_mfe import WindowMFEStartRegion
     from biotooler.families.viennarna.window_mfe import WindowMFEFeature
 
-    return [ViennaRNAAccessibility, ContextWindowFoldFeature, WindowMFEFeature]
+    return [
+        ViennaRNAAccessibility,
+        ContextWindowFoldFeature,
+        WindowMFEFeature,
+        WindowMFEStartRegion,
+        AccessibilityStartRegion,
+    ]
 
 
 def __getattr__(name: str):
@@ -63,4 +80,14 @@ def __getattr__(name: str):
         from biotooler.families.viennarna.context_window_fold import ContextWindowFoldFeature
 
         return ContextWindowFoldFeature
+    if name == "WindowMFEStartRegion":
+        from biotooler.families.viennarna.start_region_mfe import WindowMFEStartRegion
+
+        return WindowMFEStartRegion
+    if name == "AccessibilityStartRegion":
+        from biotooler.families.viennarna.start_region_accessibility import (
+            AccessibilityStartRegion,
+        )
+
+        return AccessibilityStartRegion
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
