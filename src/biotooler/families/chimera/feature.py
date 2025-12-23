@@ -36,9 +36,16 @@ try:
             "This might be a naming conflict with test packages. "
             'Install chimera-ugem (pychimera) with: pip install "biotooler[chimera]"'
         )
-except ImportError:
-    # Re-raise to preserve original error message
-    raise
+except ImportError as e:
+    # Re-raise with a message that mentions "pychimera" for clarity
+    if "pychimera" not in str(e).lower():
+        raise ImportError(
+            "Module 'chimera' (pychimera) is required for computing gene expression "
+            "features using Chimera algorithms. "
+            'Install pychimera with: pip install "biotooler[chimera]"'
+        ) from e
+    else:
+        raise
 
 
 class ChimeraFeature:
