@@ -17,21 +17,20 @@ if TYPE_CHECKING:
 class FoldKey:
     """Immutable cache key for a fold computation.
 
+    The cache key is designed to identify identical fold computations.
+    Since we extract the exact context slice before folding, the sequence
+    hash alone captures the sequence identity. Flank information is included
+    to distinguish windows with same core sequence but different contexts.
+
     Attributes:
         seq_hash: Hash of the sequence to fold (after normalization to RNA)
-        start: Start position in the normalized context (0-based)
-        length: Length of the sequence to fold
         flank_left: Number of nucleotides in left flank
         flank_right: Number of nucleotides in right flank
-        config_hash: Hash of fold configuration (e.g., temperature, model)
     """
 
     seq_hash: str
-    start: int
-    length: int
     flank_left: int
     flank_right: int
-    config_hash: str
 
 
 class ViennaFoldCache:
@@ -96,22 +95,7 @@ def _hash_string(s: str) -> str:
     return hashlib.sha256(s.encode()).hexdigest()
 
 
-def _make_config_hash(temperature: float = 37.0) -> str:
-    """Create hash for fold configuration.
 
-    Currently supports temperature parameter. Can be extended for other
-    configuration options like model, dangles, etc.
-
-    Args:
-        temperature: Temperature in Celsius (default: 37.0)
-
-    Returns:
-        Hash string representing the configuration
-    """
-    # For now, just hash the temperature
-    # Can be extended to include other parameters
-    config_str = f"temp:{temperature}"
-    return _hash_string(config_str)
 
 
 def get_context_mfe_cached(
@@ -121,7 +105,6 @@ def get_context_mfe_cached(
     flank_left: int = 0,
     flank_right: int = 0,
     cache: ViennaFoldCache | None = None,
-    temperature: float = 37.0,
 ) -> tuple[str, float]:
     """Compute MFE for a window with context, using cache if available.
 
@@ -131,6 +114,9 @@ def get_context_mfe_cached(
     3. Computes or retrieves cached fold result
     4. Returns structure and MFE
 
+    Note: Uses ViennaRNA default temperature (37°C). For custom temperature
+    or other fold parameters, use ViennaRNA API directly.
+
     Args:
         seq_str: Full sequence string (DNA or RNA)
         window_start: Start position of window in seq_str (0-based)
@@ -138,7 +124,6 @@ def get_context_mfe_cached(
         flank_left: Number of nucleotides to include as left flank (default: 0)
         flank_right: Number of nucleotides to include as right flank (default: 0)
         cache: Optional ViennaFoldCache instance for caching results
-        temperature: Temperature for folding in Celsius (default: 37.0)
 
     Returns:
         Tuple of (structure, mfe) for the context slice
@@ -171,18 +156,14 @@ def get_context_mfe_cached(
 
     # Create cache key
     seq_hash = _hash_string(rna_seq)
-    config_hash = _make_config_hash(temperature)
     # For cache key, use normalized context boundaries
     actual_flank_left = window_start - ctx_start
     actual_flank_right = ctx_end - window_end
 
     key = FoldKey(
         seq_hash=seq_hash,
-        start=0,  # Always 0 since we extract the exact context slice
-        length=len(rna_seq),
         flank_left=actual_flank_left,
         flank_right=actual_flank_right,
-        config_hash=config_hash,
     )
 
     # Check cache
@@ -191,16 +172,8 @@ def get_context_mfe_cached(
         if cached_result is not None:
             return cached_result
 
-    # Compute fold using ViennaRNA
+    # Compute fold using ViennaRNA (uses default temperature of 37°C)
     fc = RNA.fold_compound(rna_seq)
-
-    # Apply temperature if not default
-    if temperature != 37.0:
-        # ViennaRNA uses temperature in fold_compound or via parameters
-        # For now, we'll use the default RNA.fold_compound behavior
-        # Temperature control would require more complex ViennaRNA API usage
-        pass
-
     structure, mfe = fc.mfe()
 
     # Store in cache

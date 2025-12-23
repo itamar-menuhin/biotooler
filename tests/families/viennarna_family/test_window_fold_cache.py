@@ -10,7 +10,6 @@ from biotooler.families.viennarna.cache import (
     FoldKey,
     ViennaFoldCache,
     _hash_string,
-    _make_config_hash,
     get_context_mfe_cached,
 )
 
@@ -22,34 +21,25 @@ class TestFoldKey:
         """Test that FoldKey is immutable (frozen)."""
         key = FoldKey(
             seq_hash="abc123",
-            start=0,
-            length=20,
             flank_left=5,
             flank_right=5,
-            config_hash="def456",
         )
 
         # Should not be able to modify
         with pytest.raises(AttributeError):
-            key.start = 10  # type: ignore[misc]
+            key.flank_left = 10  # type: ignore[misc]
 
     def test_fold_key_equality(self):
         """Test that FoldKeys with same values are equal."""
         key1 = FoldKey(
             seq_hash="abc",
-            start=0,
-            length=20,
             flank_left=5,
             flank_right=5,
-            config_hash="def",
         )
         key2 = FoldKey(
             seq_hash="abc",
-            start=0,
-            length=20,
             flank_left=5,
             flank_right=5,
-            config_hash="def",
         )
 
         assert key1 == key2
@@ -59,19 +49,13 @@ class TestFoldKey:
         """Test that FoldKeys with different values are not equal."""
         key1 = FoldKey(
             seq_hash="abc",
-            start=0,
-            length=20,
             flank_left=5,
             flank_right=5,
-            config_hash="def",
         )
         key2 = FoldKey(
-            seq_hash="abc",
-            start=0,
-            length=20,
+            seq_hash="xyz",  # Different sequence
             flank_left=5,
             flank_right=5,
-            config_hash="xyz",  # Different config
         )
 
         assert key1 != key2
@@ -90,11 +74,8 @@ class TestViennaFoldCache:
         cache = ViennaFoldCache()
         key = FoldKey(
             seq_hash="abc",
-            start=0,
-            length=20,
             flank_left=0,
             flank_right=0,
-            config_hash="def",
         )
 
         assert cache.get(key) is None
@@ -104,11 +85,8 @@ class TestViennaFoldCache:
         cache = ViennaFoldCache()
         key = FoldKey(
             seq_hash="abc",
-            start=0,
-            length=20,
             flank_left=0,
             flank_right=0,
-            config_hash="def",
         )
         structure = "(((...)))"
         mfe = -5.2
@@ -125,11 +103,8 @@ class TestViennaFoldCache:
         cache = ViennaFoldCache()
         key = FoldKey(
             seq_hash="abc",
-            start=0,
-            length=20,
             flank_left=0,
             flank_right=0,
-            config_hash="def",
         )
 
         cache.set(key, "(((...)))", -5.2)
@@ -145,19 +120,13 @@ class TestViennaFoldCache:
 
         key1 = FoldKey(
             seq_hash="abc",
-            start=0,
-            length=20,
             flank_left=0,
             flank_right=0,
-            config_hash="def",
         )
         key2 = FoldKey(
             seq_hash="xyz",
-            start=0,
-            length=20,
             flank_left=0,
             flank_right=0,
-            config_hash="def",
         )
 
         cache.set(key1, "(((...)))", -5.2)
@@ -184,20 +153,6 @@ class TestHashFunctions:
         """Test that different strings produce different hashes."""
         hash1 = _hash_string("ACGU")
         hash2 = _hash_string("UGCA")
-
-        assert hash1 != hash2
-
-    def test_make_config_hash_default(self):
-        """Test that config hash is deterministic for default temperature."""
-        hash1 = _make_config_hash()
-        hash2 = _make_config_hash()
-
-        assert hash1 == hash2
-
-    def test_make_config_hash_different_temperature(self):
-        """Test that different temperatures produce different hashes."""
-        hash1 = _make_config_hash(temperature=37.0)
-        hash2 = _make_config_hash(temperature=42.0)
 
         assert hash1 != hash2
 
@@ -294,8 +249,8 @@ class TestGetContextMfeCached:
             # Should have made two fold_compound calls (different sequences)
             assert len(fold_compound_calls) == 2
 
-    def test_config_changes_produce_different_cache_keys(self):
-        """Test that different temperatures produce different cache keys and recomputation."""
+    def test_identical_sequences_use_cache(self):
+        """Test that identical sequences from different positions use cache."""
         rna_mock = MagicMock()
         fold_compound_calls = []
 
@@ -313,31 +268,31 @@ class TestGetContextMfeCached:
             return_value=rna_mock,
         ):
             cache = ViennaFoldCache()
-            seq_str = "ACGTACGTACGTACGTACGTACGTACGTACGT"  # 32 bp
+            # Create sequence with repeating pattern
+            pattern = "ACGTACGTACGTACGTACGT"  # 20 bp
+            seq_str = pattern * 2  # 40 bp
 
-            # First call with temperature 37.0
+            # First window 0-20
             get_context_mfe_cached(
                 seq_str=seq_str,
                 window_start=0,
                 window_size=20,
                 cache=cache,
-                temperature=37.0,
             )
 
             assert len(fold_compound_calls) == 1
 
-            # Second call with different temperature - should recompute
+            # Second window 20-40 (identical sequence)
             get_context_mfe_cached(
                 seq_str=seq_str,
-                window_start=0,
+                window_start=20,
                 window_size=20,
                 cache=cache,
-                temperature=42.0,  # Different temperature
             )
 
-            # Should have made another fold_compound call due to different config
-            assert len(fold_compound_calls) == 2, (
-                "Different temperature should produce different cache key"
+            # Should use cache since sequences are identical
+            assert len(fold_compound_calls) == 1, (
+                "Identical sequences should use cache"
             )
 
     def test_flanks_affect_cache_key(self):
