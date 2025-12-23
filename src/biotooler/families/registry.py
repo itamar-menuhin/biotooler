@@ -24,6 +24,12 @@ FAMILIES: dict[str, dict[str, Any]] = {
         "owner": "@itamar-menuhin",
         "heavy": True,  # Has heavy optional dependencies
     },
+    "disorder": {
+        "summary": "Protein disorder prediction using metapredict",
+        "extra": "disorder",  # pip install extra name
+        "owner": "@itamar-menuhin",
+        "heavy": True,  # Has heavy optional dependencies
+    },
     "protparam": {
         "summary": "Protein physicochemical parameters using Bio.SeqUtils.ProtParam",
         "extra": None,  # No extra dependencies needed
