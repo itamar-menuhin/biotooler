@@ -11,7 +11,7 @@ from biotooler.core.seq_utils import get_seq_str
 from biotooler.core.types import Scalar
 
 if TYPE_CHECKING:
-    pass  # RNA module imported lazily
+    from biotooler.families.viennarna.cache import ViennaFoldCache
 
 
 class WindowMFEFeature:
@@ -42,12 +42,18 @@ class WindowMFEFeature:
         False
     """
 
-    def __init__(self, window_starts: list[int], window_size: int):
+    def __init__(
+        self,
+        window_starts: list[int],
+        window_size: int,
+        cache: "ViennaFoldCache | None" = None,
+    ):
         """Initialize WindowMFEFeature.
 
         Args:
             window_starts: List of start positions for windows to compute
             window_size: Size of each window in nucleotides
+            cache: Optional ViennaFoldCache for reusing fold results (default: None)
 
         Raises:
             ValueError: If window_starts is empty or window_size is not positive
@@ -59,6 +65,7 @@ class WindowMFEFeature:
 
         self.window_starts = list(window_starts)
         self.window_size = window_size
+        self.cache = cache
 
     def __call__(self, record: SeqRecord) -> dict[str, Scalar]:
         """Compute MFE for requested window substrings.
@@ -73,10 +80,7 @@ class WindowMFEFeature:
         Raises:
             ImportError: If ViennaRNA is not installed
         """
-        # Import RNA module lazily
-        from biotooler.families.viennarna.integration import require_viennarna
-
-        RNA = require_viennarna()
+        from biotooler.families.viennarna.cache import get_context_mfe_cached
 
         # Get sequence string
         seq_str = get_seq_str(record)
@@ -85,21 +89,19 @@ class WindowMFEFeature:
 
         # Compute MFE for each requested window
         for window_start in self.window_starts:
-            window_end = window_start + self.window_size
-
             # Skip if window extends beyond sequence
-            if window_end > len(seq_str):
+            if window_start + self.window_size > len(seq_str):
                 continue
 
-            # Extract window substring
-            window_seq = seq_str[window_start:window_end]
-
-            # Normalize DNA to RNA (T->U)
-            rna_seq = window_seq.replace("T", "U")
-
-            # Compute MFE using ViennaRNA
-            fc = RNA.fold_compound(rna_seq)
-            _, mfe = fc.mfe()
+            # Use cached fold computation (no flanks for this feature)
+            _, mfe = get_context_mfe_cached(
+                seq_str=seq_str,
+                window_start=window_start,
+                window_size=self.window_size,
+                flank_left=0,
+                flank_right=0,
+                cache=self.cache,
+            )
 
             # Store with wide key
             result[f"MFE_{window_start}"] = mfe
