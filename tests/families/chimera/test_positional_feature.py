@@ -83,8 +83,8 @@ def test_chimera_feature_has_compute_vector_method():
     assert callable(feature.compute_vector)
 
 
-def test_chimera_feature_compute_vector_raises_not_implemented():
-    """Test that compute_vector raises NotImplementedError (stub implementation)."""
+def test_chimera_feature_compute_vector_works():
+    """Test that compute_vector returns per-position values."""
     try:
         from biotooler.families.chimera.feature import ChimeraFeature
     except ImportError:
@@ -97,15 +97,14 @@ def test_chimera_feature_compute_vector_raises_not_implemented():
     # Create a test record
     record = SeqRecord(Seq("ATGAAATAA"), id="test")
 
-    # compute_vector should raise NotImplementedError with clear message
-    with pytest.raises(NotImplementedError) as exc_info:
-        feature.compute_vector(record)
+    # compute_vector should return per-position values
+    result = feature.compute_vector(record)
 
-    # Check the error message is informative
-    error_message = str(exc_info.value)
-    assert "compute_vector" in error_message.lower()
-    assert "not yet implemented" in error_message.lower()
-    assert "return_vec=True" in error_message
+    # Check the result
+    assert "cARS_score" in result
+    assert isinstance(result["cARS_score"], np.ndarray)
+    # 9 nucleotides = 3 codons
+    assert result["cARS_score"].shape == (3,)
 
 
 def test_chimera_feature_implements_positional_protocol():
@@ -147,6 +146,7 @@ def test_chimera_feature_backward_compatibility():
     # Create a test record
     record = SeqRecord(Seq("ATGAAATAA"), id="test")
 
-    # __call__ should raise NotImplementedError (stub implementation)
-    with pytest.raises(NotImplementedError):
-        feature(record)
+    # __call__ should now work and return a dict
+    result = feature(record)
+    assert isinstance(result, dict)
+    assert "cARS_score" in result

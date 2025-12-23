@@ -10,7 +10,7 @@ from biotooler.core.reference_sequences import ReferenceSequenceSet
 
 
 def test_chimera_feature_accepts_reference_set_with_proteins():
-    """Test that ChimeraFeature accepts reference_set with protein sequences."""
+    """Test that ChimeraFeature accepts reference_set and uses CDS sequences."""
     # This test requires pychimera to be installed, so we skip if not available
     try:
         from biotooler.families.chimera.feature import ChimeraFeature
@@ -18,6 +18,7 @@ def test_chimera_feature_accepts_reference_set_with_proteins():
         pytest.skip("pychimera not installed")
 
     # Create a reference set with CDS and proteins
+    # ChimeraFeature uses CDS for cARS computation, not proteins
     cds = {
         "gene1": "ATGAAATAA",  # M K *
         "gene2": "ATGGCATAA",  # M A *
@@ -31,21 +32,21 @@ def test_chimera_feature_accepts_reference_set_with_proteins():
     # Create feature with reference_set
     feature = ChimeraFeature(reference_set=ref_set, algorithm="cARS")
 
-    # Verify it stored protein sequences
-    assert feature._sequence_type == "protein"
+    # Verify it stored CDS sequences (not proteins)
+    assert feature._sequence_type == "cds"
     assert len(feature.reference_seqs) == 2
-    assert "MK" in feature.reference_seqs
-    assert "MA" in feature.reference_seqs
+    assert "ATGAAATAA" in feature.reference_seqs
+    assert "ATGGCATAA" in feature.reference_seqs
 
 
 def test_chimera_feature_accepts_reference_set_with_cds_only():
-    """Test that ChimeraFeature accepts reference_set with CDS only (derives proteins)."""
+    """Test that ChimeraFeature accepts reference_set with CDS only."""
     try:
         from biotooler.families.chimera.feature import ChimeraFeature
     except ImportError:
         pytest.skip("pychimera not installed")
 
-    # Create a reference set with CDS only (proteins will be derived)
+    # Create a reference set with CDS only
     cds = {
         "gene1": "ATGAAATAA",  # M K *
         "gene2": "ATGGCATAA",  # M A *
@@ -55,28 +56,29 @@ def test_chimera_feature_accepts_reference_set_with_cds_only():
     # Create feature with reference_set
     feature = ChimeraFeature(reference_set=ref_set, algorithm="cARS")
 
-    # Should derive proteins from CDS
-    assert feature._sequence_type == "protein"
+    # Should use CDS sequences directly
+    assert feature._sequence_type == "cds"
     assert len(feature.reference_seqs) == 2
 
 
-def test_chimera_feature_falls_back_to_cds_strings():
-    """Test that ChimeraFeature falls back to CDS strings if protein derivation fails."""
+def test_chimera_feature_uses_cds_strings():
+    """Test that ChimeraFeature uses CDS strings directly (not proteins)."""
     try:
         from biotooler.families.chimera.feature import ChimeraFeature
     except ImportError:
         pytest.skip("pychimera not installed")
 
     # Create a reference set with CDS that has internal stops
+    # (would fail protein translation but that's okay since we use CDS)
     cds = {
-        "gene1": "ATGTAATAA",  # M * * (internal stop)
+        "gene1": "ATGTAATAA",  # M * * (internal stop in protein)
     }
     ref_set = ReferenceSequenceSet(cds)
 
-    # Create feature with reference_set - should fall back to CDS
+    # Create feature with reference_set - should use CDS directly
     feature = ChimeraFeature(reference_set=ref_set, algorithm="cARS")
 
-    # Should use CDS strings as fallback
+    # Should use CDS strings
     assert feature._sequence_type == "cds"
     assert len(feature.reference_seqs) == 1
     assert feature.reference_seqs[0] == "ATGTAATAA"
@@ -112,7 +114,7 @@ def test_chimera_feature_accepts_reference_seqs_list():
 
 
 def test_chimera_feature_prefers_protein_strings():
-    """Test that ChimeraFeature prefers protein strings over CDS strings."""
+    """Test that ChimeraFeature uses CDS strings for cARS computation."""
     try:
         from biotooler.families.chimera.feature import ChimeraFeature
     except ImportError:
@@ -130,6 +132,6 @@ def test_chimera_feature_prefers_protein_strings():
     # Create feature with reference_set
     feature = ChimeraFeature(reference_set=ref_set, algorithm="cARS")
 
-    # Should prefer proteins
-    assert feature._sequence_type == "protein"
-    assert feature.reference_seqs == ["MK"]
+    # Should use CDS (not proteins) for cARS
+    assert feature._sequence_type == "cds"
+    assert feature.reference_seqs == ["ATGAAATAA"]
