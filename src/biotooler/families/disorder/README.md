@@ -2,17 +2,19 @@
 
 ## What this family provides
 
-The disorder family will provide protein intrinsic disorder prediction features using metapredict as the initial backend. Intrinsically disordered regions (IDRs) are protein segments that lack stable 3D structure under physiological conditions.
+The disorder family provides protein intrinsic disorder prediction features using metapredict as the backend. Intrinsically disordered regions (IDRs) are protein segments that lack stable 3D structure under physiological conditions.
 
-**Planned Features**:
-- Disorder prediction scores per residue (coming soon)
-- Disorder region identification (coming soon)
+**Available Features**:
+- `DisorderProfileMetapredict`: Per-residue disorder prediction scores (DISORDER_P)
+- `DisorderDerivedScalars`: Summary statistics computed from DISORDER_P
+  - DISORDER_FRAC: Fraction of disordered residues
+  - DISORDER_LONGEST_IDR: Length of longest disordered region
+  - DISORDER_MEAN: Mean disorder probability
+  - DISORDER_P95: 95th percentile disorder probability
 
 **Future Backends**:
 - IUPred3 backend (planned)
 - Consensus predictions from multiple methods (planned)
-
-**Current Status**: Infrastructure in place, feature implementations coming soon.
 
 ## Intuition
 
@@ -66,18 +68,38 @@ Output: Per-residue disorder score (0.0 to 1.0)
 
 ## Features and output schema
 
-**Status**: No features currently implemented. Feature classes will be added in future updates.
+**Available Features**:
 
-**Planned features**:
-1. **DisorderScoreFeature** (planned): Per-residue disorder prediction scores
-   - Output: Vector of disorder probabilities (0.0 to 1.0) for each amino acid
-   - Aggregation: Mean disorder score across windows
-   
-2. **DisorderRegionFeature** (planned): Identification of disordered regions
-   - Output: Binary classification (ordered/disordered) per residue or region
-   - Parameters: Disorder threshold, minimum region length
+### 1. DisorderProfileMetapredict
 
-**Integration**: When implemented, features will integrate with biotooler's windowing engine for sliding window analysis across protein sequences.
+Per-residue disorder prediction using metapredict neural network.
+
+**Output**:
+- `DISORDER_P`: Vector of disorder probabilities (0.0 to 1.0) for each amino acid position
+- Aggregation: Mean disorder score across windows
+
+**Parameters**:
+- `table`: NCBI genetic code table for translation (default: 1)
+- `use_orf_if_present`: Use attached ORF if present (default: True)
+- `strip_terminal_stop`: Strip terminal stop codon (default: True)
+- `on_internal_stop`: Action for internal stops - "error" or "ignore" (default: "error")
+
+### 2. DisorderDerivedScalars
+
+Summary statistics computed from DISORDER_P without re-running predictor.
+
+**Output**:
+- `DISORDER_FRAC`: Fraction of residues with disorder probability >= threshold
+- `DISORDER_LONGEST_IDR`: Length of longest contiguous disordered region
+- `DISORDER_MEAN`: Mean disorder probability across all residues
+- `DISORDER_P95`: 95th percentile of disorder probabilities
+
+**Parameters**:
+- `threshold`: Disorder probability threshold for determining disordered residues (default: 0.5)
+
+**Usage pattern**: First compute DISORDER_P with DisorderProfileMetapredict, then compute derived features from the cached DISORDER_P values. This allows efficient computation of summary statistics at different thresholds without re-running the predictor.
+
+**Integration**: Features integrate with biotooler's windowing engine for sliding window analysis across protein sequences.
 
 ## References
 
@@ -96,27 +118,56 @@ Output: Per-residue disorder score (0.0 to 1.0)
 
 ## Examples
 
-**Status**: Examples will be provided once feature classes are implemented.
-
-Planned usage pattern:
+### Basic usage: Computing disorder predictions
 
 ```python
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
-from biotooler.families.disorder import DisorderScoreFeature  # Coming soon
+from biotooler.families.disorder.metapredict_backend import DisorderProfileMetapredict
 
-# Create feature (once implemented)
-# feature = DisorderScoreFeature()
+# Create feature
+feature = DisorderProfileMetapredict()
 
 # Create protein sequence record
-# record = SeqRecord(Seq("MKTAYIAKQRQISFVKSHFSRQLE..."), id="protein1")
+record = SeqRecord(Seq("MKALVSWGRPQMTEST"), id="protein1")
+record.annotations["molecule_type"] = "protein"
 
 # Compute disorder scores (one score per residue)
-# result = feature.compute_vector(record)
-# disorder_scores = result["disorder"]  # numpy array
+result = feature.compute_vector(record)
+disorder_scores = result["DISORDER_P"]  # numpy array
 
-# Identify disordered regions
-# disordered_positions = disorder_scores >= 0.5
+print(f"Disorder scores: {disorder_scores}")
+print(f"Mean disorder: {disorder_scores.mean():.3f}")
+```
+
+### Computing derived features without re-running predictor
+
+```python
+from biotooler.families.disorder.derived import DisorderDerivedScalars
+
+# Assume DISORDER_P has already been computed and stored in record.annotations
+# (by DisorderProfileMetapredict or loaded from cache)
+
+# Compute summary statistics
+derived = DisorderDerivedScalars(threshold=0.5)
+summary = derived(record)
+
+print(f"Fraction disordered: {summary['DISORDER_FRAC']:.2%}")
+print(f"Longest IDR: {summary['DISORDER_LONGEST_IDR']} residues")
+print(f"Mean disorder: {summary['DISORDER_MEAN']:.3f}")
+print(f"95th percentile: {summary['DISORDER_P95']:.3f}")
+```
+
+### Using different thresholds efficiently
+
+```python
+# Compute derived features at multiple thresholds
+# without re-running metapredict
+thresholds = [0.5, 0.6, 0.7]
+for t in thresholds:
+    derived = DisorderDerivedScalars(threshold=t)
+    result = derived(record)
+    print(f"Threshold {t}: {result['DISORDER_FRAC']:.2%} disordered")
 ```
 
 ## Edge cases and validation
@@ -251,9 +302,10 @@ If metapredict is not installed, attempting to use disorder features will raise 
 
 - ✅ Family infrastructure (registry, imports, lazy loading)
 - ✅ Integration helper (`require_metapredict()`)
-- ⏳ Feature classes (not yet implemented)
-- ⏳ Tests for feature functionality (not yet implemented)
-- ⏳ Windowing engine integration (not yet implemented)
+- ✅ DisorderProfileMetapredict feature (per-residue predictions)
+- ✅ DisorderDerivedScalars feature (summary statistics)
+- ✅ Comprehensive test coverage (35+ tests)
+- ✅ Windowing engine integration
 
 ### Design decisions
 
@@ -284,12 +336,11 @@ If metapredict is not installed, attempting to use disorder features will raise 
 ### Future work
 
 **Planned enhancements**:
-- Implement core disorder score feature class
-- Add disorder region identification feature
 - Support for IUPred3 backend
 - Consensus predictions combining multiple methods
 - Integration with structure prediction features
 - Batch prediction optimization for multiple sequences
+- Additional derived features (disorder clusters, region boundaries)
 
 ### Troubleshooting
 
