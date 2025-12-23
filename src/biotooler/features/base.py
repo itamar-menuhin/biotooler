@@ -154,10 +154,17 @@ class PositionalFeature(Protocol):
 
         Args:
             record: The SeqRecord containing the sequence
-            **kwargs: Additional parameters that may be needed
+            **kwargs: Additional parameters that may be needed, including:
+                - positions: Optional numpy array of position indices to compute.
+                  If provided, only compute features for these positions in the
+                  position_space (e.g., codon indices or residue indices).
+                  If not provided, compute for all positions in the sequence.
 
         Returns:
             Dictionary mapping feature names to numpy arrays of per-position values.
-            Array length should match the sequence length in the position_space.
+            Array length should match the sequence length in the position_space (if
+            positions not specified) or the length of the positions array (if specified).
+            When positions is specified, the returned arrays should be indexed such that
+            result[i] corresponds to position positions[i].
         """
         ...
