@@ -7,13 +7,13 @@ before implementing positional windowing. We verify:
 3. Array lengths and their relationship to input sequence length
 4. Behavior with and without win_params
 
-These tests skip cleanly when pychimera is not installed.
+These tests skip cleanly when chimera is not installed.
 """
 
 import pytest
 
-# Skip entire module if pychimera is not installed
-pychimera = pytest.importorskip("pychimera")
+# Skip entire module if chimera is not installed
+chimera = pytest.importorskip("chimera")
 
 
 def test_calc_cars_codon_mode_returns_scalar_without_win_params():
@@ -22,8 +22,8 @@ def test_calc_cars_codon_mode_returns_scalar_without_win_params():
     Expected: calc_cARS returns a single float score when return_vec is not specified.
     The score represents the average maximal common substring length.
     """
-    # Import required functions from pychimera
-    from pychimera import build_suffix_array, calc_cARS, nt2codon
+    # Import required functions from chimera
+    from chimera import build_suffix_array, calc_cARS, nt2codon
 
     # Create tiny reference sequences (9 nt each = 3 codons)
     ref_seqs_nt = [
@@ -55,8 +55,8 @@ def test_calc_cars_codon_mode_returns_vector_with_return_vec():
     Expected: With return_vec=True, calc_cARS returns an array of per-codon maximal
     common substring lengths. Array length should match the number of codons.
     """
-    # Import required functions from pychimera
-    from pychimera import build_suffix_array, calc_cARS, nt2codon
+    # Import required functions from chimera
+    from chimera import build_suffix_array, calc_cARS, nt2codon
 
     # Create tiny reference sequences (9 nt each = 3 codons)
     ref_seqs_nt = [
@@ -98,8 +98,8 @@ def test_calc_cars_codon_mode_with_win_params_returns_scalar():
     scalar score when return_vec is not specified. The win_params affect how matches
     are weighted by position but the output is still aggregated to a scalar.
     """
-    # Import required functions from pychimera
-    from pychimera import build_suffix_array, calc_cARS, nt2codon
+    # Import required functions from chimera
+    from chimera import build_suffix_array, calc_cARS, nt2codon
 
     # Create tiny reference sequences
     ref_seqs_nt = [
@@ -140,8 +140,8 @@ def test_calc_cars_codon_mode_with_win_params_and_return_vec():
     Expected: With both win_params and return_vec=True, calc_cARS returns an array
     of per-codon scores. Array length matches codon count.
     """
-    # Import required functions from pychimera
-    from pychimera import build_suffix_array, calc_cARS, nt2codon
+    # Import required functions from chimera
+    from chimera import build_suffix_array, calc_cARS, nt2codon
 
     # Create tiny reference sequences
     ref_seqs_nt = [
@@ -190,8 +190,8 @@ def test_calc_cars_nt_mode_returns_scalar():
     Expected: When working directly with nucleotide sequences (not converting to codons),
     calc_cARS still returns a scalar score.
     """
-    # Import required functions from pychimera
-    from pychimera import build_suffix_array, calc_cARS
+    # Import required functions from chimera
+    from chimera import build_suffix_array, calc_cARS
 
     # Use nucleotide sequences directly (no nt2codon conversion)
     ref_seqs_nt = [
@@ -218,8 +218,8 @@ def test_calc_cars_nt_mode_with_return_vec():
     Expected: With return_vec=True in nucleotide mode, calc_cARS returns an array
     of per-nucleotide scores. Array length should match nucleotide count.
     """
-    # Import required functions from pychimera
-    from pychimera import build_suffix_array, calc_cARS
+    # Import required functions from chimera
+    from chimera import build_suffix_array, calc_cARS
 
     # Use nucleotide sequences directly
     ref_seqs_nt = [
@@ -253,7 +253,7 @@ def test_nt2codon_converts_list_of_sequences():
     Expected: nt2codon takes a list of nucleotide strings and returns a list-like
     object of codon-encoded sequences.
     """
-    from pychimera import nt2codon
+    from chimera import nt2codon
 
     # Create nucleotide sequences (9 nt = 3 codons each)
     nt_seqs = [
@@ -278,7 +278,7 @@ def test_build_suffix_array_accepts_codon_sequences():
     Expected: build_suffix_array can build a suffix array from codon-encoded
     sequences returned by nt2codon.
     """
-    from pychimera import build_suffix_array, nt2codon
+    from chimera import build_suffix_array, nt2codon
 
     # Create and convert sequences
     ref_seqs_nt = ["ATGAAATAA", "ATGGCATAA"]
@@ -297,7 +297,7 @@ def test_build_suffix_array_accepts_nt_sequences():
     Expected: build_suffix_array can also build a suffix array directly from
     nucleotide sequences without codon conversion.
     """
-    from pychimera import build_suffix_array
+    from chimera import build_suffix_array
 
     # Use raw nucleotide sequences
     ref_seqs_nt = ["ATGAAATAA", "ATGGCATAA"]
