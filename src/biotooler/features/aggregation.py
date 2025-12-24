@@ -24,9 +24,29 @@ class AggregationSpec:
     """Specification for how to aggregate per-position values into windows.
 
     Attributes:
-        name: Human-readable name for the aggregation (e.g., "MEAN", "GEOMEAN", "MAX")
+        name: Human-readable name for the aggregation (e.g., "MEAN", "GEOMEAN", "MAX").
+              This name is used in column naming to make positional feature columns
+              self-describing. Common conventions:
+              - "MEAN": Arithmetic mean (np.mean)
+              - "GEOMEAN": Geometric mean (for multiplicative metrics like CAI)
+              - "SUM": Sum (np.sum)
+              - "MAX": Maximum (np.max)
+              - "MIN": Minimum (np.min)
         aggregation_fn: Function that aggregates an array of values into a scalar.
                        Common examples: np.mean, geometric_mean, np.sum, np.max
+
+    Examples:
+        >>> import numpy as np
+        >>> from biotooler.features.aggregation import geometric_mean
+        >>>
+        >>> # Mean aggregation
+        >>> spec = AggregationSpec(name="MEAN", aggregation_fn=np.mean)
+        >>>
+        >>> # Geometric mean for CAI
+        >>> spec = AggregationSpec(name="GEOMEAN", aggregation_fn=geometric_mean)
+        >>>
+        >>> # Sum for counts
+        >>> spec = AggregationSpec(name="SUM", aggregation_fn=np.sum)
     """
 
     name: str
