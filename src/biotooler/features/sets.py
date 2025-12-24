@@ -156,8 +156,10 @@ class FeatureSet:
     ) -> pd.DataFrame:
         """Format feature data into wide DataFrame with deterministic column ordering.
 
-        This is a shared helper method used by both compute_orf_windows and compute_windows
-        to create the final wide-format DataFrame with proper column ordering.
+        This is a shared helper method used by windowing methods (compute_orf_windows,
+        compute_windows, compute_orf_windows_v2) and global methods (compute_global,
+        compute_orf_global_v2) to create the final wide-format DataFrame with proper
+        column ordering.
 
         Args:
             feature_data: Dictionary containing metadata and feature values
@@ -171,10 +173,11 @@ class FeatureSet:
 
         # Ensure deterministic column ordering:
         # 1. Metadata columns first
-        # 2. Feature columns sorted by (feature_key, window_start numeric)
+        # 2. Feature columns sorted by (feature_key, window_start numeric or suffix)
         feature_cols = [c for c in df.columns if c not in metadata_cols]
 
-        # Sort with error handling for malformed column names
+        # Sort with handling for both numeric suffixes (e.g., _0, _3) and
+        # text suffixes (e.g., _GLOBAL)
         def sort_key(col: str) -> tuple[str, int]:
             parts = col.rsplit("_", 1)
             if len(parts) != 2:
@@ -183,7 +186,7 @@ class FeatureSet:
             try:
                 return (parts[0], int(parts[1]))
             except ValueError:
-                # Can't parse as int - sort by full name
+                # Can't parse as int (e.g., _GLOBAL suffix) - sort by full name
                 return (col, 0)
 
         feature_cols.sort(key=sort_key)
