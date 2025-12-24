@@ -228,7 +228,7 @@ idrpred --version
 
 If metapredict or idrpred is not installed, attempting to use the respective features will raise `ImportError` with installation instructions.
 
-## Windowing semantics
+## Windowing correctness
 
 ### Position space
 
@@ -239,7 +239,7 @@ All disorder features operate in **RESIDUE (amino acid) position space**:
 
 ### Vector computation
 
-Disorder features compute **per-residue vectors across the entire sequence**:
+Disorder features compute **per-residue vectors across the entire sequence** using upstream library APIs:
 
 1. **Full-sequence input**: Pass complete protein sequence to predictor
 2. **Per-residue values**: Models return probability or mask for each amino acid position
@@ -248,7 +248,13 @@ Disorder features compute **per-residue vectors across the entire sequence**:
 
 **Why full-sequence?** Context matters for disorder prediction. Neural networks and consensus predictors consider surrounding amino acids. Computing on substrings would lose context and produce incorrect results.
 
-### Aggregation and wide-format output
+**Upstream API usage**:
+- **Metapredict**: Calls `metapredict.predict_disorder(protein_seq)` which returns a per-residue numpy array of disorder probabilities
+- **IDRPred**: Calls `idrpred` CLI tool via subprocess with FASTA input, parses TSV output to generate per-residue binary mask
+
+Both upstream libraries are documented to require full sequences for accurate predictions. See the [metapredict documentation](https://metapredict.readthedocs.io/) and [IDRPred GitHub](https://github.com/matthiasblum/idrpred) for details on their prediction algorithms.
+
+### Aggregation strategy
 
 When using sliding windows with `FeatureSet.compute_windows()`, per-residue vectors are aggregated:
 
@@ -269,54 +275,27 @@ When using sliding windows with `FeatureSet.compute_windows()`, per-residue vect
 # Each contains the mean disorder score for that window
 ```
 
-### Derived summaries
+### Testing approach
 
-Derived features (DisorderDerivedScalars, IDRPredDerivedScalars) compute summary statistics from the corresponding vector **without re-running the predictor**:
+Windowing correctness for this family focuses on:
+1. **Full-sequence computation**: Verify that disorder predictors (metapredict and IDRPred) receive complete protein sequences, not substrings, to preserve context
+2. **Upstream library correctness**: 
+   - For metapredict: Results should match direct `metapredict.predict_disorder()` calls on the same sequence
+   - For IDRPred: Binary masks should match direct `idrpred` CLI output for the same sequence
+3. **Translation correctness**: For DNA/RNA inputs, ensure proper translation to protein before disorder prediction
+4. **ORF handling**: When ORFs are present, verify correct extraction and translation
+5. **Position space mapping**: Vector indices correctly map to amino acid positions (0-based)
+6. **Aggregation accuracy**: Mean aggregation over windows produces expected values
+7. **Determinism**: Same input sequence produces identical predictions across multiple runs
+8. **Edge cases**: Handle empty sequences, very short sequences, and terminal/internal stop codons
 
-- **DisorderDerivedScalars**: Requires `DISORDER_P` in `record.annotations`
-  - Computes DISORDER_FRAC, DISORDER_LONGEST_IDR, DISORDER_MEAN, DISORDER_P95 from DISORDER_P
-  - Can compute at different thresholds efficiently (no predictor rerun)
-  
-- **IDRPredDerivedScalars**: Requires `IDRPRED_IDR` in `record.annotations`
-  - Computes IDRPRED_FRAC_IDR, IDRPRED_LONGEST_IDR_LEN, IDRPRED_NUM_IDR_SEGMENTS from IDRPRED_IDR
-  - No parameters needed (mask is already binary)
+Tests validate that:
+- `compute_vector()` is called once per sequence with the full sequence
+- Vector lengths match protein sequence lengths
+- Windowing engine correctly slices full vectors without recomputation
+- Wide-format output columns follow naming convention (feature_position pattern)
 
-This design enables efficient computation: run the predictor once, compute derived summaries at various parameters without costly reruns.
-
-### DNA/RNA Translation
-
-Both `DisorderProfileMetapredict` and derived features accept DNA/RNA sequences as input. Translation to protein is handled automatically via the shared helper `biotooler.core.translation.ensure_protein_record()`:
-
-**Translation behavior**:
-1. **Molecule type detection**: Uses `record.annotations["molecule_type"]` (DNA/RNA/protein)
-2. **ORF handling**: 
-   - If `use_orf_if_present=True` (default): Uses attached ORF from `record.annotations["biotooler.orf"]`
-   - If no attached ORF: Uses full sequence in frame 0
-   - Manual ORF can be specified via `orf=(start, end)` parameter
-3. **Genetic code**: Configurable via `table` parameter (default: 1 = standard code)
-4. **Stop codon handling**:
-   - Terminal stops: Stripped by default (`strip_terminal_stop=True`)
-   - Internal stops: Raises error by default (`on_internal_stop="error"`)
-5. **Output**: Protein SeqRecord with translated sequence and preserved metadata
-
-**Example translation workflow**:
-```python
-# Example showing translation (not direct user code - internal to features)
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
-
-# This is done automatically inside DisorderProfileMetapredict.compute_vector()
-# User code just needs to provide DNA/RNA record
-dna_record = SeqRecord(Seq("ATGAAACGCTTA"), id="gene1")
-dna_record.annotations["molecule_type"] = "DNA"
-dna_record.annotations["biotooler.orf"] = (0, 12)  # Attached ORF
-
-# DisorderProfileMetapredict internally calls ensure_protein_record()
-# protein_record = ensure_protein_record(dna_record, table=1)
-# protein_record.seq = "MKR" (translated from ORF)
-```
-
-This translation layer is shared across all protein-level feature families (disorder, protparam, etc.), ensuring consistent behavior.
+See `tests/families/disorder_family/` for comprehensive test coverage.
 
 
 ## Examples
