@@ -318,20 +318,6 @@ dna_record.annotations["biotooler.orf"] = (0, 12)  # Attached ORF
 
 This translation layer is shared across all protein-level feature families (disorder, protparam, etc.), ensuring consistent behavior.
 
-## References
-
-- **metapredict**: Emenecker, R.J., Griffith, D. & Holehouse, A.S. (2021) "Metapredict: a fast, accurate, and easy-to-use predictor of consensus disorder and structure" *Bioinformatics* 37(26):5035-5037. https://doi.org/10.1093/bioinformatics/btab527
-- **DisProt database**: Quaglia, F., et al. (2022) "DisProt in 2022: improved quality and accessibility of protein intrinsic disorder annotation" *Nucleic Acids Research* 50:D480-D487. https://doi.org/10.1093/nar/gkab1082
-- **Intrinsically disordered proteins review**: van der Lee, R., et al. (2014) "Classification of intrinsically disordered regions and proteins" *Chemical Reviews* 114(13):6589-6631. https://doi.org/10.1021/cr400525m
-- **IUPred3**: Erdős, G., et al. (2021) "IUPred3: prediction of protein disorder enhanced with unambiguous experimental annotation and visualization of evolutionary conservation" *Nucleic Acids Research* 49:W297-W303. https://doi.org/10.1093/nar/gkab408
-
-## Upstream library links
-
-- **metapredict GitHub**: https://github.com/idptools/metapredict
-- **metapredict Documentation**: https://metapredict.readthedocs.io/
-- **metapredict PyPI**: https://pypi.org/project/metapredict/
-- **IDPTools Suite**: https://idptools-parrot.readthedocs.io/
-- **DisProt Database**: https://disprot.org/
 
 ## Examples
 
@@ -380,6 +366,7 @@ print(results[["metapredict.DISORDER_P_0", "idrpred.IDRPRED_IDR_0"]])
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from biotooler.families.disorder.metapredict_backend import DisorderProfileMetapredict
+import numpy as np
 
 # Create feature
 feature = DisorderProfileMetapredict()
@@ -408,6 +395,7 @@ print(f"Disordered positions: {np.where(disordered_residues)[0]}")
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from biotooler.families.disorder.idrpred_feature import IDRPredConsensusMask
+import numpy as np
 
 # Create feature
 feature = IDRPredConsensusMask()
@@ -425,42 +413,6 @@ print(f"Fraction in IDRs: {idr_mask.mean():.2%}")
 print(f"IDR positions: {np.where(idr_mask == 1.0)[0]}")
 ```
 
-### Automatic translation from DNA/RNA
-
-```python
-# DNA sequence - automatically translated to protein
-dna_record = SeqRecord(Seq("ATGAAAGCCCTGGTGTCTTGGGGACGTCCACAAATG"), id="gene1")
-dna_record.annotations["molecule_type"] = "DNA"
-
-result = feature.compute_vector(dna_record)
-disorder_scores = result["DISORDER_P"]
-
-# Length will be len(DNA)/3 = 12 amino acids (after translation)
-print(f"Translated protein length: {len(disorder_scores)}")
-```
-
-### Using ORF regions
-
-```python
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
-from biotooler.families.disorder.metapredict_backend import DisorderProfileMetapredict
-
-# DNA sequence with specific ORF region
-dna = SeqRecord(Seq("ATGAAAGCCCTGGTGTCTTGGGGACGTCCACAAATGTAG"), id="gene2")
-dna.annotations["molecule_type"] = "DNA"
-
-# Attach ORF using annotation (the attach_orf helper does this)
-dna.annotations["biotooler.orf"] = (0, 36)  # Start=0, end=36, length=12 codons
-
-# DisorderProfileMetapredict will use attached ORF for translation
-feature = DisorderProfileMetapredict(use_orf_if_present=True)
-result = feature.compute_vector(dna)
-
-# Disorder scores for the 12 amino acids encoded by the ORF
-print(f"ORF disorder scores: {result['DISORDER_P']}")
-```
-
 ### Computing derived features without re-running predictor
 
 ```python
@@ -469,7 +421,6 @@ from biotooler.families.disorder.derived import DisorderDerivedScalars
 from biotooler.families.disorder.idrpred_derived import IDRPredDerivedScalars
 
 # Assume DISORDER_P has already been computed and stored in record.annotations
-# (by DisorderProfileMetapredict or loaded from cache)
 record.annotations["DISORDER_P"] = result["DISORDER_P"]
 
 # Compute metapredict-based summary statistics
@@ -493,19 +444,6 @@ print(f"\nIDRPred summaries:")
 print(f"  Fraction in IDRs: {idrpred_summary['IDRPRED_FRAC_IDR']:.2%}")
 print(f"  Longest IDR: {idrpred_summary['IDRPRED_LONGEST_IDR_LEN']} residues")
 print(f"  Number of IDR segments: {idrpred_summary['IDRPRED_NUM_IDR_SEGMENTS']}")
-```
-
-### Using different thresholds efficiently
-
-```python
-# Compute derived features at multiple thresholds
-# without re-running metapredict
-thresholds = [0.5, 0.6, 0.7]
-for t in thresholds:
-    derived = DisorderDerivedScalars(threshold=t)
-    result_t = derived(record)
-    print(f"Threshold {t}: {result_t['DISORDER_FRAC']:.2%} disordered, "
-          f"longest IDR = {result_t['DISORDER_LONGEST_IDR']}")
 ```
 
 ### Windowed analysis with FeatureSet
@@ -532,295 +470,30 @@ results = feature_set.compute_windows(
     step=25
 )
 
-# Wide-format output with columns:
-# "metapredict.DISORDER_P_0" (window at position 0)
-# "metapredict.DISORDER_P_25" (window at position 25)
-# "metapredict.DISORDER_P_50" (window at position 50)
-# ...
-# "idrpred.IDRPRED_IDR_0" (window at position 0)
-# "idrpred.IDRPRED_IDR_25" (window at position 25)
-# etc.
+# Wide-format output with columns like:
+# "metapredict.DISORDER_P_0", "metapredict.DISORDER_P_25", "metapredict.DISORDER_P_50", ...
+# "idrpred.IDRPRED_IDR_0", "idrpred.IDRPRED_IDR_25", ...
 
 print(results.columns)
 print(results[["metapredict.DISORDER_P_0", "metapredict.DISORDER_P_25",
                "idrpred.IDRPRED_IDR_0", "idrpred.IDRPRED_IDR_25"]])
 ```
 
-### Integration with multiple features
-
-```python
-from biotooler.families.disorder import DisorderProfileMetapredict, DisorderDerivedScalars
-from biotooler.families.protparam import ProtParamFeature
-from biotooler.features.sets import FeatureSet
-
-# Combine disorder with other protein features
-feature_set = FeatureSet({
-    "disorder": DisorderProfileMetapredict(),
-    "protparam": ProtParamFeature(),
-})
-
-protein = SeqRecord(Seq("MKALVSWGRPQMTEST"), id="test")
-protein.annotations["molecule_type"] = "protein"
-
-# Compute all features together
-results = feature_set.compute_windows(protein, window_size=16, step=16)
-
-# Results contain both disorder and protparam features
-print(results[["disorder.DISORDER_P_0", 
-               "protparam.molecular_weight_0",
-               "protparam.gravy_0"]])
-```
-
-### Batch processing multiple sequences
-
-```python
-# Process multiple sequences efficiently
-sequences = [
-    SeqRecord(Seq("MKALVSWGRPQM"), id="seq1"),
-    SeqRecord(Seq("TESTSEQUENCE"), id="seq2"),
-    SeqRecord(Seq("DISORDEREDPROT"), id="seq3"),
-]
-
-feature = DisorderProfileMetapredict()
-results = []
-
-for seq in sequences:
-    seq.annotations["molecule_type"] = "protein"
-    result = feature.compute_vector(seq)
-    results.append({
-        "id": seq.id,
-        "length": len(seq),
-        "mean_disorder": result["DISORDER_P"].mean(),
-        "max_disorder": result["DISORDER_P"].max(),
-    })
-
-import pandas as pd
-df = pd.DataFrame(results)
-print(df)
-```
-
-### Identifying highly disordered proteins
-
-```python
-import numpy as np
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
-
-def classify_protein_disorder(sequence: str, threshold: float = 0.5) -> dict:
-    """Classify protein disorder characteristics."""
-    from biotooler.families.disorder.metapredict_backend import DisorderProfileMetapredict
-    
-    record = SeqRecord(Seq(sequence), id="protein")
-    record.annotations["molecule_type"] = "protein"
-    
-    # Predict disorder
-    feature = DisorderProfileMetapredict()
-    result = feature.compute_vector(record)
-    disorder_p = result["DISORDER_P"]
-    
-    # Compute statistics
-    disorder_frac = np.mean(disorder_p >= threshold)
-    
-    # Classify
-    if disorder_frac > 0.4:
-        classification = "Highly disordered (IDP)"
-    elif disorder_frac > 0.2:
-        classification = "Partially disordered"
-    else:
-        classification = "Mostly structured"
-    
-    return {
-        "sequence": sequence,
-        "length": len(sequence),
-        "disorder_fraction": disorder_frac,
-        "mean_disorder": disorder_p.mean(),
-        "classification": classification,
-    }
-
-# Example usage
-protein = "MKALVSWGRPQMTESTDISORDER"
-result = classify_protein_disorder(protein)
-print(f"{result['classification']}: {result['disorder_fraction']:.1%} disordered")
-```
-
 ## Edge cases and validation
 
-### Validated behavior
+The disorder family handles common edge cases:
 
-The disorder family has comprehensive edge case handling:
+1. **Empty sequences**: Returns empty arrays or zero-filled summaries
+2. **DNA/RNA sequences**: Automatically translated via `ensure_protein_record()`
+3. **Stop codons**: Terminal stops stripped by default; internal stops raise error
+4. **Non-standard amino acids**: May raise `ValueError` if not supported by predictor
+5. **Derived features**: Require corresponding vector (DISORDER_P or IDRPRED_IDR) in `record.annotations`
 
-1. **Empty sequences**: 
-   - `DisorderProfileMetapredict`: Returns empty array `np.array([], dtype=np.float64)`
-   - `DisorderDerivedScalars`: Returns `DISORDER_FRAC=0.0`, `DISORDER_LONGEST_IDR=0`, `DISORDER_MEAN=nan`, `DISORDER_P95=nan`
-
-2. **Protein sequences**: Passed directly to metapredict (no translation)
-
-3. **DNA/RNA sequences**: Automatically translated via `ensure_protein_record()`
-   - Uses attached ORF if present (`use_orf_if_present=True`)
-   - Falls back to frame 0 full sequence if no ORF attached
-   - Respects `table`, `strip_terminal_stop`, `on_internal_stop` parameters
-
-4. **Stop codons**:
-   - Terminal stops: Stripped by default (`strip_terminal_stop=True`)
-   - Internal stops: Raises error by default (`on_internal_stop="error"`)
-
-5. **Invalid amino acids**: metapredict may raise `ValueError` or `KeyError` for non-standard amino acids
-   - Wrapped and re-raised as `ValueError` with helpful message
-
-6. **Array validation**: 
-   - Output length must match protein sequence length
-   - Values must be float64 type
-   - Returns immediately raise error if metapredict returns wrong length
-
-7. **Derived features**:
-   - Requires `DISORDER_P` in `record.annotations`
-   - Raises `ValueError` with helpful message if not found
-   - Validates that `DISORDER_P` is 1D array
-
-### Known edge cases and limitations
-
-1. **Very short sequences (< 10 residues)**: 
-   - Limited context for disorder prediction
-   - metapredict may produce less reliable scores
-   - Still returns valid output
-
-2. **Transmembrane regions**: 
-   - May be incorrectly predicted as disordered due to hydrophobic composition
-   - metapredict is trained on soluble proteins
-   - Consider using specialized transmembrane predictors for membrane proteins
-
-3. **Low-complexity regions**: 
-   - Often predicted as disordered (poly-Q, poly-A stretches)
-   - This is biologically accurate in many cases
-   - May need domain-specific thresholds
-
-4. **Modified residues**: 
-   - Standard metapredict does not account for post-translational modifications
-   - Predictions based only on primary sequence
-   - Modifications like phosphorylation may affect disorder in vivo
-
-5. **Non-standard amino acids**:
-   - Selenocysteine (U) and pyrrolysine (O) may not be supported
-   - metapredict trained on 20 standard amino acids
-   - May raise `ValueError` if encountered
-
-6. **Genetic code variations**:
-   - Translation uses specified `table` parameter (default: 1 = standard code)
-   - Mitochondrial, plastid codes supported via `table` parameter
-   - Ensure correct table for organism being analyzed
-
-### Performance characteristics
-
-**metapredict (bidirectional LSTM)**:
-- **Time complexity**: O(n) for sequence of length n
-- **Memory**: Scales with sequence length and model size (~100 MB for model)
-- **Typical timing**: Fast inference (~1-10ms per sequence of length 100-1000)
-- **GPU acceleration**: metapredict uses PyTorch; GPU can speed up batch predictions
-- **Caching**: Results can be cached in `record.annotations["DISORDER_P"]` for reuse by derived features
-
-**DisorderDerivedScalars**:
-- **Time complexity**: O(n) for sequence of length n
-- **Memory**: Minimal (no model loading, operates on cached DISORDER_P)
-- **Typical timing**: Microseconds per sequence
-- **Caching benefit**: Does not re-run predictor, reuses DISORDER_P
-
-## Windowing correctness
-
-The disorder family implements the PositionalFeature protocol for correct windowing semantics.
-
-### Position space
-
-Features operate at the **RESIDUE (amino acid) position space**:
-- Position indices: 0-based amino acid positions
-- Example: Sequence "MKTAY" has positions 0=M, 1=K, 2=T, 3=A, 4=Y
-- `DisorderProfileMetapredict.position_space` returns `PositionSpace.RESIDUE`
-
-### Vector computation
-
-Disorder prediction computes a **per-residue vector across the entire sequence**:
-
-1. **Full-sequence input**: Pass complete protein sequence to metapredict
-2. **Per-residue scores**: Model returns disorder probability for each amino acid position
-3. **Vector output**: numpy array with length equal to sequence length
-4. **Window aggregation**: Windowing engine slices the full-context vector and applies aggregation
-
-**Why full-sequence?** Context matters for disorder prediction. The neural network (bidirectional LSTM) considers surrounding amino acids when predicting disorder at each position. Computing on substrings would lose important sequence context and produce incorrect results.
-
-**Upstream API**:
-```python
-import metapredict
-
-# metapredict.predict_disorder() returns per-residue probabilities
-protein_seq = "MKALVSWGRPQMTEST"
-disorder_probs = metapredict.predict_disorder(protein_seq)
-# Returns: numpy array of length 16 (one value per residue)
-# Values in range [0.0, 1.0]
-```
-
-**Implementation in `compute_vector`**:
-```python
-def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
-    # Translate DNA/RNA to protein if needed
-    protein_record = ensure_protein_record(record, ...)
-    protein_seq = str(protein_record.seq)
-    
-    # Call metapredict on FULL sequence (not sliced)
-    disorder_probs = metapredict.predict_disorder(protein_seq)
-    
-    # Return full-length vector
-    return {"DISORDER_P": disorder_probs}
-```
-
-### Aggregation strategy
-
-When windowing is applied, per-residue disorder values are aggregated using **mean**:
-
-**Mean disorder score** (implemented):
-- Aggregation: `np.mean(disorder_scores[window_start:window_end])`
-- Interpretation: Average disorder propensity across a window region
-- Use case: Identify regions with overall high or low disorder
-- Specified in `vector_keys`: `{"DISORDER_P": AggregationSpec(aggregation_fn=np.mean)}`
-
-**Alternative aggregations** (can be implemented by wrapping the feature):
-- **Max disorder**: `np.max(disorder_scores[window])` - Peak disorder in window
-- **Fraction disordered**: `np.mean(disorder_scores[window] >= 0.5)` - Binary classification
-
-**Wide-format output**: When using windowing with `FeatureSet.compute_windows()`, output columns follow the pattern `FEATURE_<window_start>`:
-```python
-# Example: 3 windows at positions 0, 50, 100
-# Output columns: "DISORDER_P_0", "DISORDER_P_50", "DISORDER_P_100"
-# Each contains the mean disorder score for that window
-```
-
-### Testing approach
-
-Windowing correctness validated through:
-
-1. **Upstream library correctness**:
-   - Compare feature output to direct metapredict calls
-   - Verify scores match for same input sequence
-   - Test determinism (same input → same output)
-
-2. **Position space correctness**:
-   - Verify vector lengths match sequence lengths
-   - Confirm window positions map correctly to residues
-   - Test edge cases at sequence boundaries
-
-3. **Full-context computation**:
-   - Verify full sequence is used for prediction (not substrings)
-   - Test that context is maintained for accurate predictions
-   - Validate that `compute_vector` is called once per sequence
-
-4. **Edge case handling**:
-   - Test empty sequences, very short sequences
-   - Validate handling of non-standard amino acids
-   - Check behavior with unusual sequence compositions
-
-5. **Windowing engine integration**:
-   - Verify `compute_vector()` is called once per sequence
-   - Test aggregation functions work correctly
-   - Validate window boundaries and partial windows
-   - Check wide-format output column naming
+**Known limitations**:
+- Very short sequences (< 10 residues): Limited context for prediction
+- Transmembrane regions: May be incorrectly predicted as disordered (metapredict trained on soluble proteins)
+- Low-complexity regions: Often predicted as disordered (biologically accurate in many cases)
+- Post-translational modifications: Not accounted for (predictions based on primary sequence only)
 
 ## Maintenance notes
 
@@ -902,7 +575,6 @@ Windowing correctness validated through:
 - Memory: Minimal (no model loading, operates on cached vectors)
 - Typical timing: Microseconds per sequence
 - Caching benefit: Does not re-run predictor, reuses vector from annotations
-
 
 ## References
 
