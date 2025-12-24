@@ -131,15 +131,17 @@ class CodonBiasFeature:
                 # in vector_keys - they'll fall back to legacy incremental mode
                 continue
 
-            # Determine aggregation function based on score type
+            # Determine aggregation function and name based on score type
             if score_class_name in ("CodonAdaptationIndex", "TrnaAdaptationIndex"):
                 # Geometric mean for CAI and tAI (as per mathematical definitions)
                 agg_fn = geometric_mean
+                agg_name = "GEOMEAN"
             else:
                 # Arithmetic mean for FOP, RSCU, RCBS, CPB
                 agg_fn = np.mean
+                agg_name = "MEAN"
 
-            vector_keys[name] = AggregationSpec(aggregation_fn=agg_fn)
+            vector_keys[name] = AggregationSpec(name=agg_name, aggregation_fn=agg_fn)
 
         return vector_keys
 

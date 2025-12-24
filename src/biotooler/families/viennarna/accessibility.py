@@ -70,7 +70,7 @@ class ViennaRNAAccessibility:
             Dictionary mapping "PU" to AggregationSpec with np.mean aggregation
         """
         return {
-            "PU": AggregationSpec(aggregation_fn=np.mean),
+            "PU": AggregationSpec(name="MEAN", aggregation_fn=np.mean),
         }
 
     def compute_vector(

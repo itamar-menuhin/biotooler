@@ -179,9 +179,9 @@ class ProtParamFeature(ProteinFamilyFeature):
             return float(total)
 
         return {
-            "aromaticity": AggregationSpec(aggregation_fn=np.mean),
-            "gravy": AggregationSpec(aggregation_fn=np.mean),
-            "molecular_weight": AggregationSpec(aggregation_fn=aggregate_molecular_weight),
+            "aromaticity": AggregationSpec(name="MEAN", aggregation_fn=np.mean),
+            "gravy": AggregationSpec(name="MEAN", aggregation_fn=np.mean),
+            "molecular_weight": AggregationSpec(name="SUM", aggregation_fn=aggregate_molecular_weight),
         }
 
     def compute_vector(

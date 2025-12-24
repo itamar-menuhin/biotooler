@@ -110,7 +110,7 @@ class IDRPredConsensusMask:
             Dictionary mapping "IDRPRED_IDR" to AggregationSpec with np.mean aggregation
         """
         return {
-            "IDRPRED_IDR": AggregationSpec(aggregation_fn=np.mean),
+            "IDRPRED_IDR": AggregationSpec(name="MEAN", aggregation_fn=np.mean),
         }
 
     def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:

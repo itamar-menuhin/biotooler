@@ -140,7 +140,7 @@ class FeatureSet:
                     # Emit features for this window
                     features = feat_fn.emit(state)  # type: ignore[union-attr]
                     for key, value in features.items():
-                        col_name = f"{self.name}.{key}_{window_start}"
+                        col_name = f"{self.name.upper()}_{key}_{window_start}"
                         feature_data[col_name] = value
             else:
                 # Use fallback path for non-incremental features
@@ -148,7 +148,7 @@ class FeatureSet:
                     window_start = window.annotations[window_start_key]
                     features = feat_fn(window)
                     for key, value in features.items():
-                        col_name = f"{self.name}.{key}_{window_start}"
+                        col_name = f"{self.name.upper()}_{key}_{window_start}"
                         feature_data[col_name] = value
 
     def _format_wide_dataframe(
@@ -176,10 +176,22 @@ class FeatureSet:
 
         # Sort with error handling for malformed column names
         def sort_key(col: str) -> tuple[str, int]:
+            """Sort key for feature columns.
+            
+            Handles both numeric suffixes (e.g., FAMILY_KEY_0) and GLOBAL suffix.
+            GLOBAL is treated as a large number to sort after all numeric windows.
+            """
             parts = col.rsplit("_", 1)
             if len(parts) != 2:
                 # No underscore found - sort by column name only
                 return (col, 0)
+            
+            # Check if last part is GLOBAL
+            if parts[1] == "GLOBAL":
+                # GLOBAL sorts after all numeric windows
+                return (parts[0], float('inf'))
+            
+            # Try to parse as numeric window position
             try:
                 return (parts[0], int(parts[1]))
             except ValueError:
@@ -451,8 +463,8 @@ class FeatureSet:
                         # Apply aggregation function
                         aggregated_value = agg_spec.aggregation_fn(window_values)
 
-                        # Store with column name format: {name}.{key}_{window_start_nt}
-                        col_name = f"{self.name}.{key}_{window_start_nt}"
+                        # Store with column name format: {FAMILY}_{key}_{AGG}_{window_start_nt}
+                        col_name = f"{self.name.upper()}_{key}_{agg_spec.name}_{window_start_nt}"
                         feature_data[col_name] = aggregated_value
 
         # Process non-positional features using legacy path
@@ -558,7 +570,7 @@ class FeatureSet:
             ...         return PositionSpace.RESIDUE
             ...     @property
             ...     def vector_keys(self):
-            ...         return {"gc": AggregationSpec(aggregation_fn=np.mean)}
+            ...         return {"gc": AggregationSpec(name="MEAN", aggregation_fn=np.mean)}
             ...     def compute_vector(self, record, **kwargs):
             ...         seq = str(record.seq).upper()
             ...         gc_vector = np.array([1.0 if b in 'GC' else 0.0 for b in seq])
@@ -724,8 +736,8 @@ class FeatureSet:
                     # Apply aggregation function
                     aggregated_value = agg_spec.aggregation_fn(window_values)
 
-                    # Store with column name format: {name}.{key}_{window_start_nt}
-                    col_name = f"{self.name}.{key}_{window_start_nt}"
+                    # Store with column name format: {FAMILY}_{key}_{AGG}_{window_start_nt}
+                    col_name = f"{self.name.upper()}_{key}_{agg_spec.name}_{window_start_nt}"
                     feature_data[col_name] = aggregated_value
 
 

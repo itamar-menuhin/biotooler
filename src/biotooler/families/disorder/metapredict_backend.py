@@ -106,7 +106,7 @@ class DisorderProfileMetapredict:
             Dictionary mapping "DISORDER_P" to AggregationSpec with np.mean aggregation
         """
         return {
-            "DISORDER_P": AggregationSpec(aggregation_fn=np.mean),
+            "DISORDER_P": AggregationSpec(name="MEAN", aggregation_fn=np.mean),
         }
 
     def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:

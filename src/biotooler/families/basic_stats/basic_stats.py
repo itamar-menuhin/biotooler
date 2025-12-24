@@ -345,15 +345,15 @@ class BasicStatsFeature:
 
         for char in common_chars:
             # Count: sum of binary indicators
-            vector_keys[f"count_{char.lower()}"] = AggregationSpec(aggregation_fn=np.sum)
+            vector_keys[f"count_{char.lower()}"] = AggregationSpec(name="SUM", aggregation_fn=np.sum)
             # Fraction: mean of binary indicators
-            vector_keys[f"fraction_{char.lower()}"] = AggregationSpec(aggregation_fn=np.mean)
+            vector_keys[f"fraction_{char.lower()}"] = AggregationSpec(name="MEAN", aggregation_fn=np.mean)
 
         # GC fraction (for DNA/RNA)
-        vector_keys["gc_fraction"] = AggregationSpec(aggregation_fn=np.mean)
+        vector_keys["gc_fraction"] = AggregationSpec(name="MEAN", aggregation_fn=np.mean)
 
         # Length (sum of 1s)
-        vector_keys["length"] = AggregationSpec(aggregation_fn=np.sum)
+        vector_keys["length"] = AggregationSpec(name="SUM", aggregation_fn=np.sum)
 
         return vector_keys
 

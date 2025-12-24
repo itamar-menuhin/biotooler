@@ -24,10 +24,12 @@ class AggregationSpec:
     """Specification for how to aggregate per-position values into windows.
 
     Attributes:
+        name: Human-readable name for the aggregation (e.g., "MEAN", "GEOMEAN", "MAX")
         aggregation_fn: Function that aggregates an array of values into a scalar.
                        Common examples: np.mean, geometric_mean, np.sum, np.max
     """
 
+    name: str
     aggregation_fn: Callable[[np.ndarray], float]
 
 

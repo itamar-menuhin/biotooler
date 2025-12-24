@@ -22,8 +22,8 @@ class ToyResidueFeature:
     def vector_keys(self) -> dict[str, AggregationSpec]:
         """Return aggregation specs for each feature key."""
         return {
-            "gc": AggregationSpec(aggregation_fn=np.mean),
-            "count": AggregationSpec(aggregation_fn=np.sum),
+            "gc": AggregationSpec(name="MEAN", aggregation_fn=np.mean),
+            "count": AggregationSpec(name="SUM", aggregation_fn=np.sum),
         }
 
     def compute_vector(
@@ -60,8 +60,8 @@ class ToyCodonFeature:
     def vector_keys(self) -> dict[str, AggregationSpec]:
         """Return aggregation specs for each feature key."""
         return {
-            "start_a": AggregationSpec(aggregation_fn=np.mean),
-            "codon_index": AggregationSpec(aggregation_fn=np.sum),
+            "start_a": AggregationSpec(name="MEAN", aggregation_fn=np.mean),
+            "codon_index": AggregationSpec(name="SUM", aggregation_fn=np.sum),
         }
 
     def compute_vector(

@@ -169,7 +169,7 @@ class ChimeraFeature:
         """
         feature_name = f"{self.algorithm}_score"
         return {
-            feature_name: AggregationSpec(aggregation_fn=np.mean),
+            feature_name: AggregationSpec(name="MEAN", aggregation_fn=np.mean),
         }
 
     def _get_chimera_functions(self):

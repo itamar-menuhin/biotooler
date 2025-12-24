@@ -170,13 +170,13 @@ class {{FAMILY_NAME_TITLE}}Feature:
 
         Example:
             return {
-                "gc_mean": AggregationSpec(aggregation_fn=np.mean),
-                "gc_sum": AggregationSpec(aggregation_fn=np.sum),
+                "gc_mean": AggregationSpec(name="MEAN", aggregation_fn=np.mean),
+                "gc_sum": AggregationSpec(name="SUM", aggregation_fn=np.sum),
             }
         """
         # TODO: Uncomment and define your feature keys with aggregation functions
         # return {
-        #     "feature_key": AggregationSpec(aggregation_fn=np.mean),
+        #     "feature_key": AggregationSpec(name="MEAN", aggregation_fn=np.mean),
         # }
         raise NotImplementedError(
             "vector_keys must be implemented for positional features. "
