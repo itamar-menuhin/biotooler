@@ -32,7 +32,13 @@ def get_features() -> list[type]:
     """
     # Lazy import feature classes to avoid loading dependencies at family import
     from biotooler.families.disorder.derived import DisorderDerivedScalars
+    from biotooler.families.disorder.idrpred_derived import IDRPredDerivedScalars
     from biotooler.families.disorder.idrpred_feature import IDRPredConsensusMask
     from biotooler.families.disorder.metapredict_backend import DisorderProfileMetapredict
 
-    return [DisorderProfileMetapredict, DisorderDerivedScalars, IDRPredConsensusMask]
+    return [
+        DisorderProfileMetapredict,
+        DisorderDerivedScalars,
+        IDRPredConsensusMask,
+        IDRPredDerivedScalars,
+    ]
