@@ -2,59 +2,30 @@
 
 ## What this family provides
 
-The disorder family provides protein intrinsic disorder prediction features using metapredict as the backend. Intrinsically disordered regions (IDRs) are protein segments that lack stable 3D structure under physiological conditions.
+The disorder family provides protein intrinsic disorder prediction features. Intrinsically disordered regions (IDRs) are protein segments that lack stable 3D structure under physiological conditions.
 
-**Available Features**:
-- `DisorderProfileMetapredict`: Per-residue disorder prediction scores (DISORDER_P)
+**Two feature groups are available**:
+
+### 1. Metapredict-based disorder prediction (biotooler[disorder])
+- `DisorderProfileMetapredict`: Per-residue disorder probability scores (DISORDER_P)
 - `DisorderDerivedScalars`: Summary statistics computed from DISORDER_P
   - DISORDER_FRAC: Fraction of disordered residues
   - DISORDER_LONGEST_IDR: Length of longest disordered region
   - DISORDER_MEAN: Mean disorder probability
   - DISORDER_P95: 95th percentile disorder probability
 
-**Future Backends**:
-- IUPred3 backend (external binary/script)
-- ANCHOR backend (context-dependent binding regions)
-- Consensus predictions from multiple methods
+### 2. IDRPred consensus disorder prediction (biotooler[disorder-idrpred])
+- `IDRPredConsensusMask`: Per-residue binary IDR membership mask (IDRPRED_IDR)
+- `IDRPredDerivedScalars`: Summary statistics computed from IDRPRED_IDR
+  - IDRPRED_FRAC_IDR: Fraction of residues in IDRs
+  - IDRPRED_LONGEST_IDR_LEN: Length of longest IDR segment
+  - IDRPRED_NUM_IDR_SEGMENTS: Number of distinct IDR segments
+
+Both feature groups are **additive** and can be used together in the same analysis.
 
 **Planned backend details**:
 
-### IUPred3
-- **Type**: External command-line tool
-- **Installation**: Download standalone binary/script from https://iupred3.elte.hu/ (or install via package manager if available)
-- **Interface**: Python subprocess wrapper calling the IUPred3 executable
-- **Output**: Per-residue disorder scores (similar to metapredict)
-- **Features**: Multiple disorder types (long, short, structured domains)
-- **Implementation approach**:
-  - Feature class: `DisorderProfileIUPred3`
-  - Lazy import check for IUPred3 installation (check binary exists in PATH)
-  - Subprocess wrapper with proper file handling (write temp FASTA, parse output)
-  - Parse output format (tab-delimited: position, amino acid, disorder score)
-  - Return DISORDER_P_IUPRED3 vector
-
-### ANCHOR2
-- **Type**: External command-line tool (part of IUPred3 package)
-- **Purpose**: Predict context-dependent protein binding regions within disordered segments
-- **Installation**: Bundled with IUPred3
-- **Interface**: Similar subprocess wrapper pattern
-- **Output**: Per-residue binding region scores
-- **Features**: Identifies regions that can gain structure upon binding
-- **Implementation approach**:
-  - Feature class: `DisorderProfileAnchor`
-  - Return ANCHOR_P vector (binding probability per residue)
-  - Can be combined with disorder predictions for functional annotation
-
-### Consensus Backend
-- **Type**: Meta-predictor combining multiple backends
-- **Purpose**: Improve accuracy by ensembling metapredict, IUPred3, and others
-- **Implementation approach**:
-  - Feature class: `DisorderProfileConsensus`
-  - Requires multiple backends installed
-  - Aggregation strategies:
-    - Mean: `(metapredict + iupred3) / 2`
-    - Voting: Threshold each, take majority
-    - Weighted mean: Learned weights from benchmark datasets
-  - Return DISORDER_P_CONSENSUS vector
+The disorder family is designed to support multiple disorder prediction backends. Currently implemented are metapredict (fast neural network predictor) and IDRPred (consensus predictor identifying long IDRs). Future backends may include IUPred3, ANCHOR2, and other methods.
 
 ## Intuition
 
@@ -78,6 +49,8 @@ Intrinsically disordered proteins (IDPs) and regions (IDRs) are functional prote
 - Predicting protein aggregation propensity
 
 ## Mathematical formulation
+
+### Metapredict (DisorderProfileMetapredict)
 
 Metapredict uses a bidirectional recurrent neural network (brnn-LSTM) trained on DisProt database annotations to predict per-residue disorder scores.
 
@@ -106,11 +79,29 @@ Output: Per-residue disorder score (0.0 to 1.0)
 
 **Algorithm reference**: Emenecker et al. (2021) Bioinformatics. The metapredict model is described in detail in the reference below.
 
+### IDRPred (IDRPredConsensusMask)
+
+IDRPred is a consensus predictor that identifies long intrinsically disordered regions (IDRs) by combining multiple disorder prediction methods.
+
+**Method**:
+- Consensus approach combining multiple disorder predictors
+- Focuses on identifying long, high-confidence IDRs (typically ≥30 residues)
+- Returns binary mask indicating IDR membership per residue
+
+**Output interpretation**:
+- Binary mask: 0 = not in IDR, 1 = in IDR
+- More conservative than individual predictors (identifies high-confidence regions)
+- Segments are contiguous regions, not individual residues
+
+**Algorithm reference**: The IDRPred consensus method is described at https://github.com/matthiasblum/idrpred
+
 ## Features and output schema
 
-**Available Features**:
+### Feature Group 1: Metapredict-based disorder prediction
 
-### 1. DisorderProfileMetapredict
+Install with: `pip install "biotooler[disorder]"`
+
+#### DisorderProfileMetapredict
 
 Per-residue disorder prediction using metapredict neural network.
 
@@ -132,22 +123,165 @@ Per-residue disorder prediction using metapredict neural network.
 - `strip_terminal_stop`: Strip terminal stop codon (default: True)
 - `on_internal_stop`: Action for internal stops - "error" or "ignore" (default: "error")
 
-### 2. DisorderDerivedScalars
+#### DisorderDerivedScalars
 
 Summary statistics computed from DISORDER_P without re-running predictor.
 
 **Output**:
-- `DISORDER_FRAC`: Fraction of residues with disorder probability >= threshold
-- `DISORDER_LONGEST_IDR`: Length of longest contiguous disordered region
-- `DISORDER_MEAN`: Mean disorder probability across all residues
-- `DISORDER_P95`: 95th percentile of disorder probabilities
+- `DISORDER_FRAC`: Fraction of residues with disorder probability >= threshold (scalar, float)
+- `DISORDER_LONGEST_IDR`: Length of longest contiguous disordered region (scalar, int)
+- `DISORDER_MEAN`: Mean disorder probability across all residues (scalar, float)
+- `DISORDER_P95`: 95th percentile of disorder probabilities (scalar, float)
 
 **Parameters**:
 - `threshold`: Disorder probability threshold for determining disordered residues (default: 0.5)
 
 **Usage pattern**: First compute DISORDER_P with DisorderProfileMetapredict, then compute derived features from the cached DISORDER_P values. This allows efficient computation of summary statistics at different thresholds without re-running the predictor.
 
-**Integration**: Features integrate with biotooler's windowing engine for sliding window analysis across protein sequences.
+### Feature Group 2: IDRPred consensus disorder prediction
+
+Install with: `pip install "biotooler[disorder-idrpred]"`
+
+Requires the `idrpred` command-line tool to be available on PATH.
+
+#### IDRPredConsensusMask
+
+Per-residue binary IDR membership mask using IDRPred consensus predictor.
+
+**Strict Output Contract**:
+- **Feature key**: `IDRPRED_IDR`
+- **Type**: numpy array (dtype: float64)
+- **Length**: L (where L = number of amino acids in protein sequence)
+- **Value range**: {0.0, 1.0} (binary mask)
+- **Position space**: Amino acid (residue) indexed, 0-based
+- **Interpretation**: IDRPRED_IDR[i] = 1.0 if amino acid at position i is in an IDR, 0.0 otherwise
+  - 0.0 = not in IDR
+  - 1.0 = in IDR (high-confidence long disordered region)
+- **Aggregation**: Mean across windows gives fraction of IDR residues (when using windowing engine)
+
+**Parameters**:
+- `table`: NCBI genetic code table for translation (default: 1)
+- `use_orf_if_present`: Use attached ORF if present (default: True)
+- `strip_terminal_stop`: Strip terminal stop codon (default: True)
+- `on_internal_stop`: Action for internal stops - "error" or "ignore" (default: "error")
+
+#### IDRPredDerivedScalars
+
+Summary statistics computed from IDRPRED_IDR mask without re-running predictor.
+
+**Output**:
+- `IDRPRED_FRAC_IDR`: Fraction of residues in IDRs (scalar, float)
+- `IDRPRED_LONGEST_IDR_LEN`: Length of longest contiguous IDR segment (scalar, int)
+- `IDRPRED_NUM_IDR_SEGMENTS`: Number of distinct contiguous IDR segments (scalar, int)
+
+**Parameters**: None (IDRPRED_IDR is already a binary mask)
+
+**Usage pattern**: First compute IDRPRED_IDR with IDRPredConsensusMask, then compute derived features from the cached IDRPRED_IDR values.
+
+### Additive feature groups
+
+Both feature groups can be used together in the same analysis. Simply install both extras and use both features in your FeatureSet:
+
+```bash
+pip install "biotooler[disorder,disorder-idrpred]"
+```
+
+## Installation
+
+### Metapredict backend
+
+Install biotooler with disorder support:
+```bash
+pip install "biotooler[disorder]"
+```
+
+This installs metapredict (≥3.0) for fast neural network-based disorder prediction.
+
+### IDRPred backend
+
+Install biotooler with IDRPred support:
+```bash
+pip install "biotooler[disorder-idrpred]"
+```
+
+This installs the IDRPred package and makes the `idrpred` command-line tool available on PATH.
+
+### Both backends
+
+To use both feature groups in the same analysis:
+```bash
+pip install "biotooler[disorder,disorder-idrpred]"
+```
+
+### Checking installation
+
+**Metapredict**:
+```python
+import metapredict
+print(metapredict.__version__)
+```
+
+**IDRPred**:
+```bash
+idrpred --version
+```
+
+If metapredict or idrpred is not installed, attempting to use the respective features will raise `ImportError` with installation instructions.
+
+## Windowing semantics
+
+### Position space
+
+All disorder features operate in **RESIDUE (amino acid) position space**:
+- Position indices: 0-based amino acid positions
+- Example: Sequence "MKTAY" has positions 0=M, 1=K, 2=T, 3=A, 4=Y
+- Both `DisorderProfileMetapredict` and `IDRPredConsensusMask` return `PositionSpace.RESIDUE`
+
+### Vector computation
+
+Disorder features compute **per-residue vectors across the entire sequence**:
+
+1. **Full-sequence input**: Pass complete protein sequence to predictor
+2. **Per-residue values**: Models return probability or mask for each amino acid position
+3. **Vector output**: numpy array with length equal to sequence length
+4. **Window aggregation**: Windowing engine slices the full-context vector and applies aggregation
+
+**Why full-sequence?** Context matters for disorder prediction. Neural networks and consensus predictors consider surrounding amino acids. Computing on substrings would lose context and produce incorrect results.
+
+### Aggregation and wide-format output
+
+When using sliding windows with `FeatureSet.compute_windows()`, per-residue vectors are aggregated:
+
+**For DISORDER_P** (metapredict):
+- Aggregation: `np.mean(DISORDER_P[window_start:window_end])`
+- Interpretation: Average disorder propensity across window region
+- Wide-format columns: `DISORDER_P_0`, `DISORDER_P_50`, `DISORDER_P_100`, etc.
+
+**For IDRPRED_IDR** (IDRPred):
+- Aggregation: `np.mean(IDRPRED_IDR[window_start:window_end])`
+- Interpretation: Fraction of residues in IDRs within window
+- Wide-format columns: `IDRPRED_IDR_0`, `IDRPRED_IDR_50`, `IDRPRED_IDR_100`, etc.
+
+**Example window naming**:
+```python
+# 3 windows at positions 0, 50, 100
+# Output columns: "disorder.DISORDER_P_0", "disorder.DISORDER_P_50", "disorder.DISORDER_P_100"
+# Each contains the mean disorder score for that window
+```
+
+### Derived summaries
+
+Derived features (DisorderDerivedScalars, IDRPredDerivedScalars) compute summary statistics from the corresponding vector **without re-running the predictor**:
+
+- **DisorderDerivedScalars**: Requires `DISORDER_P` in `record.annotations`
+  - Computes DISORDER_FRAC, DISORDER_LONGEST_IDR, DISORDER_MEAN, DISORDER_P95 from DISORDER_P
+  - Can compute at different thresholds efficiently (no predictor rerun)
+  
+- **IDRPredDerivedScalars**: Requires `IDRPRED_IDR` in `record.annotations`
+  - Computes IDRPRED_FRAC_IDR, IDRPRED_LONGEST_IDR_LEN, IDRPRED_NUM_IDR_SEGMENTS from IDRPRED_IDR
+  - No parameters needed (mask is already binary)
+
+This design enables efficient computation: run the predictor once, compute derived summaries at various parameters without costly reruns.
 
 ### DNA/RNA Translation
 
@@ -201,7 +335,46 @@ This translation layer is shared across all protein-level feature families (diso
 
 ## Examples
 
-### Basic usage: Computing disorder predictions
+### Computing both metapredict and IDRPred features together
+
+This example shows how to compute both DISORDER_P and IDRPRED_IDR in a single run:
+
+```python
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from biotooler.families.disorder.metapredict_backend import DisorderProfileMetapredict
+from biotooler.families.disorder.idrpred_feature import IDRPredConsensusMask
+from biotooler.features.sets import FeatureSet
+
+# Create both features
+metapredict_feature = DisorderProfileMetapredict()
+idrpred_feature = IDRPredConsensusMask()
+
+# Create a protein sequence record
+protein = SeqRecord(Seq("MKALVSWGRPQMTESTDISORDERREGION"), id="protein1")
+protein.annotations["molecule_type"] = "protein"
+
+# Compute both disorder predictions
+feature_set = FeatureSet({
+    "metapredict": metapredict_feature,
+    "idrpred": idrpred_feature,
+})
+
+# Compute in sliding windows (wide-format output)
+results = feature_set.compute_windows(
+    protein,
+    window_size=10,  # 10 amino acid window
+    step=5           # Step by 5 amino acids
+)
+
+# Results contain both predictions with columns:
+# "metapredict.DISORDER_P_0", "metapredict.DISORDER_P_5", "metapredict.DISORDER_P_10", ...
+# "idrpred.IDRPRED_IDR_0", "idrpred.IDRPRED_IDR_5", "idrpred.IDRPRED_IDR_10", ...
+print(results.columns.tolist())
+print(results[["metapredict.DISORDER_P_0", "idrpred.IDRPRED_IDR_0"]])
+```
+
+### Basic usage: Computing metapredict disorder predictions
 
 ```python
 from Bio.Seq import Seq
@@ -227,6 +400,29 @@ print(f"Max disorder: {disorder_scores.max():.3f}")
 # Identify disordered residues (threshold = 0.5)
 disordered_residues = disorder_scores >= 0.5
 print(f"Disordered positions: {np.where(disordered_residues)[0]}")
+```
+
+### Computing IDRPred consensus mask
+
+```python
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from biotooler.families.disorder.idrpred_feature import IDRPredConsensusMask
+
+# Create feature
+feature = IDRPredConsensusMask()
+
+# Create protein sequence record
+record = SeqRecord(Seq("MKALVSWGRPQMTEST"), id="protein1")
+record.annotations["molecule_type"] = "protein"
+
+# Compute IDR mask (binary mask per residue)
+result = feature.compute_vector(record)
+idr_mask = result["IDRPRED_IDR"]  # numpy array of 0s and 1s
+
+print(f"IDR mask: {idr_mask}")
+print(f"Fraction in IDRs: {idr_mask.mean():.2%}")
+print(f"IDR positions: {np.where(idr_mask == 1.0)[0]}")
 ```
 
 ### Automatic translation from DNA/RNA
@@ -268,20 +464,35 @@ print(f"ORF disorder scores: {result['DISORDER_P']}")
 ### Computing derived features without re-running predictor
 
 ```python
+import numpy as np
 from biotooler.families.disorder.derived import DisorderDerivedScalars
+from biotooler.families.disorder.idrpred_derived import IDRPredDerivedScalars
 
 # Assume DISORDER_P has already been computed and stored in record.annotations
 # (by DisorderProfileMetapredict or loaded from cache)
 record.annotations["DISORDER_P"] = result["DISORDER_P"]
 
-# Compute summary statistics
-derived = DisorderDerivedScalars(threshold=0.5)
-summary = derived(record)
+# Compute metapredict-based summary statistics
+disorder_derived = DisorderDerivedScalars(threshold=0.5)
+disorder_summary = disorder_derived(record)
 
-print(f"Fraction disordered: {summary['DISORDER_FRAC']:.2%}")
-print(f"Longest IDR: {summary['DISORDER_LONGEST_IDR']} residues")
-print(f"Mean disorder: {summary['DISORDER_MEAN']:.3f}")
-print(f"95th percentile: {summary['DISORDER_P95']:.3f}")
+print(f"Metapredict summaries:")
+print(f"  Fraction disordered: {disorder_summary['DISORDER_FRAC']:.2%}")
+print(f"  Longest IDR: {disorder_summary['DISORDER_LONGEST_IDR']} residues")
+print(f"  Mean disorder: {disorder_summary['DISORDER_MEAN']:.3f}")
+print(f"  95th percentile: {disorder_summary['DISORDER_P95']:.3f}")
+
+# Assume IDRPRED_IDR has also been computed
+record.annotations["IDRPRED_IDR"] = result["IDRPRED_IDR"]
+
+# Compute IDRPred-based summary statistics
+idrpred_derived = IDRPredDerivedScalars()
+idrpred_summary = idrpred_derived(record)
+
+print(f"\nIDRPred summaries:")
+print(f"  Fraction in IDRs: {idrpred_summary['IDRPRED_FRAC_IDR']:.2%}")
+print(f"  Longest IDR: {idrpred_summary['IDRPRED_LONGEST_IDR_LEN']} residues")
+print(f"  Number of IDR segments: {idrpred_summary['IDRPRED_NUM_IDR_SEGMENTS']}")
 ```
 
 ### Using different thresholds efficiently
@@ -302,9 +513,14 @@ for t in thresholds:
 ```python
 from biotooler.features.sets import FeatureSet
 
-# Create feature set with disorder predictor
-feature = DisorderProfileMetapredict()
-feature_set = FeatureSet({"disorder": feature})
+# Create feature set with both disorder predictors
+metapredict_feature = DisorderProfileMetapredict()
+idrpred_feature = IDRPredConsensusMask()
+
+feature_set = FeatureSet({
+    "metapredict": metapredict_feature,
+    "idrpred": idrpred_feature,
+})
 
 # Compute disorder in sliding windows (50 AA window, 25 AA step)
 protein = SeqRecord(Seq("M" * 200), id="long_protein")  # 200 AA protein
@@ -317,14 +533,17 @@ results = feature_set.compute_windows(
 )
 
 # Wide-format output with columns:
-# "disorder.DISORDER_P_0" (window at position 0)
-# "disorder.DISORDER_P_25" (window at position 25)
-# "disorder.DISORDER_P_50" (window at position 50)
+# "metapredict.DISORDER_P_0" (window at position 0)
+# "metapredict.DISORDER_P_25" (window at position 25)
+# "metapredict.DISORDER_P_50" (window at position 50)
 # ...
-# "disorder.DISORDER_P_150" (last window)
+# "idrpred.IDRPRED_IDR_0" (window at position 0)
+# "idrpred.IDRPRED_IDR_25" (window at position 25)
+# etc.
 
 print(results.columns)
-print(results[["disorder.DISORDER_P_0", "disorder.DISORDER_P_25"]])
+print(results[["metapredict.DISORDER_P_0", "metapredict.DISORDER_P_25",
+               "idrpred.IDRPRED_IDR_0", "idrpred.IDRPRED_IDR_25"]])
 ```
 
 ### Integration with multiple features
@@ -612,560 +831,91 @@ Windowing correctness validated through:
 - `biopython` - For SeqRecord and Seq objects
 - `numpy` - For vector computations and aggregation
 
-**Optional**:
-- `metapredict` ≥ 3.0 (required to use this family once features are implemented)
-  - Install via: `pip install metapredict` or `pip install "biotooler[disorder]"`
+**Optional (metapredict group)**:
+- `metapredict` ≥ 3.0 (required to use DisorderProfileMetapredict and DisorderDerivedScalars)
+  - Install via: `pip install "biotooler[disorder]"`
   - Not included in default biotooler installation to keep dependencies lightweight
 
-### Installation
-
-**Install biotooler with disorder support**:
-```bash
-pip install "biotooler[disorder]"
-```
-
-**Install metapredict separately**:
-```bash
-pip install metapredict
-```
-
-**Check installation**:
-```python
-import metapredict  # Should not raise ImportError
-print(metapredict.__version__)
-```
-
-If metapredict is not installed, attempting to use disorder features will raise `ImportError` with installation instructions.
+**Optional (IDRPred group)**:
+- `idrpred` package (required to use IDRPredConsensusMask and IDRPredDerivedScalars)
+  - Install via: `pip install "biotooler[disorder-idrpred]"`
+  - Provides `idrpred` command-line tool on PATH
+  - Repository: https://github.com/matthiasblum/idrpred
 
 ### Implementation status
 
+**Implemented**:
 - ✅ Family infrastructure (registry, imports, lazy loading)
-- ✅ Integration helper (`require_metapredict()`)
+- ✅ Integration helpers (require_metapredict(), require_idrpred_cli())
 - ✅ DisorderProfileMetapredict feature (per-residue predictions)
-- ✅ DisorderDerivedScalars feature (summary statistics)
-- ✅ Comprehensive test coverage (35+ tests)
+- ✅ DisorderDerivedScalars feature (summary statistics from DISORDER_P)
+- ✅ IDRPredConsensusMask feature (per-residue binary mask)
+- ✅ IDRPredDerivedScalars feature (summary statistics from IDRPRED_IDR)
+- ✅ Comprehensive test coverage
 - ✅ Windowing engine integration
 
-### Design decisions
-
-**1. Metapredict as initial backend**:
-   - Rationale: Fast, accurate, well-maintained, and easy to install
-   - Alternative backends (IUPred3, consensus) planned for future releases
-
-**2. Lazy imports**:
-   - Rationale: metapredict has deep learning dependencies (PyTorch); lazy loading keeps biotooler import fast
-   - Implementation: `require_metapredict()` helper checks and imports metapredict on first use
-
-**3. Full-sequence computation** (planned):
-   - Rationale: Disorder prediction models use sequence context; computing on substrings would reduce accuracy
-   - Trade-off: Single computation per sequence regardless of number of windows
-
-**4. Vector-based output** (planned):
-   - Rationale: Per-residue disorder scores provide maximum information
-   - Users can aggregate using mean, max, or custom functions via windowing engine
-
-### Performance considerations
-
-**Metapredict performance** (once implemented):
-- Time complexity: O(n) for sequence of length n (LSTM model)
-- Memory: Scales with sequence length and model size
-- Typical timing: Fast inference (~1-10ms per sequence)
-- GPU acceleration: metapredict uses PyTorch; GPU can speed up batch predictions
-
-### Future work
-
 **Planned enhancements**:
-- Support for IUPred3 backend
-- Support for ANCHOR2 backend for binding region prediction
-- Consensus predictions combining multiple methods
-- Integration with structure prediction features
+- Support for additional backends (IUPred3, ANCHOR2, etc.)
 - Batch prediction optimization for multiple sequences
 - Additional derived features (disorder clusters, region boundaries)
 
-## Contributing a New Backend
-
-This section provides a step-by-step guide for contributors who want to add a new disorder prediction backend (e.g., IUPred3, ANCHOR2, or other tools).
-
-### Overview
-
-The disorder family uses a **lazy import pattern** to keep biotooler lightweight. Each backend is:
-1. An optional dependency installed via extras (e.g., `pip install "biotooler[disorder,iupred]"`)
-2. Imported only when used (via helper functions in `integration.py`)
-3. Registered in the family's `get_features()` function
-
-### Files to Add
-
-To add a new backend (e.g., IUPred3), create the following files:
-
-```
-src/biotooler/families/disorder/
-├── __init__.py                    # UPDATE: Add new feature to get_features()
-├── integration.py                 # UPDATE: Add require_<backend>() helper
-├── iupred3_backend.py             # NEW: Backend-specific feature class
-└── README.md                      # UPDATE: Document the new backend
-
-tests/families/disorder/
-├── test_iupred3_backend.py        # NEW: Backend-specific tests
-└── test_integration.py            # UPDATE: Add lazy import tests
-```
-
-### Step 1: Create Backend Feature Class
-
-**File**: `src/biotooler/families/disorder/iupred3_backend.py`
-
-**Template** (adapt from `metapredict_backend.py`):
-
-```python
-"""IUPred3 backend for disorder prediction."""
-
-import numpy as np
-from Bio.SeqRecord import SeqRecord
-
-from biotooler.core.record import get_molecule_type
-from biotooler.core.translation import ensure_protein_record
-from biotooler.families.disorder.integration import require_iupred3
-from biotooler.features.aggregation import AggregationSpec, PositionSpace
-
-
-class DisorderProfileIUPred3:
-    """Compute per-residue intrinsic disorder using IUPred3.
-    
-    This feature implements the PositionalFeature protocol to compute protein
-    intrinsic disorder predictions using the IUPred3 external tool.
-    
-    Args:
-        mode: IUPred3 mode - "long" (long disorder), "short" (short disorder),
-            or "glob" (globular domains) (default: "long")
-        table: NCBI genetic code table for translation (default: 1)
-        use_orf_if_present: Use attached ORF if present (default: True)
-        strip_terminal_stop: Strip terminal stop codon (default: True)
-        on_internal_stop: Action for internal stops - "error" or "ignore" (default: "error")
-    """
-    
-    def __init__(
-        self,
-        *,
-        mode: str = "long",
-        table: int = 1,
-        use_orf_if_present: bool = True,
-        strip_terminal_stop: bool = True,
-        on_internal_stop: str = "error",
-    ):
-        if mode not in ("long", "short", "glob"):
-            raise ValueError(f"mode must be 'long', 'short', or 'glob', got {mode!r}")
-        self.mode = mode
-        self.table = table
-        self.use_orf_if_present = use_orf_if_present
-        self.strip_terminal_stop = strip_terminal_stop
-        self.on_internal_stop = on_internal_stop
-    
-    @property
-    def position_space(self) -> PositionSpace:
-        """Return RESIDUE position space."""
-        return PositionSpace.RESIDUE
-    
-    @property
-    def vector_keys(self) -> dict[str, AggregationSpec]:
-        """Return aggregation specifications for each feature key."""
-        return {
-            f"DISORDER_P_IUPRED3_{self.mode.upper()}": AggregationSpec(aggregation_fn=np.mean),
-        }
-    
-    def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
-        """Compute per-residue disorder using IUPred3.
-        
-        Args:
-            record: SeqRecord containing DNA, RNA, or protein sequence
-            **kwargs: Additional parameters (positions ignored, full computation always done)
-        
-        Returns:
-            Dictionary mapping feature key to numpy array of disorder probabilities
-        """
-        # Lazy import IUPred3 wrapper
-        iupred3 = require_iupred3()
-        
-        # Translate DNA/RNA to protein if needed
-        mol_type = get_molecule_type(record)
-        if mol_type.upper() in ("DNA", "RNA"):
-            protein_record = ensure_protein_record(
-                record,
-                table=self.table,
-                use_orf_if_present=self.use_orf_if_present,
-                strip_terminal_stop=self.strip_terminal_stop,
-                on_internal_stop=self.on_internal_stop,
-            )
-        else:
-            protein_record = record
-        
-        protein_seq = str(protein_record.seq)
-        
-        # Handle empty sequence
-        if len(protein_seq) == 0:
-            return {f"DISORDER_P_IUPRED3_{self.mode.upper()}": np.array([], dtype=np.float64)}
-        
-        # Call IUPred3 (implementation depends on wrapper)
-        # This is pseudocode - actual implementation depends on IUPred3 interface
-        disorder_probs = iupred3.predict(protein_seq, mode=self.mode)
-        
-        # Ensure numpy array with correct length
-        disorder_probs = np.array(disorder_probs, dtype=np.float64)
-        if len(disorder_probs) != len(protein_seq):
-            raise ValueError(
-                f"IUPred3 returned array of length {len(disorder_probs)}, "
-                f"but expected {len(protein_seq)} for record {record.id!r}"
-            )
-        
-        return {f"DISORDER_P_IUPRED3_{self.mode.upper()}": disorder_probs}
-```
-
-### Step 2: Add Lazy Import Helper
-
-**File**: `src/biotooler/families/disorder/integration.py`
-
-**Add function**:
-
-```python
-def require_iupred3():
-    """Require IUPred3 dependency with lazy loading.
-    
-    Returns:
-        The iupred3 wrapper module
-    
-    Raises:
-        ImportError: If IUPred3 is not installed, with installation instructions
-    """
-    return lazy_import(
-        "iupred3",  # or "biotooler_iupred3" if we create a wrapper package
-        extra="iupred",
-        purpose="computing protein disorder features using IUPred3",
-    )
-```
-
-### Step 3: Register in Family
-
-**File**: `src/biotooler/families/disorder/__init__.py`
-
-**Update `get_features()`**:
-
-```python
-def get_features() -> list[type]:
-    """Get list of feature classes provided by this family."""
-    from biotooler.families.disorder.derived import DisorderDerivedScalars
-    from biotooler.families.disorder.metapredict_backend import DisorderProfileMetapredict
-    from biotooler.families.disorder.iupred3_backend import DisorderProfileIUPred3  # NEW
-    
-    return [
-        DisorderProfileMetapredict,
-        DisorderProfileIUPred3,  # NEW
-        DisorderDerivedScalars,
-    ]
-```
-
-### Step 4: Update pyproject.toml
-
-**File**: `pyproject.toml`
-
-**Add optional dependency group**:
-
-```toml
-[project.optional-dependencies]
-disorder = [
-    "metapredict>=3.0",
-]
-# If IUPred3 requires a Python wrapper package:
-iupred = [
-    "biotooler-iupred3>=0.1.0",  # Example wrapper package name
-]
-# For installing all disorder backends:
-all-disorder = [
-    "biotooler[disorder]",
-    "biotooler[iupred]",
-]
-```
-
-**Note**: IUPred3 may require manual installation as a system binary. If creating a Python wrapper package, publish it to PyPI for easy installation. Document manual installation steps in README for external binary approach.
-
-### Step 5: Add Tests
-
-**File**: `tests/families/disorder/test_iupred3_backend.py`
-
-**Copy and adapt from** `tests/families/disorder/test_metapredict_backend.py` (if exists, or create):
-
-```python
-"""Tests for IUPred3 backend."""
-
-import pytest
-import numpy as np
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
-
-# Try importing IUPred3, skip tests if not available
-pytest.importorskip("iupred3", reason="IUPred3 not installed")
-
-from biotooler.families.disorder.iupred3_backend import DisorderProfileIUPred3
-
-
-def test_iupred3_basic():
-    """Test basic IUPred3 disorder prediction."""
-    feature = DisorderProfileIUPred3(mode="long")
-    
-    # Simple protein sequence
-    record = SeqRecord(Seq("MKALVSWGRPQM"), id="test")
-    record.annotations["molecule_type"] = "protein"
-    
-    result = feature.compute_vector(record)
-    
-    # Check output structure
-    assert "DISORDER_P_IUPRED3_LONG" in result
-    disorder_p = result["DISORDER_P_IUPRED3_LONG"]
-    
-    # Check array properties
-    assert isinstance(disorder_p, np.ndarray)
-    assert len(disorder_p) == 12  # Length of sequence
-    assert disorder_p.dtype == np.float64
-    
-    # Check value range [0, 1]
-    assert np.all(disorder_p >= 0.0)
-    assert np.all(disorder_p <= 1.0)
-
-
-def test_iupred3_modes():
-    """Test different IUPred3 modes."""
-    record = SeqRecord(Seq("MKALVSWGRPQM"), id="test")
-    record.annotations["molecule_type"] = "protein"
-    
-    for mode in ("long", "short", "glob"):
-        feature = DisorderProfileIUPred3(mode=mode)
-        result = feature.compute_vector(record)
-        
-        expected_key = f"DISORDER_P_IUPRED3_{mode.upper()}"
-        assert expected_key in result
-        assert len(result[expected_key]) == 12
-
-
-def test_iupred3_dna_translation():
-    """Test automatic DNA to protein translation."""
-    feature = DisorderProfileIUPred3()
-    
-    # DNA sequence encoding "MKAL"
-    dna = SeqRecord(Seq("ATGAAAGCCCTG"), id="dna1")
-    dna.annotations["molecule_type"] = "DNA"
-    
-    result = feature.compute_vector(dna)
-    disorder_p = result["DISORDER_P_IUPRED3_LONG"]
-    
-    # Should have 4 values (4 amino acids after translation)
-    assert len(disorder_p) == 4
-
-
-def test_iupred3_empty_sequence():
-    """Test handling of empty sequences."""
-    feature = DisorderProfileIUPred3()
-    
-    record = SeqRecord(Seq(""), id="empty")
-    record.annotations["molecule_type"] = "protein"
-    
-    result = feature.compute_vector(record)
-    disorder_p = result["DISORDER_P_IUPRED3_LONG"]
-    
-    assert len(disorder_p) == 0
-    assert disorder_p.dtype == np.float64
-
-
-def test_iupred3_position_space():
-    """Test position space property."""
-    from biotooler.features.aggregation import PositionSpace
-    
-    feature = DisorderProfileIUPred3()
-    assert feature.position_space == PositionSpace.RESIDUE
-
-
-def test_iupred3_vector_keys():
-    """Test vector_keys property."""
-    feature = DisorderProfileIUPred3(mode="long")
-    vector_keys = feature.vector_keys
-    
-    assert "DISORDER_P_IUPRED3_LONG" in vector_keys
-    assert vector_keys["DISORDER_P_IUPRED3_LONG"].aggregation_fn == np.mean
-
-
-def test_iupred3_deterministic():
-    """Test that IUPred3 produces deterministic results."""
-    feature = DisorderProfileIUPred3()
-    
-    record = SeqRecord(Seq("MKALVSWGRPQM"), id="test")
-    record.annotations["molecule_type"] = "protein"
-    
-    result1 = feature.compute_vector(record)
-    result2 = feature.compute_vector(record)
-    
-    np.testing.assert_array_equal(
-        result1["DISORDER_P_IUPRED3_LONG"],
-        result2["DISORDER_P_IUPRED3_LONG"]
-    )
-```
-
-**File**: `tests/families/disorder/test_integration.py`
-
-**Add lazy import test**:
-
-```python
-def test_require_iupred3():
-    """Test IUPred3 lazy import helper."""
-    from biotooler.families.disorder.integration import require_iupred3
-    
-    # Should not raise if IUPred3 is installed
-    iupred3 = require_iupred3()
-    assert iupred3 is not None
-```
-
-### Step 6: Update Documentation
-
-**File**: `src/biotooler/families/disorder/README.md`
-
-Add sections:
-1. Update "What this family provides" with new backend
-2. Add backend-specific examples
-3. Document installation: `pip install "biotooler[disorder,iupred]"`
-4. Update "Future work" to mark IUPred3 as implemented
-
-### Testing Your Backend
-
-**Run tests**:
-```bash
-# Install with backend
-pip install -e ".[disorder,iupred]"
-
-# Run backend-specific tests
-pytest tests/families/disorder/test_iupred3_backend.py -v
-
-# Run all disorder tests
-pytest tests/families/disorder/ -v
-```
-
-**Test lazy loading**:
-```python
-# Should not import backend on family import
-from biotooler.families import disorder
-# iupred3 not imported yet
-
-# Should import backend only when feature is used
-feature = disorder.DisorderProfileIUPred3()
-result = feature.compute_vector(record)
-# Now iupred3 is imported
-```
-
-**Test windowing**:
-```python
-from biotooler.features import FeatureSet
-
-feature_set = FeatureSet({"iupred3": DisorderProfileIUPred3()})
-results = feature_set.compute_windows(
-    record,
-    window_size=50,
-    step=25
-)
-# Verify wide-format output with DISORDER_P_IUPRED3_LONG_0, DISORDER_P_IUPRED3_LONG_25, etc.
-```
-
-### Key Implementation Patterns
-
-**1. Lazy Import Pattern**:
-- ✅ DO: Import backend inside `compute_vector()` using `require_<backend>()`
-- ❌ DON'T: Import backend at module top-level
-
-**2. Translation Pattern**:
-- ✅ DO: Use `ensure_protein_record()` with standard translation parameters
-- ✅ DO: Support DNA/RNA/protein input consistently across backends
-- ❌ DON'T: Implement custom translation logic
-
-**3. PositionalFeature Protocol**:
-- ✅ DO: Implement `position_space`, `vector_keys`, `compute_vector`
-- ✅ DO: Return full-length vectors (length = sequence length)
-- ✅ DO: Use appropriate aggregation (usually `np.mean` for disorder)
-- ❌ DON'T: Slice sequences before computing (loses context)
-
-**4. Error Handling**:
-- ✅ DO: Catch backend-specific errors and raise `ValueError` with helpful messages
-- ✅ DO: Validate output length matches input sequence length
-- ✅ DO: Handle empty sequences gracefully
-
-**5. Naming Conventions**:
-- Feature class: `DisorderProfile<Backend>`
-- Feature key: `DISORDER_P_<BACKEND>_<MODE>` (uppercase)
-- Module file: `<backend>_backend.py` (lowercase)
-- Test file: `test_<backend>_backend.py`
-
-### Common Pitfalls
-
-**❌ Importing backend at module level**:
-```python
-# BAD: Loads backend even if never used
-import iupred3
-
-class DisorderProfileIUPred3:
-    def compute_vector(self, record):
-        return iupred3.predict(...)
-```
-
-**✅ Lazy import pattern**:
-```python
-# GOOD: Backend loaded only when feature is used
-class DisorderProfileIUPred3:
-    def compute_vector(self, record):
-        iupred3 = require_iupred3()  # Lazy import
-        return iupred3.predict(...)
-```
-
-**❌ Slicing sequence before prediction**:
-```python
-# BAD: Loses context, incorrect results
-def compute_vector(self, record, positions=None):
-    if positions:
-        seq = str(record.seq)[positions[0]:positions[-1]]  # Wrong!
-    return {"DISORDER_P": predict(seq)}
-```
-
-**✅ Always use full sequence**:
-```python
-# GOOD: Predict on full sequence, let windowing engine slice vector
-def compute_vector(self, record, **kwargs):
-    seq = str(record.seq)  # Full sequence
-    full_vector = predict(seq)
-    return {"DISORDER_P": full_vector}  # Return full vector
-```
-
-### Getting Help
-
-- Review existing backends: `metapredict_backend.py`, `derived.py`
-- Review other families: `chimera/`, `protparam/`, `basic_stats/`
-- Check tests for implementation patterns
-- Open an issue on GitHub for questions or guidance
-- Disorder family maintainer: See CODEOWNERS file for current maintainer
-
-### Troubleshooting
-
-**Import Error: "No module named 'metapredict'"**
-- Solution: Install metapredict with `pip install metapredict` or `pip install "biotooler[disorder]"`
-
-**Metapredict version issues**:
-- Ensure metapredict ≥ 3.0 is installed
-- Check version: `python -c "import metapredict; print(metapredict.__version__)"`
-- Update if needed: `pip install --upgrade metapredict`
-
-**Invalid amino acid errors**:
-- metapredict only supports 20 standard amino acids
-- Non-standard residues (U, O, etc.) will raise ValueError
-- Consider filtering or replacing non-standard residues before prediction
-
-**Translation errors with DNA/RNA**:
-- Ensure molecule_type is set correctly in record.annotations
-- Check that ORF coordinates are valid (must be in frame, divisible by 3)
-- Verify genetic code table is appropriate for your organism
-
-### Version compatibility
-
-- metapredict ≥ 3.0 recommended (latest stable version)
-- biotooler ≥ 0.1.0 required for lazy import infrastructure
-- Python ≥ 3.11 required
-- Compatible with all major operating systems (Linux, macOS, Windows)
+### Design decisions
+
+**1. Two feature groups (metapredict and IDRPred)**:
+   - Rationale: Complementary approaches (neural network vs consensus predictor)
+   - metapredict: Fast, continuous probability scores
+   - IDRPred: Conservative, identifies high-confidence long IDRs
+   - Both operate on same position space (residues) and can be used together
+
+**2. Lazy imports**:
+   - Rationale: Deep learning dependencies (PyTorch for metapredict) kept optional
+   - Implementation: `require_metapredict()` and `require_idrpred_cli()` check on first use
+   - Benefits: Fast biotooler import, lightweight default installation
+
+**3. Full-sequence computation**:
+   - Rationale: Disorder predictors use sequence context; substrings would reduce accuracy
+   - Trade-off: Single computation per sequence regardless of number of windows
+   - Windowing engine slices full vector after prediction
+
+**4. Vector-based output**:
+   - Rationale: Per-residue values provide maximum information
+   - Users can aggregate using mean, max, or custom functions via windowing engine
+   - Derived features compute summaries from vectors without re-running predictors
+
+### Performance considerations
+
+**Metapredict performance**:
+- Time complexity: O(n) for sequence of length n (LSTM model)
+- Memory: Scales with sequence length and model size (~100 MB for model)
+- Typical timing: Fast inference (~1-10ms per sequence of length 100-1000)
+- GPU acceleration: metapredict uses PyTorch; GPU can speed up batch predictions
+- Caching: Results cached in `record.annotations["DISORDER_P"]` for derived features
+
+**IDRPred performance**:
+- Time complexity: O(n) for sequence of length n (subprocess overhead + prediction)
+- Typical timing: Slower than metapredict (~100-1000ms per sequence)
+- No GPU acceleration (external CLI tool)
+- Caching: Results cached in `record.annotations["IDRPRED_IDR"]` for derived features
+
+**DisorderDerivedScalars / IDRPredDerivedScalars**:
+- Time complexity: O(n) for sequence of length n
+- Memory: Minimal (no model loading, operates on cached vectors)
+- Typical timing: Microseconds per sequence
+- Caching benefit: Does not re-run predictor, reuses vector from annotations
+
+
+## References
+
+- **metapredict**: Emenecker, R.J., Griffith, D. & Holehouse, A.S. (2021) "Metapredict: a fast, accurate, and easy-to-use predictor of consensus disorder and structure" *Bioinformatics* 37(26):5035-5037. https://doi.org/10.1093/bioinformatics/btab527
+- **IDRPred**: Blum, M., et al. "IDRPred: A consensus-based disorder prediction method" https://github.com/matthiasblum/idrpred
+- **DisProt database**: Quaglia, F., et al. (2022) "DisProt in 2022: improved quality and accessibility of protein intrinsic disorder annotation" *Nucleic Acids Research* 50:D480-D487. https://doi.org/10.1093/nar/gkab1082
+- **Intrinsically disordered proteins review**: van der Lee, R., et al. (2014) "Classification of intrinsically disordered regions and proteins" *Chemical Reviews* 114(13):6589-6631. https://doi.org/10.1021/cr400525m
+
+## Upstream library links
+
+- **metapredict GitHub**: https://github.com/idptools/metapredict
+- **metapredict Documentation**: https://metapredict.readthedocs.io/
+- **metapredict PyPI**: https://pypi.org/project/metapredict/
+- **IDRPred GitHub**: https://github.com/matthiasblum/idrpred
+- **IDPTools Suite**: https://idptools-parrot.readthedocs.io/
+- **DisProt Database**: https://disprot.org/
