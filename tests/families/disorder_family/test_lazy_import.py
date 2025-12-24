@@ -1,8 +1,8 @@
 """Tests for lazy import behavior of disorder family.
 
 Verifies that importing biotooler.families.disorder does not eagerly load
-metapredict, and that get_features() raises appropriate ImportError when
-metapredict is not installed.
+metapredict or idrpred, and that get_features() raises appropriate ImportError when
+dependencies are not installed.
 """
 
 import sys
@@ -40,6 +40,38 @@ def test_import_disorder_does_not_load_metapredict():
 
     # metapredict still should not be imported
     assert "metapredict" not in sys.modules
+
+
+def test_import_does_not_load_idrpred():
+    """Test that importing biotooler.families.disorder doesn't import idrpred.
+
+    This ensures the family module itself is lightweight and only loads
+    the idrpred dependency when features are actually accessed.
+    """
+    # Clear any previously imported modules
+    modules_to_clear = [
+        module
+        for module in list(sys.modules.keys())
+        if module.startswith("biotooler.families.disorder") or module.startswith("idrpred")
+    ]
+    for module in modules_to_clear:
+        del sys.modules[module]
+
+    # Import the disorder family module
+    import biotooler.families.disorder
+
+    # Verify idrpred is NOT loaded
+    assert "idrpred" not in sys.modules, (
+        "idrpred was imported when importing biotooler.families.disorder, "
+        "but it should only be loaded when features are accessed"
+    )
+
+    # Verify we can access FAMILY_META without loading idrpred
+    assert biotooler.families.disorder.FAMILY_META["name"] == "disorder"
+    assert biotooler.families.disorder.FAMILY_META["extra"] == "disorder"
+
+    # idrpred still should not be imported
+    assert "idrpred" not in sys.modules
 
 
 def test_get_features_returns_feature_list():
@@ -112,4 +144,83 @@ def test_require_metapredict_raises_import_error():
     assert "metapredict" in error_message.lower(), "Error message should mention metapredict"
     assert 'pip install "biotooler[disorder]"' in error_message, (
         "Error message should include installation instructions"
+    )
+
+
+def test_missing_idrpred_cli_error_mentions_extra():
+    """Test that require_idrpred_cli() raises ImportError with install instructions.
+
+    The require_idrpred_cli() helper should check for the idrpred CLI tool
+    and raise an ImportError with helpful message about how to install it.
+
+    This test only runs when idrpred CLI is NOT available on PATH.
+    """
+    import shutil
+
+    # Check if idrpred CLI is available
+    if shutil.which("idrpred") is not None:
+        pytest.skip("Test only valid when idrpred CLI is not on PATH")
+
+    # Clear any previously imported modules
+    modules_to_clear = [
+        module
+        for module in list(sys.modules.keys())
+        if module.startswith("biotooler.families.disorder")
+    ]
+    for module in modules_to_clear:
+        del sys.modules[module]
+
+    # Import the integration module
+    from biotooler.families.disorder.integration import require_idrpred_cli
+
+    # Calling require_idrpred_cli() should raise ImportError
+    with pytest.raises(ImportError) as exc_info:
+        require_idrpred_cli()
+
+    # Check the error message contains the required information
+    error_message = str(exc_info.value)
+    assert "idrpred" in error_message.lower(), "Error message should mention idrpred"
+    assert 'pip install "biotooler[disorder-idrpred]"' in error_message, (
+        "Error message should include installation instructions with disorder-idrpred extra"
+    )
+    assert "PATH" in error_message, "Error message should mention PATH"
+
+
+def test_missing_idrpred_pkg_error_mentions_extra():
+    """Test that require_idrpred_pkg() raises ImportError with install instructions.
+
+    The require_idrpred_pkg() helper should check for the idrpred package
+    and raise an ImportError with helpful message about how to install it.
+
+    This test only runs when idrpred package is NOT installed.
+    """
+    # Check if idrpred package is available
+    try:
+        import idrpred  # noqa: F401
+
+        pytest.skip("Test only valid when idrpred package is not installed")
+    except ImportError:
+        pass
+
+    # Clear any previously imported modules
+    modules_to_clear = [
+        module
+        for module in list(sys.modules.keys())
+        if module.startswith("biotooler.families.disorder") or module.startswith("idrpred")
+    ]
+    for module in modules_to_clear:
+        del sys.modules[module]
+
+    # Import the integration module
+    from biotooler.families.disorder.integration import require_idrpred_pkg
+
+    # Calling require_idrpred_pkg() should raise ImportError
+    with pytest.raises(ImportError) as exc_info:
+        require_idrpred_pkg()
+
+    # Check the error message contains the required information
+    error_message = str(exc_info.value)
+    assert "idrpred" in error_message.lower(), "Error message should mention idrpred"
+    assert 'pip install "biotooler[disorder-idrpred]"' in error_message, (
+        "Error message should include installation instructions with disorder-idrpred extra"
     )
