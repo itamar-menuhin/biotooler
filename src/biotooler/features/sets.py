@@ -855,3 +855,255 @@ class FeatureSet:
             feature_data=feature_data,
             metadata_cols=["record_id", "region_start", "region_end"],
         )
+
+    def compute_global(
+        self,
+        record: SeqRecord,
+        *,
+        region: tuple[int, int] | None = None,
+        **kwargs,
+    ) -> pd.DataFrame:
+        """Compute features over the entire sequence or region and return with _GLOBAL suffix.
+
+        This method computes features once over the entire sequence (or specified region)
+        and returns a single-row DataFrame with all feature columns suffixed with _GLOBAL
+        instead of window indices.
+
+        This is a separate pipeline from windowing - it does not create sliding windows
+        but rather computes features over the full region once.
+
+        Output Format:
+        - Single row per record
+        - Metadata columns: record_id, region_start, region_end
+        - Feature columns with _GLOBAL suffix: {name}.{feature_key}_GLOBAL
+        - Column ordering is deterministic: metadata first, then features sorted by key
+
+        Args:
+            record: SeqRecord to analyze (DNA/RNA/protein)
+            region: Optional tuple (start, end) to restrict computation to a subsequence.
+                   If None, uses entire sequence (0, len(record.seq))
+            **kwargs: Additional keyword arguments (reserved for future use)
+
+        Returns:
+            Single-row DataFrame with global features
+
+        Examples:
+            >>> from Bio.Seq import Seq
+            >>> from Bio.SeqRecord import SeqRecord
+            >>> def compute_gc(rec):
+            ...     seq = str(rec.seq).upper()
+            ...     gc = seq.count('G') + seq.count('C')
+            ...     return {"gc_content": gc / len(seq) if seq else 0.0}
+            >>> fs = FeatureSet(compute_gc, name="gc")
+            >>> record = SeqRecord(Seq("ATGCGCATGC"), id="test")
+            >>> result = fs.compute_global(record)
+            >>> result.shape
+            (1, 4)
+            >>> 'gc.gc_content_GLOBAL' in result.columns
+            True
+        """
+        # Resolve region coordinates
+        seq_str = get_seq_str(record)
+        if region is None:
+            region_start = 0
+            region_end = len(seq_str)
+            region_record = record
+        else:
+            region_start, region_end = region
+            # Create a subrecord for the region
+            region_seq_str = seq_str[region_start:region_end]
+            region_record = SeqRecord(
+                Seq(region_seq_str),
+                id=record.id,
+                description=record.description,
+            )
+            # Copy annotations but exclude cache keys
+            for key, value in record.annotations.items():
+                if not key.startswith("_biotooler_"):
+                    region_record.annotations[key] = value
+
+        # Build feature data dictionary for single row
+        feature_data: dict[str, Any] = {
+            "record_id": record.id,
+            "region_start": region_start,
+            "region_end": region_end,
+        }
+
+        # Compute features once over the entire region
+        for _feat_name, feat_fn in self._features.items():
+            # Call feature function on the full region
+            features = feat_fn(region_record)
+            for key, value in features.items():
+                # Use _GLOBAL suffix instead of window index
+                col_name = f"{self.name}.{key}_GLOBAL"
+                feature_data[col_name] = value
+
+        # Format as wide DataFrame using shared helper
+        return self._format_wide_dataframe(
+            feature_data=feature_data,
+            metadata_cols=["record_id", "region_start", "region_end"],
+        )
+
+    def compute_orf_global_v2(
+        self,
+        record: SeqRecord,
+        *,
+        orf: OrfSpan | None = None,
+        orf_index: int | None = None,
+        **kwargs,
+    ) -> pd.DataFrame:
+        """Compute features over entire ORF using v2 semantics and return with _GLOBAL suffix.
+
+        This method computes features once over the entire ORF and returns a single-row
+        DataFrame with all feature columns suffixed with _GLOBAL instead of window indices.
+
+        This method uses v2 positional semantics:
+        - For positional features: computes per-position vectors once, then aggregates over
+          the full ORF length
+        - Works with features implementing the PositionalFeature protocol
+
+        This is analogous to compute_orf_windows_v2 but computes over the full ORF once
+        rather than creating sliding windows.
+
+        ORF Resolution Rules:
+        - If `orf` is provided: use it directly
+        - Else if `orf_index` is provided: find candidates and select that index
+        - Else: try to get attached ORF from record; if missing, raise clear error
+
+        Output Format:
+        - Single row per record
+        - Metadata columns: record_id, orf_start, orf_end
+        - Feature columns with _GLOBAL suffix: {name}.{feature_key}_GLOBAL
+        - Column ordering is deterministic: metadata first, then features sorted by key
+
+        Args:
+            record: DNA/RNA SeqRecord to analyze
+            orf: Optional explicit ORF coordinates (start, end)
+            orf_index: Optional index to select from ORF candidates
+            **kwargs: Additional keyword arguments (reserved for future use)
+
+        Returns:
+            Single-row DataFrame with global features
+
+        Raises:
+            ValueError: If protein sequence provided, or if neither orf, orf_index,
+                       nor attached ORF is available, or if feature does not implement
+                       PositionalFeature protocol
+            KeyError: If trying to use attached ORF but none exists
+
+        Examples:
+            >>> from Bio.Seq import Seq
+            >>> from Bio.SeqRecord import SeqRecord
+            >>> import numpy as np
+            >>> from biotooler.features.aggregation import AggregationSpec, PositionSpace
+            >>> class GCFeature:
+            ...     @property
+            ...     def position_space(self):
+            ...         return PositionSpace.RESIDUE
+            ...     @property
+            ...     def vector_keys(self):
+            ...         return {"gc": AggregationSpec(aggregation_fn=np.mean)}
+            ...     def compute_vector(self, record, **kwargs):
+            ...         seq = str(record.seq).upper()
+            ...         gc_vector = np.array([1.0 if b in 'GC' else 0.0 for b in seq])
+            ...         return {"gc": gc_vector}
+            >>> fs = FeatureSet(GCFeature(), name="gc_content")
+            >>> record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="test")
+            >>> result = fs.compute_orf_global_v2(record, orf=(0, 15))
+            >>> result.shape
+            (1, 4)
+            >>> 'gc_content.gc_GLOBAL' in result.columns
+            True
+        """
+        # Check for protein sequences early with clear error message
+        if "molecule_type" in record.annotations:
+            mol_type = record.annotations["molecule_type"]
+            if isinstance(mol_type, str) and mol_type.upper() == "PROTEIN":
+                raise ValueError(
+                    "ORF global computation is only supported for DNA/RNA sequences, "
+                    "not protein sequences"
+                )
+
+        # Resolve ORF coordinates (same logic as compute_orf_windows_v2)
+        resolved_orf: OrfSpan
+        if orf is not None:
+            resolved_orf = orf
+        elif orf_index is not None:
+            candidates = find_orf_candidates(record)
+            resolved_orf = select_orf_by_index(candidates, orf_index)
+        else:
+            try:
+                resolved_orf = get_orf(record)
+            except KeyError as e:
+                raise ValueError(
+                    f"No ORF information provided for record {record.id!r}. "
+                    "Please provide 'orf' parameter, 'orf_index' parameter, "
+                    "or attach an ORF using attach_orf()."
+                ) from e
+
+        # Build feature data dictionary for single row
+        feature_data: dict[str, Any] = {
+            "record_id": record.id,
+            "orf_start": resolved_orf[0],
+            "orf_end": resolved_orf[1],
+        }
+
+        # Extract ORF sequence
+        orf_start, orf_end = resolved_orf
+        seq_str = get_seq_str(record)
+        orf_seq_str = seq_str[orf_start:orf_end]
+
+        # Create ORF record for compute_vector
+        orf_record = SeqRecord(
+            Seq(orf_seq_str),
+            id=record.id,
+            description=record.description,
+        )
+        # Copy annotations but exclude cache keys
+        for key, value in record.annotations.items():
+            if not key.startswith("_biotooler_"):
+                orf_record.annotations[key] = value
+
+        # Process each feature
+        for _feat_name, feat_fn in self._features.items():
+            # Check if feature implements PositionalFeature protocol (duck-typing)
+            has_positional = (
+                hasattr(feat_fn, "position_space")
+                and hasattr(feat_fn, "vector_keys")
+                and hasattr(feat_fn, "compute_vector")
+            )
+
+            if not has_positional:
+                raise ValueError(
+                    "Feature does not implement PositionalFeature protocol. "
+                    "compute_orf_global_v2 requires features with position_space, "
+                    "vector_keys, and compute_vector."
+                )
+
+            # Get vector keys
+            vector_keys = feat_fn.vector_keys  # type: ignore[union-attr]
+
+            # Compute per-position vectors for the full ORF
+            vectors = feat_fn.compute_vector(orf_record)  # type: ignore[union-attr]
+
+            # Aggregate each vector key over the entire ORF
+            for key, agg_spec in vector_keys.items():
+                if key not in vectors:
+                    raise ValueError(
+                        f"Feature compute_vector did not return expected key '{key}'"
+                    )
+
+                vector = vectors[key]
+
+                # Apply aggregation function over the entire vector
+                aggregated_value = agg_spec.aggregation_fn(vector)
+
+                # Store with _GLOBAL suffix
+                col_name = f"{self.name}.{key}_GLOBAL"
+                feature_data[col_name] = aggregated_value
+
+        # Format as wide DataFrame using shared helper
+        return self._format_wide_dataframe(
+            feature_data=feature_data,
+            metadata_cols=["record_id", "orf_start", "orf_end"],
+        )
