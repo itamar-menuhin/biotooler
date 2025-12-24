@@ -116,6 +116,32 @@ class IDRPredDerivedScalars:
             "IDRPRED_NUM_IDR_SEGMENTS": num_idr_segments,
         }
 
+    def _find_run_transitions(self, mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Find start and end positions of contiguous runs of True values.
+
+        Args:
+            mask: Boolean numpy array
+
+        Returns:
+            Tuple of (starts, ends) where:
+            - starts: Array of 0-based indices where runs begin
+            - ends: Array of 0-based indices where runs end (exclusive)
+            Returns empty arrays if no True values are present.
+        """
+        if len(mask) == 0 or not np.any(mask):
+            return np.array([], dtype=int), np.array([], dtype=int)
+
+        # Prepend False and append False to handle edge cases
+        padded = np.concatenate(([False], mask, [False]))
+        # Find where transitions occur
+        diff = np.diff(padded.astype(int))
+        # Starts of runs: where diff == 1 (False -> True)
+        starts = np.where(diff == 1)[0]
+        # Ends of runs: where diff == -1 (True -> False)
+        ends = np.where(diff == -1)[0]
+
+        return starts, ends
+
     def _compute_longest_run(self, mask: np.ndarray) -> int:
         """Compute the length of the longest contiguous run of True values.
 
@@ -126,18 +152,9 @@ class IDRPredDerivedScalars:
             Length of longest contiguous run of True values. Returns 0 if
             no True values are present.
         """
-        if len(mask) == 0 or not np.any(mask):
+        starts, ends = self._find_run_transitions(mask)
+        if len(starts) == 0:
             return 0
-
-        # Find transitions: where mask changes from False to True or True to False
-        # Prepend False and append False to handle edge cases
-        padded = np.concatenate(([False], mask, [False]))
-        # Find where transitions occur
-        diff = np.diff(padded.astype(int))
-        # Starts of runs: where diff == 1 (False -> True)
-        starts = np.where(diff == 1)[0]
-        # Ends of runs: where diff == -1 (True -> False)
-        ends = np.where(diff == -1)[0]
 
         # Compute run lengths
         run_lengths = ends - starts
@@ -155,16 +172,7 @@ class IDRPredDerivedScalars:
             Number of contiguous segments of True values. Returns 0 if
             no True values are present.
         """
-        if len(mask) == 0 or not np.any(mask):
-            return 0
-
-        # Find transitions: where mask changes from False to True or True to False
-        # Prepend False and append False to handle edge cases
-        padded = np.concatenate(([False], mask, [False]))
-        # Find where transitions occur
-        diff = np.diff(padded.astype(int))
-        # Starts of runs: where diff == 1 (False -> True)
-        starts = np.where(diff == 1)[0]
+        starts, ends = self._find_run_transitions(mask)
 
         # Number of segments equals number of starts
         return int(len(starts))
