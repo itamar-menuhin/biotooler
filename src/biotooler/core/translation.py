@@ -170,9 +170,9 @@ def ensure_protein_record(
     # Use cds=False to not require start/stop codons
     try:
         translated = Seq(region_seq).translate(
-            table=table,
+            table=table,  # type: ignore[arg-type]
             to_stop=False,
-            cds=False,  # type: ignore[arg-type]
+            cds=False,
         )
     except Exception as e:
         raise ValueError(
