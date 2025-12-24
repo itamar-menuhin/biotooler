@@ -20,9 +20,7 @@ class TestFeatureSetOrfWindowsWideFormat:
         fs = FeatureSet(simple_feature, name="test")
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        result = fs.compute_orf_windows(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
 
         assert result.shape[0] == 1  # Single row (wide format)
         assert result.shape[1] > 3  # Has metadata + feature columns
@@ -36,9 +34,7 @@ class TestFeatureSetOrfWindowsWideFormat:
         fs = FeatureSet(count_a, name="count")
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        result = fs.compute_orf_windows(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
 
         # Should have columns like count.a_count_0, count.a_count_3, count.a_count_6
         assert "count.a_count_0" in result.columns
@@ -54,9 +50,7 @@ class TestFeatureSetOrfWindowsWideFormat:
         fs = FeatureSet(dummy_feature, name="test")
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="test_id")
 
-        result = fs.compute_orf_windows(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
 
         assert "record_id" in result.columns
         assert "orf_start" in result.columns
@@ -74,9 +68,7 @@ class TestFeatureSetOrfWindowsWideFormat:
         fs = FeatureSet(dummy_feature, name="test")
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        result = fs.compute_orf_windows(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
 
         cols = list(result.columns)
         # First three should be metadata
@@ -93,9 +85,7 @@ class TestFeatureSetOrfWindowsWideFormat:
         fs = FeatureSet(multi_feature, name="test")
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        result = fs.compute_orf_windows(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
 
         feature_cols = [c for c in result.columns if c.startswith("test.")]
 
@@ -118,9 +108,7 @@ class TestFeatureSetOrfWindowsWideFormat:
         # Windows: ATGAAACCC (1 G), AAACCCGGG (3 G), CCCGGGTTT (3 G)
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        result = fs.compute_orf_windows(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
 
         assert result["test.g_count_0"].iloc[0] == 1
         assert result["test.g_count_3"].iloc[0] == 3
@@ -135,9 +123,7 @@ class TestFeatureSetOrfWindowsWideFormat:
         fs = FeatureSet(dummy_feature, name="test")
         record = SeqRecord(Seq("NNNNATGAAACCCGGGTTTNNNN"), id="seq1")
 
-        result = fs.compute_orf_windows(
-            record, orf=(4, 19), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf=(4, 19), window_nt=9, step_nt=3)
 
         assert result["orf_start"].iloc[0] == 4
         assert result["orf_end"].iloc[0] == 19
@@ -153,9 +139,7 @@ class TestFeatureSetOrfWindowsWideFormat:
         record = SeqRecord(Seq("ATGAAATAGATGCCCTAGTAA"), id="seq1")
 
         # Select first ORF candidate (index 0)
-        result = fs.compute_orf_windows(
-            record, orf_index=0, window_nt=6, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf_index=0, window_nt=6, step_nt=3)
 
         # First candidate should be (0, 9)
         assert result["orf_start"].iloc[0] == 0
@@ -200,9 +184,7 @@ class TestFeatureSetOrfWindowsWideFormat:
         record = SeqRecord(Seq("MKLVLS"), id="protein1")
         record.annotations["molecule_type"] = "protein"
 
-        with pytest.raises(
-            ValueError, match="only supported for DNA/RNA sequences, not protein"
-        ):
+        with pytest.raises(ValueError, match="only supported for DNA/RNA sequences, not protein"):
             fs.compute_orf_windows(record, orf=(0, 6), window_nt=3, step_nt=3)
 
     def test_step_not_multiple_of_3_raises_error(self):
@@ -295,9 +277,7 @@ class TestFeatureSetOrfWindowsWideFormat:
         fs = FeatureSet(multi_features, name="test")
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        result = fs.compute_orf_windows(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
 
         # Should have 3 features × 3 windows = 9 feature columns
         feature_cols = [c for c in result.columns if c.startswith("test.")]
@@ -320,9 +300,7 @@ class TestFeatureSetOrfWindowsWideFormat:
         long_seq = "ATG" + "AAA" * 20  # 63 nt
         record = SeqRecord(Seq(long_seq), id="seq1")
 
-        result = fs.compute_orf_windows(
-            record, orf=(0, 63), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf=(0, 63), window_nt=9, step_nt=3)
 
         feature_cols = [c for c in result.columns if c.startswith("test.")]
 
@@ -343,9 +321,7 @@ class TestFeatureSetOrfWindowsWideFormat:
         fs = FeatureSet(dummy_feature, name="custom_name")
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        result = fs.compute_orf_windows(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
 
         feature_cols = [c for c in result.columns if c.startswith("custom_name.")]
         assert len(feature_cols) == 3
@@ -361,6 +337,7 @@ class ToyPositionalCodonFeature:
     def position_space(self):
         """Return CODON position space."""
         from biotooler.features.aggregation import PositionSpace
+
         return PositionSpace.CODON
 
     @property
@@ -369,11 +346,13 @@ class ToyPositionalCodonFeature:
         import numpy as np
 
         from biotooler.features.aggregation import AggregationSpec
+
         return {"codon_idx": AggregationSpec(aggregation_fn=np.mean)}
 
     def compute_vector(self, record, **kwargs):
         """Return array [0, 1, 2, ...] for each codon."""
         import numpy as np
+
         seq_len = len(record.seq)
         num_codons = seq_len // 3
         return {"codon_idx": np.arange(num_codons, dtype=float)}
@@ -404,9 +383,7 @@ def test_step_nt_does_not_subsample_codons():
     # 18 nt = 6 codons
     record = SeqRecord(Seq("ATGATGATGATGATGATG"), id="test")
 
-    result = fs.compute_orf_windows(
-        record, orf=(0, 18), window_nt=12, step_nt=6, drop_partial=True
-    )
+    result = fs.compute_orf_windows(record, orf=(0, 18), window_nt=12, step_nt=6, drop_partial=True)
 
     # Window 0: codons 0, 1, 2, 3 -> mean = (0+1+2+3)/4 = 1.5
     assert "test.codon_idx_0" in result.columns

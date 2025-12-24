@@ -107,7 +107,8 @@ Content
         """Test that References section without http link is detected."""
         with tempfile.TemporaryDirectory() as tmpdir:
             readme_path = Path(tmpdir) / "README.md"
-            content = """
+            content = (
+                """
 # Test Family
 
 ## What this family provides
@@ -134,11 +135,14 @@ Content
 ## Edge cases and validation
 Content
 
-""" + WINDOWING_SECTION_WITH_UPSTREAM + """
+"""
+                + WINDOWING_SECTION_WITH_UPSTREAM
+                + """
 
 ## Maintenance notes
 Content
 """
+            )
             readme_path.write_text(content)
             errors = check_readme(readme_path, "test_family")
             assert len(errors) == 1
@@ -149,7 +153,8 @@ Content
         """Test that Upstream library links without link or N/A is detected."""
         with tempfile.TemporaryDirectory() as tmpdir:
             readme_path = Path(tmpdir) / "README.md"
-            content = """
+            content = (
+                """
 # Test Family
 
 ## What this family provides
@@ -176,11 +181,14 @@ Content
 ## Edge cases and validation
 Content
 
-""" + WINDOWING_SECTION_NO_UPSTREAM + """
+"""
+                + WINDOWING_SECTION_NO_UPSTREAM
+                + """
 
 ## Maintenance notes
 Content
 """
+            )
             readme_path.write_text(content)
             errors = check_readme(readme_path, "test_family")
             assert len(errors) == 1
@@ -190,7 +198,8 @@ Content
         """Test that N/A in Upstream library links is accepted."""
         with tempfile.TemporaryDirectory() as tmpdir:
             readme_path = Path(tmpdir) / "README.md"
-            content = """
+            content = (
+                """
 # Test Family
 
 ## What this family provides
@@ -217,11 +226,14 @@ Content
 ## Edge cases and validation
 Content
 
-""" + WINDOWING_SECTION_NO_UPSTREAM + """
+"""
+                + WINDOWING_SECTION_NO_UPSTREAM
+                + """
 
 ## Maintenance notes
 Content
 """
+            )
             readme_path.write_text(content)
             errors = check_readme(readme_path, "test_family")
             assert len(errors) == 0
@@ -230,7 +242,8 @@ Content
         """Test that complete README passes validation."""
         with tempfile.TemporaryDirectory() as tmpdir:
             readme_path = Path(tmpdir) / "README.md"
-            content = """
+            content = (
+                """
 # Test Family
 
 ## What this family provides
@@ -257,11 +270,14 @@ Content
 ## Edge cases and validation
 Content
 
-""" + WINDOWING_SECTION_WITH_UPSTREAM + """
+"""
+                + WINDOWING_SECTION_WITH_UPSTREAM
+                + """
 
 ## Maintenance notes
 Content
 """
+            )
             readme_path.write_text(content)
             errors = check_readme(readme_path, "test_family")
             assert len(errors) == 0
@@ -270,7 +286,8 @@ Content
         """Test that heading substrings don't match (e.g., '## Examples_REMOVED')."""
         with tempfile.TemporaryDirectory() as tmpdir:
             readme_path = Path(tmpdir) / "README.md"
-            content = """
+            content = (
+                """
 # Test Family
 
 ## What this family provides
@@ -297,11 +314,14 @@ Content
 ## Edge cases and validation
 Content
 
-""" + WINDOWING_SECTION_WITH_UPSTREAM + """
+"""
+                + WINDOWING_SECTION_WITH_UPSTREAM
+                + """
 
 ## Maintenance notes
 Content
 """
+            )
             readme_path.write_text(content)
             errors = check_readme(readme_path, "test_family")
             # Should detect missing "## Examples" even though "## Examples_REMOVED" exists
@@ -312,7 +332,8 @@ Content
         """Test that N/A detection uses word boundaries (e.g., 'BANANA' should not match)."""
         with tempfile.TemporaryDirectory() as tmpdir:
             readme_path = Path(tmpdir) / "README.md"
-            content = """
+            content = (
+                """
 # Test Family
 
 ## What this family provides
@@ -339,11 +360,14 @@ Content
 ## Edge cases and validation
 Content
 
-""" + WINDOWING_SECTION_NO_UPSTREAM + """
+"""
+                + WINDOWING_SECTION_NO_UPSTREAM
+                + """
 
 ## Maintenance notes
 Content
 """
+            )
             readme_path.write_text(content)
             errors = check_readme(readme_path, "test_family")
             # Should fail because 'BANANA' contains 'NA' but not as a word

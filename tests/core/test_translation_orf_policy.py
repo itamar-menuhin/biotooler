@@ -68,9 +68,7 @@ class TestOrfPolicyLongestOrf:
         dna = SeqRecord(Seq(seq), id="test")
         dna.annotations["molecule_type"] = "DNA"
 
-        result = ensure_protein_record(
-            dna, orf_policy="longest_orf", on_internal_stop="ignore"
-        )
+        result = ensure_protein_record(dna, orf_policy="longest_orf", on_internal_stop="ignore")
 
         # Should select the longest ORF: (0, 21)
         assert result.annotations["translation_region"] == (0, 21)
@@ -85,9 +83,7 @@ class TestOrfPolicyLongestOrf:
         dna = SeqRecord(Seq(seq), id="test")
         dna.annotations["molecule_type"] = "DNA"
 
-        result = ensure_protein_record(
-            dna, orf_policy="longest_orf", on_internal_stop="ignore"
-        )
+        result = ensure_protein_record(dna, orf_policy="longest_orf", on_internal_stop="ignore")
 
         assert result.annotations["translation_region"] == (0, 21)
         assert result.annotations["translation_region_source"] == "longest_orf"
@@ -119,9 +115,7 @@ class TestOrfPolicyLongestOrf:
         rna = SeqRecord(Seq(seq), id="test")
         rna.annotations["molecule_type"] = "RNA"
 
-        result = ensure_protein_record(
-            rna, orf_policy="longest_orf", on_internal_stop="ignore"
-        )
+        result = ensure_protein_record(rna, orf_policy="longest_orf", on_internal_stop="ignore")
 
         assert result.annotations["translation_region"] == (0, 18)
         assert result.annotations["translation_region_source"] == "longest_orf"
@@ -141,9 +135,7 @@ class TestOrfPolicyTieBreaking:
         dna = SeqRecord(Seq(seq), id="test")
         dna.annotations["molecule_type"] = "DNA"
 
-        result = ensure_protein_record(
-            dna, orf_policy="longest_orf", on_internal_stop="ignore"
-        )
+        result = ensure_protein_record(dna, orf_policy="longest_orf", on_internal_stop="ignore")
 
         # Should select earliest start when lengths are equal
         assert result.annotations["translation_region"] == (0, 9)
@@ -163,9 +155,7 @@ class TestOrfPolicyTieBreaking:
         dna = SeqRecord(Seq(seq), id="test")
         dna.annotations["molecule_type"] = "DNA"
 
-        result = ensure_protein_record(
-            dna, orf_policy="longest_orf", on_internal_stop="ignore"
-        )
+        result = ensure_protein_record(dna, orf_policy="longest_orf", on_internal_stop="ignore")
 
         # Should select the longest, which is (0, 21)
         assert result.annotations["translation_region"] == (0, 21)
@@ -183,9 +173,7 @@ class TestOrfPolicyTieBreaking:
         dna = SeqRecord(Seq(seq), id="test")
         dna.annotations["molecule_type"] = "DNA"
 
-        result = ensure_protein_record(
-            dna, orf_policy="longest_orf", on_internal_stop="ignore"
-        )
+        result = ensure_protein_record(dna, orf_policy="longest_orf", on_internal_stop="ignore")
 
         # Should select the longest ORF: (0, 42)
         assert result.annotations["translation_region"] == (0, 42)
@@ -203,9 +191,7 @@ class TestOrfPolicyTieBreaking:
         dna = SeqRecord(Seq(seq), id="test")
         dna.annotations["molecule_type"] = "DNA"
 
-        result = ensure_protein_record(
-            dna, orf_policy="longest_orf", on_internal_stop="ignore"
-        )
+        result = ensure_protein_record(dna, orf_policy="longest_orf", on_internal_stop="ignore")
 
         # Should select the longest: (0, 12)
         assert result.annotations["translation_region"] == (0, 12)
@@ -372,14 +358,10 @@ class TestOrfPolicyRealWorldScenarios:
         dna = SeqRecord(Seq(seq), id="test")
         dna.annotations["molecule_type"] = "DNA"
 
-        result1 = ensure_protein_record(
-            dna, orf_policy="longest_orf", on_internal_stop="ignore"
-        )
-        result2 = ensure_protein_record(
-            dna, orf_policy="longest_orf", on_internal_stop="ignore"
-        )
+        result1 = ensure_protein_record(dna, orf_policy="longest_orf", on_internal_stop="ignore")
+        result2 = ensure_protein_record(dna, orf_policy="longest_orf", on_internal_stop="ignore")
 
-        assert result1.annotations["translation_region"] == result2.annotations[
-            "translation_region"
-        ]
+        assert (
+            result1.annotations["translation_region"] == result2.annotations["translation_region"]
+        )
         assert str(result1.seq) == str(result2.seq)

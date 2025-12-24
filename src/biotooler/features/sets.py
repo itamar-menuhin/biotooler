@@ -46,8 +46,7 @@ class FeatureSet:
     def __init__(
         self,
         features: (
-            Callable[[SeqRecord], FeatureOutput]
-            | dict[str, Callable[[SeqRecord], FeatureOutput]]
+            Callable[[SeqRecord], FeatureOutput] | dict[str, Callable[[SeqRecord], FeatureOutput]]
         ),
         *,
         name: str = "features",
@@ -175,28 +174,28 @@ class FeatureSet:
         feature_cols = [c for c in df.columns if c not in metadata_cols]
 
         # Sort with error handling for malformed column names
-        def sort_key(col: str) -> tuple[str, int]:
+        def sort_key(col: str) -> tuple[str, float]:
             """Sort key for feature columns.
-            
+
             Handles both numeric suffixes (e.g., FAMILY_KEY_0) and GLOBAL suffix.
             GLOBAL is treated as a large number to sort after all numeric windows.
             """
             parts = col.rsplit("_", 1)
             if len(parts) != 2:
                 # No underscore found - sort by column name only
-                return (col, 0)
-            
+                return (col, 0.0)
+
             # Check if last part is GLOBAL
             if parts[1] == "GLOBAL":
                 # GLOBAL sorts after all numeric windows
-                return (parts[0], float('inf'))
-            
+                return (parts[0], float("inf"))
+
             # Try to parse as numeric window position
             try:
-                return (parts[0], int(parts[1]))
+                return (parts[0], float(parts[1]))
             except ValueError:
                 # Can't parse as int - sort by full name
-                return (col, 0)
+                return (col, 0.0)
 
         feature_cols.sort(key=sort_key)
 
@@ -362,9 +361,9 @@ class FeatureSet:
                         # without get_vector). For features like CodonBiasFeature,
                         # check if names/outputs match vector_keys
                         is_mixed = False
-                        if has_incremental and hasattr(feat_fn, 'names'):
+                        if has_incremental and hasattr(feat_fn, "names"):
                             # CodonBiasFeature case: check if all model names are in vector_keys
-                            names = getattr(feat_fn, 'names', [])
+                            names = getattr(feat_fn, "names", [])
                             if names and set(names) != set(vector_keys.keys()):
                                 is_mixed = True
 
@@ -424,9 +423,7 @@ class FeatureSet:
 
                 # Generate window boundaries using the shared indexing helper
                 # Map PositionSpace enum to string for the helper function
-                position_space_str = (
-                    "codon" if position_space == PositionSpace.CODON else "residue"
-                )
+                position_space_str = "codon" if position_space == PositionSpace.CODON else "residue"
 
                 # Get window boundaries in nucleotide space
                 window_boundaries = compute_window_indices(
@@ -664,9 +661,7 @@ class FeatureSet:
 
             # Generate window boundaries using the shared indexing helper
             # Map PositionSpace enum to string for the helper function
-            position_space_str = (
-                "codon" if position_space == PositionSpace.CODON else "residue"
-            )
+            position_space_str = "codon" if position_space == PositionSpace.CODON else "residue"
 
             # Get window boundaries in nucleotide space
             window_boundaries = compute_window_indices(
@@ -739,7 +734,6 @@ class FeatureSet:
                     # Store with column name format: {FAMILY}_{key}_{AGG}_{window_start_nt}
                     col_name = f"{self.name.upper()}_{key}_{agg_spec.name}_{window_start_nt}"
                     feature_data[col_name] = aggregated_value
-
 
         # Format as wide DataFrame using shared helper
         return self._format_wide_dataframe(

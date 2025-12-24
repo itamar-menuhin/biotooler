@@ -175,9 +175,7 @@ class TestCodonBiasValidation:
         protein_record = SeqRecord(Seq("MKALVSWGR"), id="protein")
         protein_record.annotations["molecule_type"] = "protein"
 
-        with pytest.raises(
-            ValueError, match="Codon bias features apply only to DNA/RNA sequences"
-        ):
+        with pytest.raises(ValueError, match="Codon bias features apply only to DNA/RNA sequences"):
             feature(protein_record)
 
     def test_rna_u_to_t_conversion(self):
@@ -401,9 +399,7 @@ class TestCodonBiasFromReference:
         """Test resolving score abbreviations."""
         from biotooler.core.reference_sequences import ReferenceSequenceSet
 
-        ref_set = ReferenceSequenceSet(
-            cds={"gene1": "ATGATGATGATGATGATGATG"}
-        )
+        ref_set = ReferenceSequenceSet(cds={"gene1": "ATGATGATGATGATGATGATG"})
 
         # Use various abbreviations
         feature = CodonBiasFeature.from_reference(ref_set, ["CAI", "ENC", "FOP"])
@@ -418,9 +414,7 @@ class TestCodonBiasFromReference:
         """Test resolving full class names."""
         from biotooler.core.reference_sequences import ReferenceSequenceSet
 
-        ref_set = ReferenceSequenceSet(
-            cds={"gene1": "ATGATGATGATGATGATGATG"}
-        )
+        ref_set = ReferenceSequenceSet(cds={"gene1": "ATGATGATGATGATGATGATG"})
 
         # Use full class names
         feature = CodonBiasFeature.from_reference(
@@ -437,9 +431,7 @@ class TestCodonBiasFromReference:
         """Test resolving class objects."""
         from biotooler.core.reference_sequences import ReferenceSequenceSet
 
-        ref_set = ReferenceSequenceSet(
-            cds={"gene1": "ATGATGATGATGATGATGATG"}
-        )
+        ref_set = ReferenceSequenceSet(cds={"gene1": "ATGATGATGATGATGATGATG"})
 
         # Use class objects
         feature = CodonBiasFeature.from_reference(
@@ -458,9 +450,7 @@ class TestCodonBiasFromReference:
         """Test providing custom names."""
         from biotooler.core.reference_sequences import ReferenceSequenceSet
 
-        ref_set = ReferenceSequenceSet(
-            cds={"gene1": "ATGATGATGATGATGATGATG"}
-        )
+        ref_set = ReferenceSequenceSet(cds={"gene1": "ATGATGATGATGATGATGATG"})
 
         # Provide custom names
         feature = CodonBiasFeature.from_reference(
@@ -474,9 +464,7 @@ class TestCodonBiasFromReference:
         """Test passing kwargs to score constructors."""
         from biotooler.core.reference_sequences import ReferenceSequenceSet
 
-        ref_set = ReferenceSequenceSet(
-            cds={"gene1": "ATGATGATGATGATGATGATG"}
-        )
+        ref_set = ReferenceSequenceSet(cds={"gene1": "ATGATGATGATGATGATGATG"})
 
         # Pass kwargs for CAI
         feature = CodonBiasFeature.from_reference(
@@ -506,9 +494,7 @@ class TestCodonBiasFromReference:
         """Test that invalid score identifier raises clear error."""
         from biotooler.core.reference_sequences import ReferenceSequenceSet
 
-        ref_set = ReferenceSequenceSet(
-            cds={"gene1": "ATGATGATGATGATGATGATG"}
-        )
+        ref_set = ReferenceSequenceSet(cds={"gene1": "ATGATGATGATGATGATGATG"})
 
         # Use invalid identifier
         with pytest.raises(ValueError, match="Cannot resolve score identifier"):
@@ -518,9 +504,7 @@ class TestCodonBiasFromReference:
         """Test that ENC works without ref_seq (doesn't require reference)."""
         from biotooler.core.reference_sequences import ReferenceSequenceSet
 
-        ref_set = ReferenceSequenceSet(
-            cds={"gene1": "ATGATGATGATGATGATGATG"}
-        )
+        ref_set = ReferenceSequenceSet(cds={"gene1": "ATGATGATGATGATGATGATG"})
 
         # ENC doesn't require ref_seq
         feature = CodonBiasFeature.from_reference(ref_set, ["ENC"])
@@ -537,9 +521,7 @@ class TestCodonBiasFromReference:
         """Test mixing abbreviations, class names, and class objects."""
         from biotooler.core.reference_sequences import ReferenceSequenceSet
 
-        ref_set = ReferenceSequenceSet(
-            cds={"gene1": "ATGATGATGATGATGATGATG"}
-        )
+        ref_set = ReferenceSequenceSet(cds={"gene1": "ATGATGATGATGATGATGATG"})
 
         # Mix different score identifier types
         feature = CodonBiasFeature.from_reference(

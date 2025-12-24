@@ -236,7 +236,12 @@ class TestCodonBiasStepSizeTests:
         result = fs.compute_orf_windows_v2(record, orf=(0, 30), window_nt=12, step_nt=6)
 
         # Should have windows at positions: 0, 6, 12, 18
-        expected_windows = ["CB_CAI_GEOMEAN_0", "CB_CAI_GEOMEAN_6", "CB_CAI_GEOMEAN_12", "CB_CAI_GEOMEAN_18"]
+        expected_windows = [
+            "CB_CAI_GEOMEAN_0",
+            "CB_CAI_GEOMEAN_6",
+            "CB_CAI_GEOMEAN_12",
+            "CB_CAI_GEOMEAN_18",
+        ]
         for col in expected_windows:
             assert col in result.columns, f"Missing expected column: {col}"
 
@@ -305,15 +310,11 @@ class TestCodonBiasStepSizeTests:
         record = SeqRecord(Seq(test_seq), id="test")
 
         # Test with step_nt=3 (lots of windows)
-        result_step3 = fs.compute_orf_windows_v2(
-            record, orf=(0, 30), window_nt=9, step_nt=3
-        )
+        result_step3 = fs.compute_orf_windows_v2(record, orf=(0, 30), window_nt=9, step_nt=3)
         cai_cols_step3 = [c for c in result_step3.columns if c.startswith("CB_CAI_GEOMEAN_")]
 
         # Test with step_nt=9 (fewer windows)
-        result_step9 = fs.compute_orf_windows_v2(
-            record, orf=(0, 30), window_nt=9, step_nt=9
-        )
+        result_step9 = fs.compute_orf_windows_v2(record, orf=(0, 30), window_nt=9, step_nt=9)
         cai_cols_step9 = [c for c in result_step9.columns if c.startswith("CB_CAI_GEOMEAN_")]
 
         # step=3 should have more windows than step=9

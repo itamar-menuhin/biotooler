@@ -127,9 +127,7 @@ def test_codon_bias_get_features_works():
     )
 
     # Now codonbias SHOULD be imported (because get_features() loaded it)
-    assert "codonbias" in sys.modules, (
-        "codonbias should be imported after calling get_features()"
-    )
+    assert "codonbias" in sys.modules, "codonbias should be imported after calling get_features()"
 
 
 def test_codon_bias_get_features_import_error_with_hint():
@@ -192,8 +190,7 @@ def test_codon_bias_get_features_import_error_with_hint():
                 # Check that the error message includes installation hint
                 error_message = str(e)
                 assert (
-                    "codon_bias" in error_message.lower()
-                    or "codonbias" in error_message.lower()
+                    "codon_bias" in error_message.lower() or "codonbias" in error_message.lower()
                 ), f"Error message should mention codon_bias or codonbias: {error_message}"
                 # The lazy_import utility should provide a helpful message
                 # We just verify that ImportError was raised

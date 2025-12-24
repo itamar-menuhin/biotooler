@@ -16,9 +16,7 @@ class TestIterOrfCodonWindows:
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
         # Window size 9nt (3 codons), step 3nt (1 codon)
-        windows = list(
-            iter_orf_codon_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
-        )
+        windows = list(iter_orf_codon_windows(record, orf=(0, 15), window_nt=9, step_nt=3))
 
         # Should get windows at positions 0, 3, 6
         assert len(windows) == 3
@@ -30,9 +28,7 @@ class TestIterOrfCodonWindows:
         """Test that window_start is relative to ORF start."""
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        windows = list(
-            iter_orf_codon_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
-        )
+        windows = list(iter_orf_codon_windows(record, orf=(0, 15), window_nt=9, step_nt=3))
 
         assert windows[0].annotations["window_start"] == 0
         assert windows[1].annotations["window_start"] == 3
@@ -42,9 +38,7 @@ class TestIterOrfCodonWindows:
         """Test that window_end is relative to ORF start."""
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        windows = list(
-            iter_orf_codon_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
-        )
+        windows = list(iter_orf_codon_windows(record, orf=(0, 15), window_nt=9, step_nt=3))
 
         assert windows[0].annotations["window_end"] == 9
         assert windows[1].annotations["window_end"] == 12
@@ -54,9 +48,7 @@ class TestIterOrfCodonWindows:
         """Test that window_index starts at 0 and increments."""
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        windows = list(
-            iter_orf_codon_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
-        )
+        windows = list(iter_orf_codon_windows(record, orf=(0, 15), window_nt=9, step_nt=3))
 
         assert windows[0].annotations["window_index"] == 0
         assert windows[1].annotations["window_index"] == 1
@@ -66,9 +58,7 @@ class TestIterOrfCodonWindows:
         """Test that ORF coordinates are included in window annotations."""
         record = SeqRecord(Seq("NNNNATGAAACCCGGGTTTNNNN"), id="seq1")
 
-        windows = list(
-            iter_orf_codon_windows(record, orf=(4, 19), window_nt=9, step_nt=3)
-        )
+        windows = list(iter_orf_codon_windows(record, orf=(4, 19), window_nt=9, step_nt=3))
 
         for window in windows:
             assert window.annotations["orf_start"] == 4
@@ -78,9 +68,7 @@ class TestIterOrfCodonWindows:
         """Test absolute positions when ORF doesn't start at 0."""
         record = SeqRecord(Seq("NNNNATGAAACCCGGGTTTNNNN"), id="seq1")
 
-        windows = list(
-            iter_orf_codon_windows(record, orf=(4, 19), window_nt=9, step_nt=3)
-        )
+        windows = list(iter_orf_codon_windows(record, orf=(4, 19), window_nt=9, step_nt=3))
 
         # Window 0: starts at 4+0=4, ends at 4+9=13
         assert windows[0].annotations["start"] == 4
@@ -109,9 +97,7 @@ class TestIterOrfCodonWindows:
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
         # Should work without error
-        windows = list(
-            iter_orf_codon_windows(record, orf=(0, 15), window_nt=9, step_nt=6)
-        )
+        windows = list(iter_orf_codon_windows(record, orf=(0, 15), window_nt=9, step_nt=6))
         assert len(windows) == 2
         assert windows[0].annotations["window_start"] == 0
         assert windows[1].annotations["window_start"] == 6
@@ -122,9 +108,7 @@ class TestIterOrfCodonWindows:
         record = SeqRecord(Seq("ATGAAACCCGGGTT"), id="seq1")
 
         windows = list(
-            iter_orf_codon_windows(
-                record, orf=(0, 14), window_nt=9, step_nt=3, drop_partial=True
-            )
+            iter_orf_codon_windows(record, orf=(0, 14), window_nt=9, step_nt=3, drop_partial=True)
         )
 
         # Should only get windows at 0 and 3 (full size)
@@ -137,9 +121,7 @@ class TestIterOrfCodonWindows:
         record = SeqRecord(Seq("ATGAAACCCGGGTT"), id="seq1")
 
         windows = list(
-            iter_orf_codon_windows(
-                record, orf=(0, 14), window_nt=9, step_nt=3, drop_partial=False
-            )
+            iter_orf_codon_windows(record, orf=(0, 14), window_nt=9, step_nt=3, drop_partial=False)
         )
 
         # Should get windows at 0, 3, 6, 9, 12
@@ -156,9 +138,7 @@ class TestIterOrfCodonWindows:
 
         # Window size 12 > ORF size 6
         windows = list(
-            iter_orf_codon_windows(
-                record, orf=(0, 6), window_nt=12, step_nt=3, drop_partial=True
-            )
+            iter_orf_codon_windows(record, orf=(0, 6), window_nt=12, step_nt=3, drop_partial=True)
         )
 
         # No full windows fit
@@ -169,9 +149,7 @@ class TestIterOrfCodonWindows:
         record = SeqRecord(Seq("ATGAAA"), id="seq1")
 
         windows = list(
-            iter_orf_codon_windows(
-                record, orf=(0, 6), window_nt=12, step_nt=3, drop_partial=False
-            )
+            iter_orf_codon_windows(record, orf=(0, 6), window_nt=12, step_nt=3, drop_partial=False)
         )
 
         # With step=3, we get windows at 0 and 3 (both partial)
@@ -185,9 +163,7 @@ class TestIterOrfCodonWindows:
         record.annotations["molecule_type"] = "DNA"
         record.annotations["custom"] = "value"
 
-        windows = list(
-            iter_orf_codon_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
-        )
+        windows = list(iter_orf_codon_windows(record, orf=(0, 15), window_nt=9, step_nt=3))
 
         for window in windows:
             assert window.annotations["molecule_type"] == "DNA"
@@ -197,9 +173,7 @@ class TestIterOrfCodonWindows:
         """Test window ID format includes window_index."""
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="test_seq")
 
-        windows = list(
-            iter_orf_codon_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
-        )
+        windows = list(iter_orf_codon_windows(record, orf=(0, 15), window_nt=9, step_nt=3))
 
         assert windows[0].id == "test_seq_orf_window_0"
         assert windows[1].id == "test_seq_orf_window_1"
@@ -209,9 +183,7 @@ class TestIterOrfCodonWindows:
         """Test behavior with empty ORF."""
         record = SeqRecord(Seq("ATGAAACCC"), id="seq1")
 
-        windows = list(
-            iter_orf_codon_windows(record, orf=(3, 3), window_nt=9, step_nt=3)
-        )
+        windows = list(iter_orf_codon_windows(record, orf=(3, 3), window_nt=9, step_nt=3))
 
         assert len(windows) == 0
 
@@ -220,9 +192,7 @@ class TestIterOrfCodonWindows:
         record = SeqRecord(Seq("ATGNNNNNN"), id="seq1")
 
         # Window size 3, step 3
-        windows = list(
-            iter_orf_codon_windows(record, orf=(0, 3), window_nt=3, step_nt=3)
-        )
+        windows = list(iter_orf_codon_windows(record, orf=(0, 3), window_nt=3, step_nt=3))
 
         assert len(windows) == 1
         assert str(windows[0].seq) == "ATG"

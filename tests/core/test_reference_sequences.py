@@ -190,9 +190,7 @@ class TestFromCsv:
             csv_path = f.name
 
         try:
-            ref_set = ReferenceSequenceSet.from_csv(
-                csv_path, "id", "cds", protein_column="protein"
-            )
+            ref_set = ReferenceSequenceSet.from_csv(csv_path, "id", "cds", protein_column="protein")
             assert ref_set.cds["seq1"] == "ATGAAATAA"
             assert ref_set.proteins is not None
             assert ref_set.proteins["seq1"] == "MK*"
@@ -292,9 +290,7 @@ class TestFromCsv:
             csv_path = f.name
 
         try:
-            with pytest.raises(
-                ValueError, match="Protein sequence is missing for ID 'seq2'"
-            ):
+            with pytest.raises(ValueError, match="Protein sequence is missing for ID 'seq2'"):
                 ReferenceSequenceSet.from_csv(csv_path, "id", "sequence", "protein")
         finally:
             Path(csv_path).unlink()

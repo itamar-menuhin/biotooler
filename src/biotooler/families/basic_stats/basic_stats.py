@@ -345,9 +345,13 @@ class BasicStatsFeature:
 
         for char in common_chars:
             # Count: sum of binary indicators
-            vector_keys[f"count_{char.lower()}"] = AggregationSpec(name="SUM", aggregation_fn=np.sum)
+            vector_keys[f"count_{char.lower()}"] = AggregationSpec(
+                name="SUM", aggregation_fn=np.sum
+            )
             # Fraction: mean of binary indicators
-            vector_keys[f"fraction_{char.lower()}"] = AggregationSpec(name="MEAN", aggregation_fn=np.mean)
+            vector_keys[f"fraction_{char.lower()}"] = AggregationSpec(
+                name="MEAN", aggregation_fn=np.mean
+            )
 
         # GC fraction (for DNA/RNA)
         vector_keys["gc_fraction"] = AggregationSpec(name="MEAN", aggregation_fn=np.mean)
@@ -357,9 +361,7 @@ class BasicStatsFeature:
 
         return vector_keys
 
-    def compute_vector(
-        self, record: SeqRecord, **kwargs
-    ) -> dict[str, np.ndarray]:
+    def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
         """Compute per-position feature values for the entire sequence.
 
         This method computes binary indicators for each character at each position,
@@ -404,8 +406,7 @@ class BasicStatsFeature:
             vectors[f"fraction_{char.lower()}"] = indicator
 
         # Add GC indicator (always include, will be 0 for protein)
-        gc_indicator = np.array([1.0 if seq_str[i] in "GC" else 0.0
-                                for i in position_indices])
+        gc_indicator = np.array([1.0 if seq_str[i] in "GC" else 0.0 for i in position_indices])
         vectors["gc_fraction"] = gc_indicator
 
         # Add length vector (all 1s)

@@ -165,9 +165,7 @@ class ReferenceSequenceSet:
             seq_id = str(row[id_column])
             cds_value = row[cds_column]
             if pd.isna(cds_value):  # type: ignore[arg-type]
-                raise ValueError(
-                    f"CDS sequence is missing for ID '{seq_id}' at row {row_num}"
-                )
+                raise ValueError(f"CDS sequence is missing for ID '{seq_id}' at row {row_num}")
             if seq_id in cds_dict:
                 raise ValueError(f"Duplicate sequence ID in CSV: {seq_id}")
             cds_dict[seq_id] = str(cds_value)
@@ -387,9 +385,7 @@ class ReferenceSequenceSet:
             ValueError: If protein validation fails (internal stop codons)
         """
         if kind not in ("cds", "protein", "both"):
-            raise ValueError(
-                f"Invalid kind '{kind}'. Must be one of: 'cds', 'protein', 'both'"
-            )
+            raise ValueError(f"Invalid kind '{kind}'. Must be one of: 'cds', 'protein', 'both'")
 
         # Validate CDS sequences
         if kind in ("cds", "both"):

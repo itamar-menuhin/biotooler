@@ -152,9 +152,7 @@ def ensure_protein_record(
         # Find ORF candidates and select the longest one
         candidates = find_orf_candidates(record)
         if candidates:
-            longest_orf = max(
-                candidates, key=lambda span: (span[1] - span[0], -span[0], -span[1])
-            )
+            longest_orf = max(candidates, key=lambda span: (span[1] - span[0], -span[0], -span[1]))
             region_start, region_end = longest_orf
             region_source = "longest_orf"
         # else: no candidates, keep frame0 default
@@ -172,7 +170,9 @@ def ensure_protein_record(
     # Use cds=False to not require start/stop codons
     try:
         translated = Seq(region_seq).translate(
-            table=table, to_stop=False, cds=False  # type: ignore[arg-type]
+            table=table,
+            to_stop=False,
+            cds=False,  # type: ignore[arg-type]
         )
     except Exception as e:
         raise ValueError(

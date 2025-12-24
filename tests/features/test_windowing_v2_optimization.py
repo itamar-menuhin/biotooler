@@ -29,9 +29,7 @@ class CallCountingCodonFeature:
             "codon_idx": AggregationSpec(aggregation_fn=np.mean),
         }
 
-    def compute_vector(
-        self, record: SeqRecord, **kwargs
-    ) -> dict[str, np.ndarray]:
+    def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
         """Compute per-codon indices, tracking calls and positions parameter."""
         self.compute_vector_call_count += 1
         self.last_positions_arg = kwargs.get("positions", None)

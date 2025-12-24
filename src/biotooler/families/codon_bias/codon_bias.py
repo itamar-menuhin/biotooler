@@ -145,9 +145,7 @@ class CodonBiasFeature:
 
         return vector_keys
 
-    def compute_vector(
-        self, record: SeqRecord, **kwargs
-    ) -> dict[str, np.ndarray]:
+    def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
         """Compute per-codon feature values for the entire sequence.
 
         This method uses the codonbias score's get_vector() method to compute
@@ -304,8 +302,11 @@ class CodonBiasFeature:
                     # 1. Original score_id (as provided by user)
                     # 2. Class name (e.g., "CodonAdaptationIndex")
                     # 3. Abbreviation (e.g., "CAI")
-                    for key in [score_id, score_class.__name__,
-                               _get_score_abbreviation(score_class.__name__)]:
+                    for key in [
+                        score_id,
+                        score_class.__name__,
+                        _get_score_abbreviation(score_class.__name__),
+                    ]:
                         if isinstance(key, str) and key in score_kwargs:
                             kwargs = score_kwargs[key].copy()
                             break
@@ -322,9 +323,7 @@ class CodonBiasFeature:
                     models.append(model)
                     resolved_names.append(score_class.__name__)
                 except TypeError as e:
-                    raise TypeError(
-                        f"Failed to instantiate {score_class.__name__}: {e}"
-                    ) from e
+                    raise TypeError(f"Failed to instantiate {score_class.__name__}: {e}") from e
 
             # Cache the built models with FIFO eviction
             # Evict oldest if cache would exceed max size
@@ -502,9 +501,7 @@ class CodonBiasFeature:
         abs_start = orf_start + window_start
         abs_end = orf_start + window_end
 
-        for name, model, weights_info in zip(
-            self.names, self.models, model_data, strict=True
-        ):
+        for name, model, weights_info in zip(self.names, self.models, model_data, strict=True):
             # Try incremental computation first if weights are available
             score = None
             if weights_info["has_weights"]:

@@ -75,9 +75,7 @@ def test_calc_cars_codon_mode_returns_vector_with_return_vec():
     suffix_array = build_suffix_array(ref_codons)
 
     # Call calc_cARS with return_vec=True
-    result = calc_cARS(
-        target_codons[0], suffix_array, max_len=40, max_pos=0.5, return_vec=True
-    )
+    result = calc_cARS(target_codons[0], suffix_array, max_len=40, max_pos=0.5, return_vec=True)
 
     # Assert it returns an array-like object
     assert hasattr(result, "__len__"), "Expected array-like object with return_vec=True"
@@ -86,8 +84,7 @@ def test_calc_cars_codon_mode_returns_vector_with_return_vec():
     # Assert length matches codon count (9 nt / 3 = 3 codons)
     expected_codon_count = len(target_nt) // 3
     assert len(result) == expected_codon_count, (
-        f"Expected vector length {expected_codon_count} (codon count), "
-        f"got {len(result)}"
+        f"Expected vector length {expected_codon_count} (codon count), got {len(result)}"
     )
 
 
@@ -179,8 +176,7 @@ def test_calc_cars_codon_mode_with_win_params_and_return_vec():
     # Assert length matches codon count
     expected_codon_count = len(target_nt) // 3
     assert len(result) == expected_codon_count, (
-        f"Expected vector length {expected_codon_count} (codon count), "
-        f"got {len(result)}"
+        f"Expected vector length {expected_codon_count} (codon count), got {len(result)}"
     )
 
 
@@ -242,8 +238,7 @@ def test_calc_cars_nt_mode_with_return_vec():
     # Assert length matches nucleotide count
     expected_nt_count = len(target_nt)
     assert len(result) == expected_nt_count, (
-        f"Expected vector length {expected_nt_count} (nucleotide count), "
-        f"got {len(result)}"
+        f"Expected vector length {expected_nt_count} (nucleotide count), got {len(result)}"
     )
 
 

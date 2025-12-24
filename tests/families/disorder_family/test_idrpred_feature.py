@@ -78,8 +78,7 @@ class TestIDRPredConsensusMaskBasic:
             result = feature.compute_vector(record)
 
             assert len(result["IDRPRED_IDR"]) == len(seq), (
-                f"Expected IDRPRED_IDR vector length {len(seq)}, "
-                f"got {len(result['IDRPRED_IDR'])}"
+                f"Expected IDRPRED_IDR vector length {len(seq)}, got {len(result['IDRPRED_IDR'])}"
             )
 
     def test_idrpred_idr_values_are_binary(self):

@@ -147,9 +147,7 @@ class PositionalFeature(Protocol):
         """
         ...
 
-    def compute_vector(
-        self, record: SeqRecord, **kwargs
-    ) -> dict[str, np.ndarray]:
+    def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
         """Compute per-position feature values for the entire sequence.
 
         Args:

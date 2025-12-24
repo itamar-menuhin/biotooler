@@ -27,9 +27,7 @@ class ToyResidueFeature:
             "gc_geomean": AggregationSpec(aggregation_fn=geometric_mean),
         }
 
-    def compute_vector(
-        self, record: SeqRecord, **kwargs
-    ) -> dict[str, np.ndarray]:
+    def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
         """Compute per-residue GC indicator (1.0 for G/C, 0.0 otherwise)."""
         seq = str(record.seq).upper()
         gc_vector = np.array([1.0 if b in "GC" else 0.0 for b in seq])
@@ -55,16 +53,12 @@ class ToyCodonFeature:
             "codon_sum": AggregationSpec(aggregation_fn=np.sum),
         }
 
-    def compute_vector(
-        self, record: SeqRecord, **kwargs
-    ) -> dict[str, np.ndarray]:
+    def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
         """Compute per-codon features."""
         seq = str(record.seq).upper()
         # Process sequence in codons (groups of 3)
         num_codons = len(seq) // 3
-        start_with_a = np.array(
-            [1.0 if seq[i * 3] == "A" else 0.0 for i in range(num_codons)]
-        )
+        start_with_a = np.array([1.0 if seq[i * 3] == "A" else 0.0 for i in range(num_codons)])
         codon_values = np.array([float(i + 1) for i in range(num_codons)])
 
         return {

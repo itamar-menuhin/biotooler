@@ -188,9 +188,7 @@ class IDRPredConsensusMask:
             )
             tsv_output = result.stdout
         except subprocess.CalledProcessError as e:
-            raise ValueError(
-                f"IDRPred command failed for record {record.id!r}: {e.stderr}"
-            ) from e
+            raise ValueError(f"IDRPred command failed for record {record.id!r}: {e.stderr}") from e
         except FileNotFoundError as e:
             # This should not happen due to require_idrpred_cli, but handle it anyway
             raise ImportError(

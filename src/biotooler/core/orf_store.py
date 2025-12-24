@@ -40,9 +40,7 @@ def select_orf_by_index(candidates: list[OrfSpan], orf_index: int) -> OrfSpan:
     """
     if not 0 <= orf_index < len(candidates):
         if len(candidates) == 0:
-            raise IndexError(
-                f"ORF index {orf_index} is out of range: no candidates available"
-            )
+            raise IndexError(f"ORF index {orf_index} is out of range: no candidates available")
         else:
             raise IndexError(
                 f"ORF index {orf_index} is out of range for {len(candidates)} candidates "

@@ -142,9 +142,7 @@ class TestContextWindowFoldFeature:
                 flank_right_nt=5,
             )
             # Use 40 bp sequence so all windows fit
-            record = SeqRecord(
-                Seq("ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT"), id="test"
-            )  # 40 bp
+            record = SeqRecord(Seq("ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT"), id="test")  # 40 bp
 
             result = feature(record)
 
@@ -215,9 +213,7 @@ class TestContextWindowFoldFeature:
                 flank_left_nt=5,
                 flank_right_nt=5,
             )
-            record = SeqRecord(
-                Seq("ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT"), id="test"
-            )
+            record = SeqRecord(Seq("ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT"), id="test")
 
             result = feature(record)
 
@@ -225,9 +221,7 @@ class TestContextWindowFoldFeature:
             for key in result:
                 if key.startswith("PAIR_OUT_FRAC"):
                     value = result[key]
-                    assert 0.0 <= value <= 1.0, (
-                        f"{key} = {value} is not in [0, 1]"
-                    )
+                    assert 0.0 <= value <= 1.0, f"{key} = {value} is not in [0, 1]"
 
     def test_boundary_flank_behavior_start_at_zero(self, mock_rna):
         """Test boundary behavior when window starts at 0 (no left flank available)."""

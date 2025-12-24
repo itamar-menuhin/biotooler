@@ -141,16 +141,12 @@ class ContextWindowFoldFeature:
             window_ctx_start = start - ctx_start
             window_ctx_end = window_ctx_start + self.window_size_nt
 
-            pair_out_frac = self._compute_pair_out_frac(
-                structure, window_ctx_start, window_ctx_end
-            )
+            pair_out_frac = self._compute_pair_out_frac(structure, window_ctx_start, window_ctx_end)
             result[f"PAIR_OUT_FRAC_{start}"] = pair_out_frac
 
         return result
 
-    def _compute_pair_out_frac(
-        self, structure: str, window_start: int, window_end: int
-    ) -> float:
+    def _compute_pair_out_frac(self, structure: str, window_start: int, window_end: int) -> float:
         """Compute fraction of window nucleotides paired to positions outside window.
 
         Args:

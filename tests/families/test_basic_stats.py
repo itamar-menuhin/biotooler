@@ -229,7 +229,7 @@ class TestBasicStatsIncrementalVsBaseline:
                     out_start=prev_start,
                     out_end=window_start,
                     in_start=prev_end,
-                    in_end=window_end
+                    in_end=window_end,
                 )
 
             incremental_results.append(feature.emit(state))
@@ -267,11 +267,7 @@ class TestBasicStatsIncrementalVsBaseline:
 
         # Incremental: use FeatureSet.compute_windows
         fs = FeatureSet(feature, name="stats")
-        incremental_df = fs.compute_windows(
-            record,
-            window_size=window_size,
-            step=step
-        )
+        incremental_df = fs.compute_windows(record, window_size=window_size, step=step)
 
         # Extract window starts from dataframe columns
         window_starts = []
@@ -489,12 +485,7 @@ class TestBasicStatsFeatureSetIntegration:
         record = SeqRecord(Seq("AAAACGTACGTCCCC"), id="test")
 
         # Compute only on middle region [4:11] = "CGTACGT"
-        result = fs.compute_windows(
-            record,
-            window_size=4,
-            step=2,
-            region=(4, 11)
-        )
+        result = fs.compute_windows(record, window_size=4, step=2, region=(4, 11))
 
         assert result["region_start"].values[0] == 4
         assert result["region_end"].values[0] == 11

@@ -193,9 +193,7 @@ def test_incremental_and_fallback_produce_identical_output():
     result_incremental = fs_incremental.compute_orf_windows(
         record, orf=(0, 15), window_nt=9, step_nt=3
     )
-    result_fallback = fs_fallback.compute_orf_windows(
-        record, orf=(0, 15), window_nt=9, step_nt=3
-    )
+    result_fallback = fs_fallback.compute_orf_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
 
     # Assert DataFrames are exactly equal
     # Sort columns to ensure comparison works

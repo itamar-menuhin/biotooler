@@ -63,9 +63,7 @@ class TestIDRPredWindowMeanMatchesManual:
         record.annotations["molecule_type"] = "DNA"
 
         # Compute single window covering entire sequence
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 36), window_nt=36, step_nt=36
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 36), window_nt=36, step_nt=36)
 
         # Verify output shape
         assert result.shape[0] == 1, "Expected single-row (wide format)"
@@ -115,9 +113,7 @@ class TestIDRPredWindowMeanMatchesManual:
         record.annotations["molecule_type"] = "DNA"
 
         # Single window covering entire sequence
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 30), window_nt=30, step_nt=30
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 30), window_nt=30, step_nt=30)
 
         # Verify computed value
         np.testing.assert_allclose(
@@ -146,9 +142,7 @@ class TestIDRPredWindowMeanMatchesManual:
         record.annotations["molecule_type"] = "DNA"
 
         # Single window covering entire sequence
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 24), window_nt=24, step_nt=24
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 24), window_nt=24, step_nt=24)
 
         # All IDR means should be 1.0
         assert "idrpred.IDRPRED_IDR_0" in result.columns
@@ -174,9 +168,7 @@ class TestIDRPredWindowMeanMatchesManual:
         record.annotations["molecule_type"] = "DNA"
 
         # Single window covering entire sequence
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 24), window_nt=24, step_nt=24
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 24), window_nt=24, step_nt=24)
 
         # All IDR means should be 0.0
         assert "idrpred.IDRPRED_IDR_0" in result.columns
@@ -218,16 +210,12 @@ class TestIDRPredTranslationPathWindowing:
         # DNA path
         dna_record = SeqRecord(Seq(dna_seq), id="test_dna")
         dna_record.annotations["molecule_type"] = "DNA"
-        dna_result = fs.compute_orf_windows_v2(
-            dna_record, orf=(0, 27), window_nt=27, step_nt=27
-        )
+        dna_result = fs.compute_orf_windows_v2(dna_record, orf=(0, 27), window_nt=27, step_nt=27)
 
         # RNA path
         rna_record = SeqRecord(Seq(rna_seq), id="test_rna")
         rna_record.annotations["molecule_type"] = "RNA"
-        rna_result = fs.compute_orf_windows_v2(
-            rna_record, orf=(0, 27), window_nt=27, step_nt=27
-        )
+        rna_result = fs.compute_orf_windows_v2(rna_record, orf=(0, 27), window_nt=27, step_nt=27)
 
         # Both should have same columns
         assert set(dna_result.columns) == set(rna_result.columns)
@@ -276,16 +264,12 @@ class TestIDRPredTranslationPathWindowing:
         # DNA path
         dna_record = SeqRecord(Seq(dna_seq), id="test_dna")
         dna_record.annotations["molecule_type"] = "DNA"
-        dna_result = fs.compute_orf_windows_v2(
-            dna_record, orf=(0, 15), window_nt=15, step_nt=15
-        )
+        dna_result = fs.compute_orf_windows_v2(dna_record, orf=(0, 15), window_nt=15, step_nt=15)
 
         # RNA path
         rna_record = SeqRecord(Seq(rna_seq), id="test_rna")
         rna_record.annotations["molecule_type"] = "RNA"
-        rna_result = fs.compute_orf_windows_v2(
-            rna_record, orf=(0, 15), window_nt=15, step_nt=15
-        )
+        rna_result = fs.compute_orf_windows_v2(rna_record, orf=(0, 15), window_nt=15, step_nt=15)
 
         # Verify both produce same result
         assert "idrpred.IDRPRED_IDR_0" in dna_result.columns
@@ -323,9 +307,7 @@ class TestIDRPredTranslationPathWindowing:
         dna_record = SeqRecord(Seq(dna_seq), id="test")
         dna_record.annotations["molecule_type"] = "DNA"
 
-        result = fs.compute_orf_windows_v2(
-            dna_record, orf=(0, 24), window_nt=24, step_nt=24
-        )
+        result = fs.compute_orf_windows_v2(dna_record, orf=(0, 24), window_nt=24, step_nt=24)
 
         # Should have single window at 0
         assert "idrpred.IDRPRED_IDR_0" in result.columns
@@ -355,9 +337,7 @@ class TestIDRPredWindowOutputFormat:
         record = SeqRecord(Seq(dna_seq), id="test")
         record.annotations["molecule_type"] = "DNA"
 
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 15), window_nt=15, step_nt=15
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 15), window_nt=15, step_nt=15)
 
         # Should be single row (wide format)
         assert result.shape[0] == 1
@@ -379,9 +359,7 @@ class TestIDRPredWindowOutputFormat:
         record.annotations["molecule_type"] = "DNA"
 
         # Single full-length window at nt position 0
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 15), window_nt=15, step_nt=15
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 15), window_nt=15, step_nt=15)
 
         # Check column naming pattern
         assert "idrpred.IDRPRED_IDR_0" in result.columns
@@ -406,9 +384,7 @@ class TestIDRPredWindowOutputFormat:
         record = SeqRecord(Seq(dna_seq), id="test_record")
         record.annotations["molecule_type"] = "DNA"
 
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 15), window_nt=15, step_nt=15
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 15), window_nt=15, step_nt=15)
 
         # Check metadata columns
         assert "record_id" in result.columns

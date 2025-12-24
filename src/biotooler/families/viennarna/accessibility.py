@@ -73,9 +73,7 @@ class ViennaRNAAccessibility:
             "PU": AggregationSpec(name="MEAN", aggregation_fn=np.mean),
         }
 
-    def compute_vector(
-        self, record: SeqRecord, **kwargs
-    ) -> dict[str, np.ndarray]:
+    def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
         """Compute per-nucleotide unpaired probabilities for the entire sequence.
 
         This method uses ViennaRNA's partition function to compute unpaired

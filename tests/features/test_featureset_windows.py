@@ -239,9 +239,7 @@ class TestComputeWindowsWithRegion:
         record = SeqRecord(Seq("NNNNACGTACGTNNNN"), id="seq1")
 
         # Only window over positions 4-12 (ACGTACGT)
-        result = fs.compute_windows(
-            record, window_size=4, step=2, region=(4, 12)
-        )
+        result = fs.compute_windows(record, window_size=4, step=2, region=(4, 12))
 
         assert result["region_start"].iloc[0] == 4
         assert result["region_end"].iloc[0] == 12
@@ -256,9 +254,7 @@ class TestComputeWindowsWithRegion:
         fs = FeatureSet(TinyNonIncrementalFeature(), name="test")
         record = SeqRecord(Seq("NNNNACGTACGTNNNN"), id="seq1")
 
-        result = fs.compute_windows(
-            record, window_size=4, step=2, region=(4, 12)
-        )
+        result = fs.compute_windows(record, window_size=4, step=2, region=(4, 12))
 
         # Window starts should be 0, 2, 4 (relative to region start, not absolute)
         assert "TEST_len_0" in result.columns
@@ -303,9 +299,7 @@ class TestComputeWindowsDropPartial:
         # 11 bases, windows of 4 with step 2 -> only 0, 2, 4, 6 fit fully
         record = SeqRecord(Seq("ACGTACGTACG"), id="seq1")
 
-        result = fs.compute_windows(
-            record, window_size=4, step=2, drop_partial=True
-        )
+        result = fs.compute_windows(record, window_size=4, step=2, drop_partial=True)
 
         # Should only have columns for full windows (0, 2, 4, 6)
         feature_cols = [c for c in result.columns if c.startswith("TEST_")]
@@ -321,9 +315,7 @@ class TestComputeWindowsDropPartial:
         fs = FeatureSet(TinyNonIncrementalFeature(), name="test")
         record = SeqRecord(Seq("ACGTACGTACG"), id="seq1")
 
-        result = fs.compute_windows(
-            record, window_size=4, step=2, drop_partial=False
-        )
+        result = fs.compute_windows(record, window_size=4, step=2, drop_partial=False)
 
         # Should have columns for all windows including partial ones
         feature_cols = [c for c in result.columns if c.startswith("TEST_")]
@@ -345,9 +337,7 @@ class TestComputeWindowsEdgeCases:
         record = SeqRecord(Seq("ACGT"), id="seq1")
 
         # Window size larger than sequence with drop_partial=True
-        result = fs.compute_windows(
-            record, window_size=10, step=2, drop_partial=True
-        )
+        result = fs.compute_windows(record, window_size=10, step=2, drop_partial=True)
 
         # Should have only metadata columns
         assert result.shape[0] == 1

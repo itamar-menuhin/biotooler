@@ -291,9 +291,7 @@ class TestGetContextMfeCached:
             )
 
             # Should use cache since sequences are identical
-            assert len(fold_compound_calls) == 1, (
-                "Identical sequences should use cache"
-            )
+            assert len(fold_compound_calls) == 1, "Identical sequences should use cache"
 
     def test_flanks_affect_cache_key(self):
         """Test that different flank configurations produce different cache keys."""
