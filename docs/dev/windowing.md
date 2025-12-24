@@ -29,15 +29,22 @@ from biotooler.features.aggregation import AggregationSpec
 import numpy as np
 
 # Use mean aggregation
-spec = AggregationSpec(aggregation_fn=np.mean)
+spec = AggregationSpec(name="MEAN", aggregation_fn=np.mean)
 
 # Use geometric mean
 from biotooler.features.aggregation import geometric_mean
-spec = AggregationSpec(aggregation_fn=geometric_mean)
+spec = AggregationSpec(name="GEOMEAN", aggregation_fn=geometric_mean)
 
 # Use sum
-spec = AggregationSpec(aggregation_fn=np.sum)
+spec = AggregationSpec(name="SUM", aggregation_fn=np.sum)
+
+# Use max
+spec = AggregationSpec(name="MAX", aggregation_fn=np.max)
 ```
+
+The `name` field is used in column naming to make positional feature columns self-describing.
+For example, a CAI feature with geometric mean aggregation produces columns like:
+`CODON_BIAS_CAI_GEOMEAN_0`, `CODON_BIAS_CAI_GEOMEAN_3`, etc.
 
 ### PositionalFeature Protocol
 
@@ -68,8 +75,8 @@ class GCContentFeature:
     @property
     def vector_keys(self) -> dict[str, AggregationSpec]:
         return {
-            "gc_mean": AggregationSpec(aggregation_fn=np.mean),
-            "gc_sum": AggregationSpec(aggregation_fn=np.sum),
+            "gc_mean": AggregationSpec(name="MEAN", aggregation_fn=np.mean),
+            "gc_sum": AggregationSpec(name="SUM", aggregation_fn=np.sum),
         }
 
     def compute_vector(
@@ -138,6 +145,7 @@ assert feature.position_space == PositionSpace.CODON
 
 # vector_keys: Returns aggregation spec using mean
 assert "cARS_score" in feature.vector_keys
+assert feature.vector_keys["cARS_score"].name == "MEAN"
 assert feature.vector_keys["cARS_score"].aggregation_fn == np.mean
 
 # compute_vector: Computes per-codon maximal common substring lengths
