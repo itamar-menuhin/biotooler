@@ -187,7 +187,6 @@ print(windowed.columns.tolist())
 
 For more details on codon bias features, see the [Codon Bias documentation](docs/usage/codon_bias.md).
 
-
 ### Sequence Utilities
 
 The package provides efficient sequence string/bytes extraction with caching:
@@ -226,9 +225,43 @@ ruff check .
 pyright
 ```
 
+### Releasing
+
+See [Releasing biotooler](docs/dev/releasing.md) for steps to publish a new version to PyPI.
+
+### Release Notes
+
+See [CHANGELOG.md](CHANGELOG.md) for release history and upcoming changes.
+
+### Extras
+
+Optional extras can be installed with:
+
+```bash
+pip install "biotooler[<extra_name>]"
+```
+
+Available extras:
+
+- `chimera`
+- `codon_bias`
+- `disorder`
+- `disorder-idrpred`
+- `viennarna`
+
+See `pyproject.toml` for the exact dependencies included in each extra.
+
 ## Requirements
 
 - Python >= 3.11
 - biopython
 - numpy
 - pandas
+
+## License
+
+biotooler is released under the [MIT License](LICENSE).
+
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on adding new feature families and improving the project.
