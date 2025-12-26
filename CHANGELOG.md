@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 - Packaging metadata improvements (setuptools `src` layout, license, classifiers).
 - Release documentation, including steps for tagging and publishing.
 - Packaging polish: explicit `LICENSE` metadata, project URLs, and documented optional extras.
+### Fixed
+- Corrected `project.license` to use an SPDX-compatible string for PyPI validation.
 
 ## [0.1.0]
 ### Added
