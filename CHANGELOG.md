@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - Packaging polish: explicit `LICENSE` metadata, project URLs, and documented optional extras.
 ### Fixed
 - Corrected `project.license` to use an SPDX-compatible string for PyPI validation.
+- Removed legacy license classifier in favor of the license expression required by setuptools/PEP 639.
 
 ## [0.1.0]
 ### Added
