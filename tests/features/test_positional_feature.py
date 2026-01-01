@@ -23,8 +23,8 @@ class ToyResidueFeature:
     def vector_keys(self) -> dict[str, AggregationSpec]:
         """Return aggregation specs for each feature key."""
         return {
-            "gc": AggregationSpec(aggregation_fn=np.mean),
-            "gc_geomean": AggregationSpec(aggregation_fn=geometric_mean),
+            "gc": AggregationSpec(name="MEAN", aggregation_fn=np.mean),
+            "gc_geomean": AggregationSpec(name="GEOMEAN", aggregation_fn=geometric_mean),
         }
 
     def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
@@ -49,8 +49,8 @@ class ToyCodonFeature:
     def vector_keys(self) -> dict[str, AggregationSpec]:
         """Return aggregation specs for each feature key."""
         return {
-            "start_with_a": AggregationSpec(aggregation_fn=np.mean),
-            "codon_sum": AggregationSpec(aggregation_fn=np.sum),
+            "start_with_a": AggregationSpec(name="MEAN", aggregation_fn=np.mean),
+            "codon_sum": AggregationSpec(name="SUM", aggregation_fn=np.sum),
         }
 
     def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
@@ -148,7 +148,7 @@ class TestAggregationHelper:
     def test_mean_aggregation(self):
         """Test mean aggregation using numpy mean."""
         values = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-        spec = AggregationSpec(aggregation_fn=np.mean)
+        spec = AggregationSpec(name="MEAN", aggregation_fn=np.mean)
 
         result = spec.aggregation_fn(values)
 
@@ -157,7 +157,7 @@ class TestAggregationHelper:
     def test_sum_aggregation(self):
         """Test sum aggregation using numpy sum."""
         values = np.array([1.0, 2.0, 3.0])
-        spec = AggregationSpec(aggregation_fn=np.sum)
+        spec = AggregationSpec(name="SUM", aggregation_fn=np.sum)
 
         result = spec.aggregation_fn(values)
 
@@ -166,7 +166,7 @@ class TestAggregationHelper:
     def test_max_aggregation(self):
         """Test max aggregation using numpy max."""
         values = np.array([1.0, 5.0, 3.0, 2.0])
-        spec = AggregationSpec(aggregation_fn=np.max)
+        spec = AggregationSpec(name="MAX", aggregation_fn=np.max)
 
         result = spec.aggregation_fn(values)
 

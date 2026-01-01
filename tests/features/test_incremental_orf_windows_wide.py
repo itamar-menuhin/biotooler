@@ -131,22 +131,22 @@ def test_incremental_path_produces_correct_output():
     result = fs.compute_orf_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
 
     # Check window 0 (ATGAAACCC)
-    assert result["test.a_count_0"].iloc[0] == 4
-    assert result["test.c_count_0"].iloc[0] == 3
-    assert result["test.g_count_0"].iloc[0] == 1
-    assert result["test.t_count_0"].iloc[0] == 1
+    assert result["TEST_a_count_0"].iloc[0] == 4
+    assert result["TEST_c_count_0"].iloc[0] == 3
+    assert result["TEST_g_count_0"].iloc[0] == 1
+    assert result["TEST_t_count_0"].iloc[0] == 1
 
     # Check window 3 (AAACCCGGG)
-    assert result["test.a_count_3"].iloc[0] == 3
-    assert result["test.c_count_3"].iloc[0] == 3
-    assert result["test.g_count_3"].iloc[0] == 3
-    assert result["test.t_count_3"].iloc[0] == 0
+    assert result["TEST_a_count_3"].iloc[0] == 3
+    assert result["TEST_c_count_3"].iloc[0] == 3
+    assert result["TEST_g_count_3"].iloc[0] == 3
+    assert result["TEST_t_count_3"].iloc[0] == 0
 
     # Check window 6 (CCCGGGTTT)
-    assert result["test.a_count_6"].iloc[0] == 0
-    assert result["test.c_count_6"].iloc[0] == 3
-    assert result["test.g_count_6"].iloc[0] == 3
-    assert result["test.t_count_6"].iloc[0] == 3
+    assert result["TEST_a_count_6"].iloc[0] == 0
+    assert result["TEST_c_count_6"].iloc[0] == 3
+    assert result["TEST_g_count_6"].iloc[0] == 3
+    assert result["TEST_t_count_6"].iloc[0] == 3
 
 
 def test_fallback_path_produces_correct_output():
@@ -158,22 +158,22 @@ def test_fallback_path_produces_correct_output():
     result = fs.compute_orf_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
 
     # Check window 0 (ATGAAACCC)
-    assert result["test.a_count_0"].iloc[0] == 4
-    assert result["test.c_count_0"].iloc[0] == 3
-    assert result["test.g_count_0"].iloc[0] == 1
-    assert result["test.t_count_0"].iloc[0] == 1
+    assert result["TEST_a_count_0"].iloc[0] == 4
+    assert result["TEST_c_count_0"].iloc[0] == 3
+    assert result["TEST_g_count_0"].iloc[0] == 1
+    assert result["TEST_t_count_0"].iloc[0] == 1
 
     # Check window 3 (AAACCCGGG)
-    assert result["test.a_count_3"].iloc[0] == 3
-    assert result["test.c_count_3"].iloc[0] == 3
-    assert result["test.g_count_3"].iloc[0] == 3
-    assert result["test.t_count_3"].iloc[0] == 0
+    assert result["TEST_a_count_3"].iloc[0] == 3
+    assert result["TEST_c_count_3"].iloc[0] == 3
+    assert result["TEST_g_count_3"].iloc[0] == 3
+    assert result["TEST_t_count_3"].iloc[0] == 0
 
     # Check window 6 (CCCGGGTTT)
-    assert result["test.a_count_6"].iloc[0] == 0
-    assert result["test.c_count_6"].iloc[0] == 3
-    assert result["test.g_count_6"].iloc[0] == 3
-    assert result["test.t_count_6"].iloc[0] == 3
+    assert result["TEST_a_count_6"].iloc[0] == 0
+    assert result["TEST_c_count_6"].iloc[0] == 3
+    assert result["TEST_g_count_6"].iloc[0] == 3
+    assert result["TEST_t_count_6"].iloc[0] == 3
 
 
 def test_incremental_and_fallback_produce_identical_output():
@@ -228,7 +228,7 @@ def test_incremental_with_multiple_windows():
 
     # Should have many windows
     # (57 - 12) // 3 + 1 = 16 windows
-    feature_cols = [c for c in result.columns if c.startswith("test.a_count_")]
+    feature_cols = [c for c in result.columns if c.startswith("TEST_a_count_")]
     assert len(feature_cols) == 16
 
     # Verify column ordering is deterministic
@@ -268,9 +268,9 @@ def test_incremental_preserves_column_ordering():
     assert cols[2] == "orf_end"
 
     # Check that feature columns are sorted by (feature_key, window_start)
-    feature_cols = [c for c in cols if c.startswith("test.")]
+    feature_cols = [c for c in cols if c.startswith("TEST_")]
     # Should be: a_count_0, a_count_3, a_count_6, c_count_0, c_count_3, c_count_6, ...
-    assert feature_cols[0] == "test.a_count_0"
-    assert feature_cols[1] == "test.a_count_3"
-    assert feature_cols[2] == "test.a_count_6"
-    assert feature_cols[3] == "test.c_count_0"
+    assert feature_cols[0] == "TEST_a_count_0"
+    assert feature_cols[1] == "TEST_a_count_3"
+    assert feature_cols[2] == "TEST_a_count_6"
+    assert feature_cols[3] == "TEST_c_count_0"

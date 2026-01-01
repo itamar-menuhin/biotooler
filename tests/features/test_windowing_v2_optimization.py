@@ -26,7 +26,7 @@ class CallCountingCodonFeature:
     def vector_keys(self) -> dict[str, AggregationSpec]:
         """Return aggregation specs for each feature key."""
         return {
-            "codon_idx": AggregationSpec(aggregation_fn=np.mean),
+            "codon_idx": AggregationSpec(name="MEAN", aggregation_fn=np.mean),
         }
 
     def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
@@ -181,10 +181,10 @@ class TestStrideSemantics:
 
         # Each window should aggregate ALL codons in its range, not subsample
         # Window 0: codons 0,1,2,3 -> mean = (0+1+2+3)/4 = 1.5
-        assert abs(result["test.codon_idx_0"].iloc[0] - 1.5) < 1e-10
+        assert abs(result["TEST_codon_idx_MEAN_0"].iloc[0] - 1.5) < 1e-10
 
         # Window 6: codons 2,3,4,5 -> mean = (2+3+4+5)/4 = 3.5
-        assert abs(result["test.codon_idx_6"].iloc[0] - 3.5) < 1e-10
+        assert abs(result["TEST_codon_idx_MEAN_6"].iloc[0] - 3.5) < 1e-10
 
     def test_codon_space_step_must_be_multiple_of_3(self):
         """Test that step_nt must be multiple of 3 for codon-space features."""
@@ -213,7 +213,7 @@ class TestBackwardCompatibility:
 
             @property
             def vector_keys(self):
-                return {"idx": AggregationSpec(aggregation_fn=np.mean)}
+                return {"idx": AggregationSpec(name="MEAN", aggregation_fn=np.mean)}
 
             def compute_vector(self, record, **kwargs):
                 # Ignore positions parameter, always compute full vector
@@ -228,5 +228,5 @@ class TestBackwardCompatibility:
         result = fs.compute_orf_windows_v2(record, orf=(0, 30), window_nt=12, step_nt=6)
 
         # Should work correctly despite not using positions optimization
-        assert "legacy.idx_0" in result.columns
-        assert abs(result["legacy.idx_0"].iloc[0] - 1.5) < 1e-10
+        assert "LEGACY_idx_MEAN_0" in result.columns
+        assert abs(result["LEGACY_idx_MEAN_0"].iloc[0] - 1.5) < 1e-10

@@ -272,7 +272,7 @@ class TestBasicStatsIncrementalVsBaseline:
         # Extract window starts from dataframe columns
         window_starts = []
         for col in incremental_df.columns:
-            if col.startswith("stats.length_"):
+            if col.startswith("STATS_length_"):
                 window_start = int(col.split("_")[-1])
                 window_starts.append(window_start)
         window_starts.sort()
@@ -283,7 +283,7 @@ class TestBasicStatsIncrementalVsBaseline:
             zip(baseline_results, window_starts, strict=True)
         ):
             for key, baseline_value in baseline.items():
-                col_name = f"stats.{key}_{window_start}"
+                col_name = f"STATS_{key}_{window_start}"
                 incremental_value = incremental_df[col_name].values[0]
 
                 if isinstance(baseline_value, float):
@@ -319,7 +319,7 @@ class TestBasicStatsIncrementalVsBaseline:
         # Verify each window
         for i, baseline in enumerate(baseline_results):
             for key, baseline_value in baseline.items():
-                col_name = f"stats.{key}_{i}"
+                col_name = f"STATS_{key}_{i}"
                 incremental_value = incremental_df[col_name].values[0]
                 if isinstance(baseline_value, float):
                     assert abs(baseline_value - incremental_value) < 1e-10
@@ -346,7 +346,7 @@ class TestBasicStatsIncrementalVsBaseline:
         for i, baseline in enumerate(baseline_results):
             window_start = i * step
             for key, baseline_value in baseline.items():
-                col_name = f"stats.{key}_{window_start}"
+                col_name = f"STATS_{key}_{window_start}"
                 incremental_value = incremental_df[col_name].values[0]
                 if isinstance(baseline_value, float):
                     assert abs(baseline_value - incremental_value) < 1e-10
@@ -373,7 +373,7 @@ class TestBasicStatsIncrementalVsBaseline:
         for i, baseline in enumerate(baseline_results):
             window_start = i * step
             for key, baseline_value in baseline.items():
-                col_name = f"stats.{key}_{window_start}"
+                col_name = f"STATS_{key}_{window_start}"
                 incremental_value = incremental_df[col_name].values[0]
                 if isinstance(baseline_value, float):
                     assert abs(baseline_value - incremental_value) < 1e-10
@@ -474,9 +474,9 @@ class TestBasicStatsFeatureSetIntegration:
         assert "region_end" in result.columns
 
         # Should have feature columns with window suffixes
-        assert "stats.length_0" in result.columns
-        assert "stats.count_a_0" in result.columns
-        assert "stats.gc_fraction_0" in result.columns
+        assert "STATS_length_0" in result.columns
+        assert "STATS_count_a_0" in result.columns
+        assert "STATS_gc_fraction_0" in result.columns
 
     def test_compute_windows_with_region(self):
         """Test compute_windows with region parameter."""
@@ -491,10 +491,10 @@ class TestBasicStatsFeatureSetIntegration:
         assert result["region_end"].values[0] == 11
 
         # First window should be "CGTA"
-        assert result["stats.count_c_0"].values[0] == 1
-        assert result["stats.count_g_0"].values[0] == 1
-        assert result["stats.count_t_0"].values[0] == 1
-        assert result["stats.count_a_0"].values[0] == 1
+        assert result["STATS_count_c_0"].values[0] == 1
+        assert result["STATS_count_g_0"].values[0] == 1
+        assert result["STATS_count_t_0"].values[0] == 1
+        assert result["STATS_count_a_0"].values[0] == 1
 
     def test_compute_windows_multiple_windows(self):
         """Test that multiple windows are all present in wide format."""
@@ -505,11 +505,11 @@ class TestBasicStatsFeatureSetIntegration:
         result = fs.compute_windows(record, window_size=8, step=4)
 
         # Should have windows at positions 0, 4, 8
-        assert "stats.length_0" in result.columns
-        assert "stats.length_4" in result.columns
-        assert "stats.length_8" in result.columns
+        assert "STATS_length_0" in result.columns
+        assert "STATS_length_4" in result.columns
+        assert "STATS_length_8" in result.columns
 
         # All should have length 8
-        assert result["stats.length_0"].values[0] == 8
-        assert result["stats.length_4"].values[0] == 8
-        assert result["stats.length_8"].values[0] == 8
+        assert result["STATS_length_0"].values[0] == 8
+        assert result["STATS_length_4"].values[0] == 8
+        assert result["STATS_length_8"].values[0] == 8
