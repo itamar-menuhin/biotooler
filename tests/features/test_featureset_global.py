@@ -33,8 +33,8 @@ class ToyResidueFeature:
     def vector_keys(self) -> dict[str, AggregationSpec]:
         """Return aggregation specs for each feature key."""
         return {
-            "gc": AggregationSpec(aggregation_fn=np.mean),
-            "count": AggregationSpec(aggregation_fn=np.sum),
+            "gc": AggregationSpec(name="MEAN", aggregation_fn=np.mean),
+            "count": AggregationSpec(name="SUM", aggregation_fn=np.sum),
         }
 
     def compute_vector(
@@ -71,8 +71,8 @@ class ToyCodonFeature:
     def vector_keys(self) -> dict[str, AggregationSpec]:
         """Return aggregation specs for each feature key."""
         return {
-            "start_a": AggregationSpec(aggregation_fn=np.mean),
-            "codon_count": AggregationSpec(aggregation_fn=np.sum),
+            "start_a": AggregationSpec(name="MEAN", aggregation_fn=np.mean),
+            "codon_count": AggregationSpec(name="SUM", aggregation_fn=np.sum),
         }
 
     def compute_vector(
@@ -113,9 +113,9 @@ class TestComputeGlobal:
         result = fs.compute_global(record)
 
         # Should have _GLOBAL suffix, not _0, _3, etc.
-        assert "gc.gc_content_GLOBAL" in result.columns
+        assert "GC_gc_content_GLOBAL" in result.columns
         # Should NOT have any window index columns
-        assert "gc.gc_content_0" not in result.columns
+        assert "GC_gc_content_0" not in result.columns
         assert "gc.gc_content_3" not in result.columns
 
     def test_compute_global_returns_single_row(self):
@@ -151,7 +151,7 @@ class TestComputeGlobal:
         assert result["region_start"].iloc[0] == 2
         assert result["region_end"].iloc[0] == 8
         # GC content of "GCGCAT" (4 GC out of 6) = 0.667
-        assert abs(result["gc.gc_content_GLOBAL"].iloc[0] - 4 / 6) < 1e-10
+        assert abs(result["GC_gc_content_GLOBAL"].iloc[0] - 4 / 6) < 1e-10
 
     def test_compute_global_column_ordering(self):
         """Test that metadata columns come before feature columns."""
@@ -178,10 +178,10 @@ class TestComputeOrfGlobalV2:
         result = fs.compute_orf_global_v2(record, orf=(0, 15))
 
         # Should have _GLOBAL suffix
-        assert "gc_feat.gc_GLOBAL" in result.columns
-        assert "gc_feat.count_GLOBAL" in result.columns
+        assert "GC_FEAT_gc_MEAN_GLOBAL" in result.columns
+        assert "GC_FEAT_count_SUM_GLOBAL" in result.columns
         # Should NOT have any window index columns
-        assert "gc_feat.gc_0" not in result.columns
+        assert "GC_FEAT_gc_MEAN_0" not in result.columns
         assert "gc_feat.gc_3" not in result.columns
 
     def test_compute_orf_global_v2_returns_single_row(self):
@@ -219,10 +219,10 @@ class TestComputeOrfGlobalV2:
 
         # Check GC mean aggregation over full sequence
         expected_gc = 7 / 15
-        assert abs(result["test.gc_GLOBAL"].iloc[0] - expected_gc) < 1e-10
+        assert abs(result["TEST_gc_MEAN_GLOBAL"].iloc[0] - expected_gc) < 1e-10
 
         # Check count sum aggregation (should be full ORF length)
-        assert result["test.count_GLOBAL"].iloc[0] == 15.0
+        assert result["TEST_count_SUM_GLOBAL"].iloc[0] == 15.0
 
     def test_compute_orf_global_v2_with_codon_feature(self):
         """Test compute_orf_global_v2 with a codon-space feature."""
@@ -235,8 +235,8 @@ class TestComputeOrfGlobalV2:
         result = fs.compute_orf_global_v2(record, orf=(0, 15))
 
         # Check codon aggregation
-        assert abs(result["codon_feat.start_a_GLOBAL"].iloc[0] - 2 / 5) < 1e-10
-        assert result["codon_feat.codon_count_GLOBAL"].iloc[0] == 5.0
+        assert abs(result["CODON_FEAT_start_a_MEAN_GLOBAL"].iloc[0] - 2 / 5) < 1e-10
+        assert result["CODON_FEAT_codon_count_SUM_GLOBAL"].iloc[0] == 5.0
 
     def test_compute_orf_global_v2_non_positional_raises_error(self):
         """Test that non-positional features raise ValueError."""
@@ -313,11 +313,11 @@ class TestGlobalColumnOrderDeterministic:
         result = fs.compute_global(record)
 
         # Get feature columns (skip metadata)
-        feature_cols = [c for c in result.columns if c.startswith("multi.")]
+        feature_cols = [c for c in result.columns if c.startswith("MULTI_")]
 
         # Should be sorted alphabetically by feature key
         assert feature_cols == [
-            "multi.alpha_GLOBAL",
-            "multi.charlie_GLOBAL",
-            "multi.zebra_GLOBAL",
+            "MULTI_alpha_GLOBAL",
+            "MULTI_charlie_GLOBAL",
+            "MULTI_zebra_GLOBAL",
         ]

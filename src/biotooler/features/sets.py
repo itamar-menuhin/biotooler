@@ -945,7 +945,7 @@ class FeatureSet:
             features = feat_fn(region_record)
             for key, value in features.items():
                 # Use _GLOBAL suffix instead of window index
-                col_name = f"{self.name}.{key}_GLOBAL"
+                col_name = f"{self.name.upper()}_{key}_GLOBAL"
                 feature_data[col_name] = value
 
         # Format as wide DataFrame using shared helper
@@ -1108,8 +1108,8 @@ class FeatureSet:
                 # Apply aggregation function over the entire vector
                 aggregated_value = agg_spec.aggregation_fn(vector)
 
-                # Store with _GLOBAL suffix
-                col_name = f"{self.name}.{key}_GLOBAL"
+                # Store with _GLOBAL suffix including aggregation name
+                col_name = f"{self.name.upper()}_{key}_{agg_spec.name}_GLOBAL"
                 feature_data[col_name] = aggregated_value
 
         # Format as wide DataFrame using shared helper
