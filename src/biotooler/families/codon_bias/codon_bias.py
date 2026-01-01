@@ -106,44 +106,20 @@ class CodonBiasFeature:
     def vector_keys(self) -> dict[str, AggregationSpec]:
         """Mapping of feature keys to aggregation specifications.
 
+        For CodonBiasFeature, this always returns an empty dict to ensure
+        compute_orf_windows uses the incremental path (init_state/update/emit).
+        This provides consistent column naming without aggregation suffixes.
+
+        The positional interface (compute_vector) is still available for
+        explicit use with compute_orf_windows_v2 when needed.
+
         Returns:
-            Dictionary mapping feature names to AggregationSpec objects that define
-            how per-codon values should be aggregated into window values.
-
-            Aggregation functions by score type:
-            - CAI, tAI: geometric_mean (they are defined as geometric means)
-            - FOP: np.mean (proportion/frequency metric)
-            - RSCU, RCBS, CPB: np.mean (for scores without get_vector, fallback to legacy)
-            - ENC: Not applicable (no get_vector support, uses legacy incremental path)
+            Empty dictionary to force incremental windowing path
         """
-        vector_keys = {}
-        for name, model in zip(self.names, self.models, strict=True):
-            # Determine aggregation function based on score type
-            score_class_name = type(model).__name__
-
-            # Check if model supports get_vector
-            has_get_vector = hasattr(model, "get_vector") and callable(
-                getattr(model, "get_vector", None)
-            )
-
-            if not has_get_vector:
-                # For scores without get_vector (like ENC), we don't expose them
-                # in vector_keys - they'll fall back to legacy incremental mode
-                continue
-
-            # Determine aggregation function and name based on score type
-            if score_class_name in ("CodonAdaptationIndex", "TrnaAdaptationIndex"):
-                # Geometric mean for CAI and tAI (as per mathematical definitions)
-                agg_fn = geometric_mean
-                agg_name = "GEOMEAN"
-            else:
-                # Arithmetic mean for FOP, RSCU, RCBS, CPB
-                agg_fn = np.mean
-                agg_name = "MEAN"
-
-            vector_keys[name] = AggregationSpec(name=agg_name, aggregation_fn=agg_fn)
-
-        return vector_keys
+        # Return empty dict to force incremental path in compute_orf_windows.
+        # This ensures column names like CB_CAI_0 (without aggregation suffix)
+        # instead of CB_CAI_GEOMEAN_0 for consistency with legacy behavior.
+        return {}
 
     def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
         """Compute per-codon feature values for the entire sequence.
