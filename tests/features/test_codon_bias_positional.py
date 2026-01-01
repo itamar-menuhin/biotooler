@@ -338,8 +338,8 @@ class TestCodonBiasLegacyCompatibility:
         result = fs.compute_orf_windows(record, orf=(0, 30), window_nt=9, step_nt=3)
 
         # Check that ENC values are computed
-        assert "CB_ENC_MEAN_0" in result.columns
-        assert isinstance(result["CB_ENC_MEAN_0"].iloc[0], (int, float, np.number))
+        assert "CB_ENC_0" in result.columns
+        assert isinstance(result["CB_ENC_0"].iloc[0], (int, float, np.number))
 
     def test_enc_not_in_v2_windowing(self):
         """Test that ENC is not exposed in v2 windowing (no get_vector)."""
