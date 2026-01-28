@@ -12,7 +12,7 @@ from Bio.SeqRecord import SeqRecord
 
 from biotooler.core.lazy_import import lazy_import
 from biotooler.core.seq_utils import get_seq_str
-from biotooler.features.aggregation import AggregationSpec, PositionSpace
+from biotooler.features.aggregation import AggregationSpec, PositionSpace, geometric_mean
 
 if TYPE_CHECKING:
     from biotooler.core.reference_sequences import ReferenceSequenceSet
@@ -103,23 +103,68 @@ class CodonBiasFeature:
         return PositionSpace.CODON
 
     @property
+    def prefer_incremental_windowing(self) -> bool:
+        """Indicate that this feature prefers incremental windowing in compute_orf_windows.
+        
+        CodonBiasFeature implements both positional and incremental interfaces.
+        For compute_orf_windows (legacy), we prefer incremental to maintain backward
+        compatibility with column naming (CB_CAI_0 instead of CB_CAI_GEOMEAN_0).
+        For compute_orf_windows_v2 (explicit positional), the positional interface
+        is used as intended.
+        
+        Returns:
+            True to indicate preference for incremental windowing path
+        """
+        return True
+
+    @property
     def vector_keys(self) -> dict[str, AggregationSpec]:
         """Mapping of feature keys to aggregation specifications.
 
-        For CodonBiasFeature, this always returns an empty dict to ensure
-        compute_orf_windows uses the incremental path (init_state/update/emit).
-        This provides consistent column naming without aggregation suffixes.
-
-        The positional interface (compute_vector) is still available for
-        explicit use with compute_orf_windows_v2 when needed.
-
         Returns:
-            Empty dictionary to force incremental windowing path
+            Dictionary mapping feature names to AggregationSpec objects that define
+            how per-codon values should be aggregated into window values.
+
+            Aggregation functions by score type:
+            - CAI, tAI: geometric_mean (they are defined as geometric means)
+            - FOP: np.mean (proportion/frequency metric)
+            - RSCU, RCBS, CPB: np.mean (for scores without get_vector, fallback to legacy)
+            - ENC: Not applicable (no get_vector support, uses legacy incremental path)
+            
+        Note:
+            For compute_orf_windows (legacy), this feature is treated as "mixed" if any
+            model lacks get_vector, forcing it to use the incremental path.
+            For compute_orf_windows_v2 (explicit positional), this returns the full
+            aggregation specs for models that support get_vector.
         """
-        # Return empty dict to force incremental path in compute_orf_windows.
-        # This ensures column names like CB_CAI_0 (without aggregation suffix)
-        # instead of CB_CAI_GEOMEAN_0 for consistency with legacy behavior.
-        return {}
+        vector_keys = {}
+        for name, model in zip(self.names, self.models, strict=True):
+            # Determine aggregation function based on score type
+            score_class_name = type(model).__name__
+
+            # Check if model supports get_vector
+            has_get_vector = hasattr(model, "get_vector") and callable(
+                getattr(model, "get_vector", None)
+            )
+
+            if not has_get_vector:
+                # For scores without get_vector (like ENC), we don't expose them
+                # in vector_keys - they'll fall back to legacy incremental mode
+                continue
+
+            # Determine aggregation function and name based on score type
+            if score_class_name in ("CodonAdaptationIndex", "TrnaAdaptationIndex"):
+                # Geometric mean for CAI and tAI (as per mathematical definitions)
+                agg_fn = geometric_mean
+                agg_name = "GEOMEAN"
+            else:
+                # Arithmetic mean for FOP, RSCU, RCBS, CPB
+                agg_fn = np.mean
+                agg_name = "MEAN"
+
+            vector_keys[name] = AggregationSpec(name=agg_name, aggregation_fn=agg_fn)
+
+        return vector_keys
 
     def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
         """Compute per-codon feature values for the entire sequence.
