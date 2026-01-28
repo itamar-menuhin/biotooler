@@ -111,8 +111,8 @@ class TestCodonBiasParityTests:
         expected_score = cai.get_score(test_seq)
 
         # Check the single window value matches
-        assert "cb.CAI_0" in result.columns
-        actual_score = result["cb.CAI_0"].iloc[0]
+        assert "CB_CAI_GEOMEAN_0" in result.columns
+        actual_score = result["CB_CAI_GEOMEAN_0"].iloc[0]
         assert abs(actual_score - expected_score) < 1e-6
 
     def test_fop_full_span_window_matches_get_score(self):
@@ -132,8 +132,8 @@ class TestCodonBiasParityTests:
         expected_score = fop.get_score(test_seq)
 
         # Check the single window value matches
-        assert "cb.FOP_0" in result.columns
-        actual_score = result["cb.FOP_0"].iloc[0]
+        assert "CB_FOP_MEAN_0" in result.columns
+        actual_score = result["CB_FOP_MEAN_0"].iloc[0]
         assert abs(actual_score - expected_score) < 1e-6
 
     def test_rscu_full_span_window_matches_get_score(self):
@@ -149,8 +149,8 @@ class TestCodonBiasParityTests:
         result = fs.compute_orf_windows_v2(record, orf=(0, 21), window_nt=21, step_nt=3)
 
         # Check the single window value matches
-        assert "cb.RSCU_0" in result.columns
-        actual_score = result["cb.RSCU_0"].iloc[0]
+        assert "CB_RSCU_MEAN_0" in result.columns
+        actual_score = result["CB_RSCU_MEAN_0"].iloc[0]
         # Note: RSCU may not match exactly because get_score returns a different value
         # than the mean of the vector. This is expected behavior for RSCU.
         # We just check that the computation completes without error.
@@ -169,8 +169,8 @@ class TestCodonBiasParityTests:
         result = fs.compute_orf_windows_v2(record, orf=(0, 21), window_nt=21, step_nt=3)
 
         # Check the single window value matches
-        assert "cb.RCBS_0" in result.columns
-        actual_score = result["cb.RCBS_0"].iloc[0]
+        assert "CB_RCBS_MEAN_0" in result.columns
+        actual_score = result["CB_RCBS_MEAN_0"].iloc[0]
         # Note: RCBS may not match exactly because get_score returns a different value
         # than the mean of the vector. This is expected behavior.
         assert isinstance(actual_score, (int, float, np.number))
@@ -189,8 +189,8 @@ class TestCodonBiasParityTests:
         result = fs.compute_orf_windows_v2(record, orf=(0, 21), window_nt=21, step_nt=3)
 
         # Check the single window value matches
-        assert "cb.CPB_0" in result.columns
-        actual_score = result["cb.CPB_0"].iloc[0]
+        assert "CB_CPB_MEAN_0" in result.columns
+        actual_score = result["CB_CPB_MEAN_0"].iloc[0]
         # CPB with mean of vector should be close to get_score for uniform sequences
         assert isinstance(actual_score, (int, float, np.number))
 
@@ -208,15 +208,15 @@ class TestCodonBiasParityTests:
         result = fs.compute_orf_windows_v2(record, orf=(0, 21), window_nt=21, step_nt=3)
 
         # Check both scores are present
-        assert "cb.CAI_0" in result.columns
-        assert "cb.FOP_0" in result.columns
+        assert "CB_CAI_GEOMEAN_0" in result.columns
+        assert "CB_FOP_MEAN_0" in result.columns
 
         # Verify they match direct computation
         cai_expected = cai.get_score(test_seq)
         fop_expected = fop.get_score(test_seq)
 
-        assert abs(result["cb.CAI_0"].iloc[0] - cai_expected) < 1e-6
-        assert abs(result["cb.FOP_0"].iloc[0] - fop_expected) < 1e-6
+        assert abs(result["CB_CAI_GEOMEAN_0"].iloc[0] - cai_expected) < 1e-6
+        assert abs(result["CB_FOP_MEAN_0"].iloc[0] - fop_expected) < 1e-6
 
 
 class TestCodonBiasStepSizeTests:
@@ -236,12 +236,17 @@ class TestCodonBiasStepSizeTests:
         result = fs.compute_orf_windows_v2(record, orf=(0, 30), window_nt=12, step_nt=6)
 
         # Should have windows at positions: 0, 6, 12, 18
-        expected_windows = ["cb.CAI_0", "cb.CAI_6", "cb.CAI_12", "cb.CAI_18"]
+        expected_windows = [
+            "CB_CAI_GEOMEAN_0",
+            "CB_CAI_GEOMEAN_6",
+            "CB_CAI_GEOMEAN_12",
+            "CB_CAI_GEOMEAN_18",
+        ]
         for col in expected_windows:
             assert col in result.columns, f"Missing expected column: {col}"
 
         # Window at 24 should not exist (would be partial)
-        assert "cb.CAI_24" not in result.columns
+        assert "CB_CAI_GEOMEAN_24" not in result.columns
 
     def test_step_6_aggregates_correct_codons(self):
         """Test that step=6 aggregates the correct subset of codons."""
@@ -269,7 +274,7 @@ class TestCodonBiasStepSizeTests:
         # Verify window at position 6 uses codons 2-5
         # Since all codons are ATG with same ref, all values should be 1.0
         # This test verifies the indexing is correct
-        window_6_value = result["cb.CAI_6"].iloc[0]
+        window_6_value = result["CB_CAI_GEOMEAN_6"].iloc[0]
         assert isinstance(window_6_value, (int, float, np.number))
         assert window_6_value == 1.0  # For uniform ATG sequence
 
@@ -287,12 +292,12 @@ class TestCodonBiasStepSizeTests:
         result = fs.compute_orf_windows_v2(record, orf=(0, 30), window_nt=9, step_nt=9)
 
         # Should have windows at: 0, 9, 18
-        expected_windows = ["cb.CAI_0", "cb.CAI_9", "cb.CAI_18"]
+        expected_windows = ["CB_CAI_GEOMEAN_0", "CB_CAI_GEOMEAN_9", "CB_CAI_GEOMEAN_18"]
         for col in expected_windows:
             assert col in result.columns
 
         # Window at 27 should not exist (would be partial)
-        assert "cb.CAI_27" not in result.columns
+        assert "CB_CAI_GEOMEAN_27" not in result.columns
 
     def test_different_step_sizes_on_same_sequence(self):
         """Test that different step sizes produce different number of windows."""
@@ -305,16 +310,12 @@ class TestCodonBiasStepSizeTests:
         record = SeqRecord(Seq(test_seq), id="test")
 
         # Test with step_nt=3 (lots of windows)
-        result_step3 = fs.compute_orf_windows_v2(
-            record, orf=(0, 30), window_nt=9, step_nt=3
-        )
-        cai_cols_step3 = [c for c in result_step3.columns if c.startswith("cb.CAI_")]
+        result_step3 = fs.compute_orf_windows_v2(record, orf=(0, 30), window_nt=9, step_nt=3)
+        cai_cols_step3 = [c for c in result_step3.columns if c.startswith("CB_CAI_GEOMEAN_")]
 
         # Test with step_nt=9 (fewer windows)
-        result_step9 = fs.compute_orf_windows_v2(
-            record, orf=(0, 30), window_nt=9, step_nt=9
-        )
-        cai_cols_step9 = [c for c in result_step9.columns if c.startswith("cb.CAI_")]
+        result_step9 = fs.compute_orf_windows_v2(record, orf=(0, 30), window_nt=9, step_nt=9)
+        cai_cols_step9 = [c for c in result_step9.columns if c.startswith("CB_CAI_GEOMEAN_")]
 
         # step=3 should have more windows than step=9
         assert len(cai_cols_step3) > len(cai_cols_step9)
@@ -337,8 +338,8 @@ class TestCodonBiasLegacyCompatibility:
         result = fs.compute_orf_windows(record, orf=(0, 30), window_nt=9, step_nt=3)
 
         # Check that ENC values are computed
-        assert "cb.ENC_0" in result.columns
-        assert isinstance(result["cb.ENC_0"].iloc[0], (int, float, np.number))
+        assert "CB_ENC_0" in result.columns
+        assert isinstance(result["CB_ENC_0"].iloc[0], (int, float, np.number))
 
     def test_enc_not_in_v2_windowing(self):
         """Test that ENC is not exposed in v2 windowing (no get_vector)."""

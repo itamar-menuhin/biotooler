@@ -20,9 +20,7 @@ class TestFeatureSetOrfWindowsWideFormat:
         fs = FeatureSet(simple_feature, name="test")
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        result = fs.compute_orf_windows(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
 
         assert result.shape[0] == 1  # Single row (wide format)
         assert result.shape[1] > 3  # Has metadata + feature columns
@@ -36,14 +34,12 @@ class TestFeatureSetOrfWindowsWideFormat:
         fs = FeatureSet(count_a, name="count")
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        result = fs.compute_orf_windows(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
 
         # Should have columns like count.a_count_0, count.a_count_3, count.a_count_6
-        assert "count.a_count_0" in result.columns
-        assert "count.a_count_3" in result.columns
-        assert "count.a_count_6" in result.columns
+        assert "COUNT_a_count_0" in result.columns
+        assert "COUNT_a_count_3" in result.columns
+        assert "COUNT_a_count_6" in result.columns
 
     def test_metadata_columns_present(self):
         """Test that metadata columns (record_id, orf_start, orf_end) are included."""
@@ -54,9 +50,7 @@ class TestFeatureSetOrfWindowsWideFormat:
         fs = FeatureSet(dummy_feature, name="test")
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="test_id")
 
-        result = fs.compute_orf_windows(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
 
         assert "record_id" in result.columns
         assert "orf_start" in result.columns
@@ -74,9 +68,7 @@ class TestFeatureSetOrfWindowsWideFormat:
         fs = FeatureSet(dummy_feature, name="test")
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        result = fs.compute_orf_windows(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
 
         cols = list(result.columns)
         # First three should be metadata
@@ -93,20 +85,18 @@ class TestFeatureSetOrfWindowsWideFormat:
         fs = FeatureSet(multi_feature, name="test")
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        result = fs.compute_orf_windows(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
 
-        feature_cols = [c for c in result.columns if c.startswith("test.")]
+        feature_cols = [c for c in result.columns if c.startswith("TEST_")]
 
         # Should be sorted by feature key, then window_start
         # Expected: a_feat_0, a_feat_3, a_feat_6, z_feat_0, z_feat_3, z_feat_6
-        assert feature_cols[0] == "test.a_feat_0"
-        assert feature_cols[1] == "test.a_feat_3"
-        assert feature_cols[2] == "test.a_feat_6"
-        assert feature_cols[3] == "test.z_feat_0"
-        assert feature_cols[4] == "test.z_feat_3"
-        assert feature_cols[5] == "test.z_feat_6"
+        assert feature_cols[0] == "TEST_a_feat_0"
+        assert feature_cols[1] == "TEST_a_feat_3"
+        assert feature_cols[2] == "TEST_a_feat_6"
+        assert feature_cols[3] == "TEST_z_feat_0"
+        assert feature_cols[4] == "TEST_z_feat_3"
+        assert feature_cols[5] == "TEST_z_feat_6"
 
     def test_feature_values_computed_correctly(self):
         """Test that feature values are computed correctly for each window."""
@@ -118,13 +108,11 @@ class TestFeatureSetOrfWindowsWideFormat:
         # Windows: ATGAAACCC (1 G), AAACCCGGG (3 G), CCCGGGTTT (3 G)
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        result = fs.compute_orf_windows(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
 
-        assert result["test.g_count_0"].iloc[0] == 1
-        assert result["test.g_count_3"].iloc[0] == 3
-        assert result["test.g_count_6"].iloc[0] == 3
+        assert result["TEST_g_count_0"].iloc[0] == 1
+        assert result["TEST_g_count_3"].iloc[0] == 3
+        assert result["TEST_g_count_6"].iloc[0] == 3
 
     def test_orf_resolution_explicit_orf_parameter(self):
         """Test ORF resolution using explicit orf parameter."""
@@ -135,9 +123,7 @@ class TestFeatureSetOrfWindowsWideFormat:
         fs = FeatureSet(dummy_feature, name="test")
         record = SeqRecord(Seq("NNNNATGAAACCCGGGTTTNNNN"), id="seq1")
 
-        result = fs.compute_orf_windows(
-            record, orf=(4, 19), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf=(4, 19), window_nt=9, step_nt=3)
 
         assert result["orf_start"].iloc[0] == 4
         assert result["orf_end"].iloc[0] == 19
@@ -153,9 +139,7 @@ class TestFeatureSetOrfWindowsWideFormat:
         record = SeqRecord(Seq("ATGAAATAGATGCCCTAGTAA"), id="seq1")
 
         # Select first ORF candidate (index 0)
-        result = fs.compute_orf_windows(
-            record, orf_index=0, window_nt=6, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf_index=0, window_nt=6, step_nt=3)
 
         # First candidate should be (0, 9)
         assert result["orf_start"].iloc[0] == 0
@@ -200,9 +184,7 @@ class TestFeatureSetOrfWindowsWideFormat:
         record = SeqRecord(Seq("MKLVLS"), id="protein1")
         record.annotations["molecule_type"] = "protein"
 
-        with pytest.raises(
-            ValueError, match="only supported for DNA/RNA sequences, not protein"
-        ):
+        with pytest.raises(ValueError, match="only supported for DNA/RNA sequences, not protein"):
             fs.compute_orf_windows(record, orf=(0, 6), window_nt=3, step_nt=3)
 
     def test_step_not_multiple_of_3_raises_error(self):
@@ -236,7 +218,7 @@ class TestFeatureSetOrfWindowsWideFormat:
         assert "record_id" in result.columns
         assert "orf_start" in result.columns
         assert "orf_end" in result.columns
-        assert len([c for c in result.columns if c.startswith("test.")]) == 0
+        assert len([c for c in result.columns if c.startswith("TEST_")]) == 0
 
     def test_drop_partial_true_excludes_partial_windows(self):
         """Test that partial windows are excluded when drop_partial=True."""
@@ -253,11 +235,11 @@ class TestFeatureSetOrfWindowsWideFormat:
         )
 
         # Should only have columns for windows 0 and 3 (full windows)
-        feature_cols = [c for c in result.columns if c.startswith("test.")]
+        feature_cols = [c for c in result.columns if c.startswith("TEST_")]
         assert len(feature_cols) == 2
-        assert "test.a_count_0" in result.columns
-        assert "test.a_count_3" in result.columns
-        assert "test.a_count_6" not in result.columns
+        assert "TEST_a_count_0" in result.columns
+        assert "TEST_a_count_3" in result.columns
+        assert "TEST_a_count_6" not in result.columns
 
     def test_drop_partial_false_includes_partial_windows(self):
         """Test that partial windows are included when drop_partial=False."""
@@ -273,13 +255,13 @@ class TestFeatureSetOrfWindowsWideFormat:
         )
 
         # Should have columns for all windows including partial ones
-        feature_cols = [c for c in result.columns if c.startswith("test.")]
+        feature_cols = [c for c in result.columns if c.startswith("TEST_")]
         assert len(feature_cols) == 5
-        assert "test.a_count_0" in result.columns
-        assert "test.a_count_3" in result.columns
-        assert "test.a_count_6" in result.columns
-        assert "test.a_count_9" in result.columns
-        assert "test.a_count_12" in result.columns
+        assert "TEST_a_count_0" in result.columns
+        assert "TEST_a_count_3" in result.columns
+        assert "TEST_a_count_6" in result.columns
+        assert "TEST_a_count_9" in result.columns
+        assert "TEST_a_count_12" in result.columns
 
     def test_multiple_features_per_window(self):
         """Test computing multiple features per window."""
@@ -295,19 +277,17 @@ class TestFeatureSetOrfWindowsWideFormat:
         fs = FeatureSet(multi_features, name="test")
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        result = fs.compute_orf_windows(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
 
         # Should have 3 features × 3 windows = 9 feature columns
-        feature_cols = [c for c in result.columns if c.startswith("test.")]
+        feature_cols = [c for c in result.columns if c.startswith("TEST_")]
         assert len(feature_cols) == 9
 
         # Check that all feature types are present for each window
         for window_start in [0, 3, 6]:
-            assert f"test.a_count_{window_start}" in result.columns
-            assert f"test.gc_count_{window_start}" in result.columns
-            assert f"test.length_{window_start}" in result.columns
+            assert f"TEST_a_count_{window_start}" in result.columns
+            assert f"TEST_gc_count_{window_start}" in result.columns
+            assert f"TEST_length_{window_start}" in result.columns
 
     def test_numeric_sorting_of_window_starts(self):
         """Test that window starts are sorted numerically (3, 6, 9, 12 not 12, 3, 6, 9)."""
@@ -320,11 +300,9 @@ class TestFeatureSetOrfWindowsWideFormat:
         long_seq = "ATG" + "AAA" * 20  # 63 nt
         record = SeqRecord(Seq(long_seq), id="seq1")
 
-        result = fs.compute_orf_windows(
-            record, orf=(0, 63), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf=(0, 63), window_nt=9, step_nt=3)
 
-        feature_cols = [c for c in result.columns if c.startswith("test.")]
+        feature_cols = [c for c in result.columns if c.startswith("TEST_")]
 
         # Extract window_starts
         window_starts = [int(c.rsplit("_", 1)[1]) for c in feature_cols]
@@ -343,15 +321,13 @@ class TestFeatureSetOrfWindowsWideFormat:
         fs = FeatureSet(dummy_feature, name="custom_name")
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        result = fs.compute_orf_windows(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
 
-        feature_cols = [c for c in result.columns if c.startswith("custom_name.")]
+        feature_cols = [c for c in result.columns if c.startswith("CUSTOM_NAME_")]
         assert len(feature_cols) == 3
-        assert "custom_name.feat_0" in result.columns
-        assert "custom_name.feat_3" in result.columns
-        assert "custom_name.feat_6" in result.columns
+        assert "CUSTOM_NAME_feat_0" in result.columns
+        assert "CUSTOM_NAME_feat_3" in result.columns
+        assert "CUSTOM_NAME_feat_6" in result.columns
 
 
 class ToyPositionalCodonFeature:
@@ -361,6 +337,7 @@ class ToyPositionalCodonFeature:
     def position_space(self):
         """Return CODON position space."""
         from biotooler.features.aggregation import PositionSpace
+
         return PositionSpace.CODON
 
     @property
@@ -369,11 +346,13 @@ class ToyPositionalCodonFeature:
         import numpy as np
 
         from biotooler.features.aggregation import AggregationSpec
-        return {"codon_idx": AggregationSpec(aggregation_fn=np.mean)}
+
+        return {"codon_idx": AggregationSpec(name="MEAN", aggregation_fn=np.mean)}
 
     def compute_vector(self, record, **kwargs):
         """Return array [0, 1, 2, ...] for each codon."""
         import numpy as np
+
         seq_len = len(record.seq)
         num_codons = seq_len // 3
         return {"codon_idx": np.arange(num_codons, dtype=float)}
@@ -404,14 +383,12 @@ def test_step_nt_does_not_subsample_codons():
     # 18 nt = 6 codons
     record = SeqRecord(Seq("ATGATGATGATGATGATG"), id="test")
 
-    result = fs.compute_orf_windows(
-        record, orf=(0, 18), window_nt=12, step_nt=6, drop_partial=True
-    )
+    result = fs.compute_orf_windows(record, orf=(0, 18), window_nt=12, step_nt=6, drop_partial=True)
 
     # Window 0: codons 0, 1, 2, 3 -> mean = (0+1+2+3)/4 = 1.5
-    assert "test.codon_idx_0" in result.columns
-    assert abs(result["test.codon_idx_0"].iloc[0] - 1.5) < 1e-10
+    assert "TEST_codon_idx_MEAN_0" in result.columns
+    assert abs(result["TEST_codon_idx_MEAN_0"].iloc[0] - 1.5) < 1e-10
 
     # Window 6: codons 2, 3, 4, 5 -> mean = (2+3+4+5)/4 = 3.5
-    assert "test.codon_idx_6" in result.columns
-    assert abs(result["test.codon_idx_6"].iloc[0] - 3.5) < 1e-10
+    assert "TEST_codon_idx_MEAN_6" in result.columns
+    assert abs(result["TEST_codon_idx_MEAN_6"].iloc[0] - 3.5) < 1e-10

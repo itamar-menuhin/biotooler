@@ -120,7 +120,7 @@ class PositionalFeature(Protocol):
         ...
         ...     @property
         ...     def vector_keys(self):
-        ...         return {"gc": AggregationSpec(aggregation_fn=np.mean)}
+        ...         return {"gc": AggregationSpec(name="MEAN", aggregation_fn=np.mean)}
         ...
         ...     def compute_vector(self, record, **kwargs):
         ...         seq = str(record.seq).upper()
@@ -147,9 +147,7 @@ class PositionalFeature(Protocol):
         """
         ...
 
-    def compute_vector(
-        self, record: SeqRecord, **kwargs
-    ) -> dict[str, np.ndarray]:
+    def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
         """Compute per-position feature values for the entire sequence.
 
         Args:

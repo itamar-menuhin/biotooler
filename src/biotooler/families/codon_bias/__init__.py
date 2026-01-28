@@ -45,5 +45,6 @@ def __getattr__(name: str):
     """
     if name == "CodonBiasFeature":
         from biotooler.families.codon_bias.codon_bias import CodonBiasFeature
+
         return CodonBiasFeature
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

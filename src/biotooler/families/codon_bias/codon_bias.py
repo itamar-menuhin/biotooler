@@ -103,6 +103,21 @@ class CodonBiasFeature:
         return PositionSpace.CODON
 
     @property
+    def prefer_incremental_windowing(self) -> bool:
+        """Indicate that this feature prefers incremental windowing in compute_orf_windows.
+
+        CodonBiasFeature implements both positional and incremental interfaces.
+        For compute_orf_windows (legacy), we prefer incremental to maintain backward
+        compatibility with column naming (CB_CAI_0 instead of CB_CAI_GEOMEAN_0).
+        For compute_orf_windows_v2 (explicit positional), the positional interface
+        is used as intended.
+
+        Returns:
+            True to indicate preference for incremental windowing path
+        """
+        return True
+
+    @property
     def vector_keys(self) -> dict[str, AggregationSpec]:
         """Mapping of feature keys to aggregation specifications.
 
@@ -115,6 +130,12 @@ class CodonBiasFeature:
             - FOP: np.mean (proportion/frequency metric)
             - RSCU, RCBS, CPB: np.mean (for scores without get_vector, fallback to legacy)
             - ENC: Not applicable (no get_vector support, uses legacy incremental path)
+
+        Note:
+            For compute_orf_windows (legacy), this feature is treated as "mixed" if any
+            model lacks get_vector, forcing it to use the incremental path.
+            For compute_orf_windows_v2 (explicit positional), this returns the full
+            aggregation specs for models that support get_vector.
         """
         vector_keys = {}
         for name, model in zip(self.names, self.models, strict=True):
@@ -131,21 +152,21 @@ class CodonBiasFeature:
                 # in vector_keys - they'll fall back to legacy incremental mode
                 continue
 
-            # Determine aggregation function based on score type
+            # Determine aggregation function and name based on score type
             if score_class_name in ("CodonAdaptationIndex", "TrnaAdaptationIndex"):
                 # Geometric mean for CAI and tAI (as per mathematical definitions)
                 agg_fn = geometric_mean
+                agg_name = "GEOMEAN"
             else:
                 # Arithmetic mean for FOP, RSCU, RCBS, CPB
                 agg_fn = np.mean
+                agg_name = "MEAN"
 
-            vector_keys[name] = AggregationSpec(aggregation_fn=agg_fn)
+            vector_keys[name] = AggregationSpec(name=agg_name, aggregation_fn=agg_fn)
 
         return vector_keys
 
-    def compute_vector(
-        self, record: SeqRecord, **kwargs
-    ) -> dict[str, np.ndarray]:
+    def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
         """Compute per-codon feature values for the entire sequence.
 
         This method uses the codonbias score's get_vector() method to compute
@@ -302,8 +323,11 @@ class CodonBiasFeature:
                     # 1. Original score_id (as provided by user)
                     # 2. Class name (e.g., "CodonAdaptationIndex")
                     # 3. Abbreviation (e.g., "CAI")
-                    for key in [score_id, score_class.__name__,
-                               _get_score_abbreviation(score_class.__name__)]:
+                    for key in [
+                        score_id,
+                        score_class.__name__,
+                        _get_score_abbreviation(score_class.__name__),
+                    ]:
                         if isinstance(key, str) and key in score_kwargs:
                             kwargs = score_kwargs[key].copy()
                             break
@@ -320,9 +344,7 @@ class CodonBiasFeature:
                     models.append(model)
                     resolved_names.append(score_class.__name__)
                 except TypeError as e:
-                    raise TypeError(
-                        f"Failed to instantiate {score_class.__name__}: {e}"
-                    ) from e
+                    raise TypeError(f"Failed to instantiate {score_class.__name__}: {e}") from e
 
             # Cache the built models with FIFO eviction
             # Evict oldest if cache would exceed max size
@@ -500,9 +522,7 @@ class CodonBiasFeature:
         abs_start = orf_start + window_start
         abs_end = orf_start + window_end
 
-        for name, model, weights_info in zip(
-            self.names, self.models, model_data, strict=True
-        ):
+        for name, model, weights_info in zip(self.names, self.models, model_data, strict=True):
             # Try incremental computation first if weights are available
             score = None
             if weights_info["has_weights"]:

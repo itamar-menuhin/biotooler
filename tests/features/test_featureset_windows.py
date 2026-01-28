@@ -102,10 +102,11 @@ class TestComputeWindowsBasicFunctionality:
 
         result = fs.compute_windows(record, window_size=4, step=2)
 
-        # Should have columns like test.len_0, test.len_2, test.len_4, test.len_6, test.len_8
-        assert "test.len_0" in result.columns
-        assert "test.len_2" in result.columns
-        assert "test.len_4" in result.columns
+        # Should have columns like TEST_len_0, TEST_len_2, TEST_len_4, TEST_len_6, TEST_len_8
+        # (no aggregation name for non-positional features)
+        assert "TEST_len_0" in result.columns
+        assert "TEST_len_2" in result.columns
+        assert "TEST_len_4" in result.columns
 
     def test_metadata_columns_present(self):
         """Test that metadata columns (record_id, region_start, region_end) are included."""
@@ -145,7 +146,7 @@ class TestComputeWindowsBasicFunctionality:
 
         result = fs.compute_windows(record, window_size=4, step=2)
 
-        feature_cols = [c for c in result.columns if c.startswith("test.")]
+        feature_cols = [c for c in result.columns if c.startswith("TEST_")]
 
         # Should be sorted by feature key, then window_start
         # Expected: a_feat_0, a_feat_2, a_feat_4, ..., z_feat_0, z_feat_2, z_feat_4, ...
@@ -159,8 +160,8 @@ class TestComputeWindowsBasicFunctionality:
             )
 
         # Check first few columns
-        assert feature_cols[0] == "test.a_feat_0"
-        assert feature_cols[1] == "test.a_feat_2"
+        assert feature_cols[0] == "TEST_a_feat_0"
+        assert feature_cols[1] == "TEST_a_feat_2"
 
 
 class TestComputeWindowsNonIncrementalFeatures:
@@ -180,11 +181,11 @@ class TestComputeWindowsNonIncrementalFeatures:
         result = fs.compute_windows(record, window_size=4, step=2)
 
         # All windows should have length 4
-        assert result["test.len_0"].iloc[0] == 4
-        assert result["test.len_2"].iloc[0] == 4
-        assert result["test.len_4"].iloc[0] == 4
-        assert result["test.len_6"].iloc[0] == 4
-        assert result["test.len_8"].iloc[0] == 4
+        assert result["TEST_len_0"].iloc[0] == 4
+        assert result["TEST_len_2"].iloc[0] == 4
+        assert result["TEST_len_4"].iloc[0] == 4
+        assert result["TEST_len_6"].iloc[0] == 4
+        assert result["TEST_len_8"].iloc[0] == 4
 
 
 class TestComputeWindowsIncrementalFeatures:
@@ -202,16 +203,16 @@ class TestComputeWindowsIncrementalFeatures:
         result = fs.compute_windows(record, window_size=4, step=2)
 
         # Check window 0 (ACGT)
-        assert result["test.a_count_0"].iloc[0] == 1
-        assert result["test.c_count_0"].iloc[0] == 1
+        assert result["TEST_a_count_0"].iloc[0] == 1
+        assert result["TEST_c_count_0"].iloc[0] == 1
 
         # Check window 1 (GTAC)
-        assert result["test.a_count_2"].iloc[0] == 1
-        assert result["test.c_count_2"].iloc[0] == 1
+        assert result["TEST_a_count_2"].iloc[0] == 1
+        assert result["TEST_c_count_2"].iloc[0] == 1
 
         # Check window 2 (ACGT)
-        assert result["test.a_count_4"].iloc[0] == 1
-        assert result["test.c_count_4"].iloc[0] == 1
+        assert result["TEST_a_count_4"].iloc[0] == 1
+        assert result["TEST_c_count_4"].iloc[0] == 1
 
     def test_incremental_and_fallback_produce_identical_output(self):
         """Test that incremental and fallback paths produce exactly the same output."""
@@ -225,8 +226,8 @@ class TestComputeWindowsIncrementalFeatures:
 
         # Verify shape and structure
         assert result_incremental.shape[0] == 1
-        assert "test.a_count_0" in result_incremental.columns
-        assert "test.c_count_0" in result_incremental.columns
+        assert "TEST_a_count_0" in result_incremental.columns
+        assert "TEST_c_count_0" in result_incremental.columns
 
 
 class TestComputeWindowsWithRegion:
@@ -238,35 +239,31 @@ class TestComputeWindowsWithRegion:
         record = SeqRecord(Seq("NNNNACGTACGTNNNN"), id="seq1")
 
         # Only window over positions 4-12 (ACGTACGT)
-        result = fs.compute_windows(
-            record, window_size=4, step=2, region=(4, 12)
-        )
+        result = fs.compute_windows(record, window_size=4, step=2, region=(4, 12))
 
         assert result["region_start"].iloc[0] == 4
         assert result["region_end"].iloc[0] == 12
 
         # Should have windows starting at 0 (relative to region)
-        assert "test.len_0" in result.columns
-        assert "test.len_2" in result.columns
-        assert "test.len_4" in result.columns
+        assert "TEST_len_0" in result.columns
+        assert "TEST_len_2" in result.columns
+        assert "TEST_len_4" in result.columns
 
     def test_region_window_starts_relative_to_region(self):
         """Test that window starts are relative to region start (first is _0)."""
         fs = FeatureSet(TinyNonIncrementalFeature(), name="test")
         record = SeqRecord(Seq("NNNNACGTACGTNNNN"), id="seq1")
 
-        result = fs.compute_windows(
-            record, window_size=4, step=2, region=(4, 12)
-        )
+        result = fs.compute_windows(record, window_size=4, step=2, region=(4, 12))
 
         # Window starts should be 0, 2, 4 (relative to region start, not absolute)
-        assert "test.len_0" in result.columns
-        assert "test.len_2" in result.columns
-        assert "test.len_4" in result.columns
+        assert "TEST_len_0" in result.columns
+        assert "TEST_len_2" in result.columns
+        assert "TEST_len_4" in result.columns
 
         # Should NOT have windows starting at 4, 6, 8 (absolute positions)
-        assert "test.len_4" in result.columns  # This is relative position 4 within region
-        assert "test.len_6" not in result.columns  # Would be beyond region
+        assert "TEST_len_4" in result.columns  # This is relative position 4 within region
+        assert "TEST_len_6" not in result.columns  # Would be beyond region
 
 
 class TestComputeWindowsProteinSequences:
@@ -282,15 +279,15 @@ class TestComputeWindowsProteinSequences:
         result = fs.compute_windows(protein_record, window_size=5, step=1)
 
         # Should have windows at positions 0, 1, 2, 3, 4
-        assert "test.len_0" in result.columns
-        assert "test.len_1" in result.columns
-        assert "test.len_2" in result.columns
-        assert "test.len_3" in result.columns
-        assert "test.len_4" in result.columns
+        assert "TEST_len_0" in result.columns
+        assert "TEST_len_1" in result.columns
+        assert "TEST_len_2" in result.columns
+        assert "TEST_len_3" in result.columns
+        assert "TEST_len_4" in result.columns
 
         # All windows should have length 5
         for i in range(5):
-            assert result[f"test.len_{i}"].iloc[0] == 5
+            assert result[f"TEST_len_{i}"].iloc[0] == 5
 
 
 class TestComputeWindowsDropPartial:
@@ -302,37 +299,33 @@ class TestComputeWindowsDropPartial:
         # 11 bases, windows of 4 with step 2 -> only 0, 2, 4, 6 fit fully
         record = SeqRecord(Seq("ACGTACGTACG"), id="seq1")
 
-        result = fs.compute_windows(
-            record, window_size=4, step=2, drop_partial=True
-        )
+        result = fs.compute_windows(record, window_size=4, step=2, drop_partial=True)
 
         # Should only have columns for full windows (0, 2, 4, 6)
-        feature_cols = [c for c in result.columns if c.startswith("test.")]
+        feature_cols = [c for c in result.columns if c.startswith("TEST_")]
         assert len(feature_cols) == 4
-        assert "test.len_0" in result.columns
-        assert "test.len_2" in result.columns
-        assert "test.len_4" in result.columns
-        assert "test.len_6" in result.columns
-        assert "test.len_8" not in result.columns  # Partial
+        assert "TEST_len_0" in result.columns
+        assert "TEST_len_2" in result.columns
+        assert "TEST_len_4" in result.columns
+        assert "TEST_len_6" in result.columns
+        assert "TEST_len_8" not in result.columns  # Partial
 
     def test_drop_partial_false_includes_partial_windows(self):
         """Test that partial windows are included when drop_partial=False."""
         fs = FeatureSet(TinyNonIncrementalFeature(), name="test")
         record = SeqRecord(Seq("ACGTACGTACG"), id="seq1")
 
-        result = fs.compute_windows(
-            record, window_size=4, step=2, drop_partial=False
-        )
+        result = fs.compute_windows(record, window_size=4, step=2, drop_partial=False)
 
         # Should have columns for all windows including partial ones
-        feature_cols = [c for c in result.columns if c.startswith("test.")]
+        feature_cols = [c for c in result.columns if c.startswith("TEST_")]
         assert len(feature_cols) == 6
-        assert "test.len_0" in result.columns
-        assert "test.len_2" in result.columns
-        assert "test.len_4" in result.columns
-        assert "test.len_6" in result.columns
-        assert "test.len_8" in result.columns  # Partial (3 bases)
-        assert "test.len_10" in result.columns  # Partial (1 base)
+        assert "TEST_len_0" in result.columns
+        assert "TEST_len_2" in result.columns
+        assert "TEST_len_4" in result.columns
+        assert "TEST_len_6" in result.columns
+        assert "TEST_len_8" in result.columns  # Partial (3 bases)
+        assert "TEST_len_10" in result.columns  # Partial (1 base)
 
 
 class TestComputeWindowsEdgeCases:
@@ -344,16 +337,14 @@ class TestComputeWindowsEdgeCases:
         record = SeqRecord(Seq("ACGT"), id="seq1")
 
         # Window size larger than sequence with drop_partial=True
-        result = fs.compute_windows(
-            record, window_size=10, step=2, drop_partial=True
-        )
+        result = fs.compute_windows(record, window_size=10, step=2, drop_partial=True)
 
         # Should have only metadata columns
         assert result.shape[0] == 1
         assert "record_id" in result.columns
         assert "region_start" in result.columns
         assert "region_end" in result.columns
-        assert len([c for c in result.columns if c.startswith("test.")]) == 0
+        assert len([c for c in result.columns if c.startswith("TEST_")]) == 0
 
     def test_numeric_sorting_of_window_starts(self):
         """Test that window starts are sorted numerically (3, 6, 9, 12 not 12, 3, 6, 9)."""
@@ -364,7 +355,7 @@ class TestComputeWindowsEdgeCases:
 
         result = fs.compute_windows(record, window_size=4, step=3)
 
-        feature_cols = [c for c in result.columns if c.startswith("test.")]
+        feature_cols = [c for c in result.columns if c.startswith("TEST_")]
 
         # Extract window_starts
         window_starts = [int(c.rsplit("_", 1)[1]) for c in feature_cols]
@@ -381,9 +372,9 @@ class TestComputeWindowsEdgeCases:
 
         result = fs.compute_windows(record, window_size=4, step=2)
 
-        feature_cols = [c for c in result.columns if c.startswith("custom_name.")]
+        feature_cols = [c for c in result.columns if c.startswith("CUSTOM_NAME_")]
         assert len(feature_cols) > 0
-        assert "custom_name.len_0" in result.columns
+        assert "CUSTOM_NAME_len_0" in result.columns
 
     def test_empty_sequence_no_windows(self):
         """Test handling of empty sequence."""
@@ -395,4 +386,4 @@ class TestComputeWindowsEdgeCases:
         # Should have only metadata
         assert result.shape[0] == 1
         assert result["record_id"].iloc[0] == "empty"
-        assert len([c for c in result.columns if c.startswith("test.")]) == 0
+        assert len([c for c in result.columns if c.startswith("TEST_")]) == 0

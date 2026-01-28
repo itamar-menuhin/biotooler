@@ -61,10 +61,10 @@ class TestDisorderWindowAggregationBasic:
             assert "orf_end" in result.columns
 
             # Verify feature column exists
-            assert "disorder.DISORDER_P_0" in result.columns
+            assert "DISORDER_DISORDER_P_MEAN_0" in result.columns
 
             # Verify value is finite and in valid range
-            value = result["disorder.DISORDER_P_0"].iloc[0]
+            value = result["DISORDER_DISORDER_P_MEAN_0"].iloc[0]
             assert np.isfinite(value)
             assert 0.0 <= value <= 1.0
 
@@ -100,12 +100,12 @@ class TestDisorderWindowAggregationBasic:
             result = fs.compute_orf_windows_v2(record, orf=(0, 15), window_nt=15, step_nt=15)
 
             # Verify naming pattern: disorder.DISORDER_P_0
-            assert "disorder.DISORDER_P_0" in result.columns
+            assert "DISORDER_DISORDER_P_MEAN_0" in result.columns
 
             # Verify format
             for col in result.columns:
                 if col.startswith("disorder."):
-                    assert col.startswith("disorder.DISORDER_P_")
+                    assert col.startswith("DISORDER_DISORDER_P_MEAN_")
                     nt_start = int(col.split("_")[-1])
                     assert nt_start >= 0
 
@@ -143,7 +143,7 @@ class TestDisorderWindowAggregationBasic:
             result = fs.compute_orf_windows_v2(record, orf=(0, 27), window_nt=27, step_nt=27)
 
             # Aggregated value should equal the uniform value
-            value = result["disorder.DISORDER_P_0"].iloc[0]
+            value = result["DISORDER_DISORDER_P_MEAN_0"].iloc[0]
             assert np.isfinite(value)
             np.testing.assert_allclose(value, uniform_value, rtol=1e-10)
 
@@ -185,9 +185,9 @@ class TestDisorderWindowAggregationTranslation:
             result = fs.compute_orf_windows_v2(dna_record, orf=(0, 27), window_nt=27, step_nt=27)
 
             assert result.shape[0] == 1
-            assert "disorder.DISORDER_P_0" in result.columns
+            assert "DISORDER_DISORDER_P_MEAN_0" in result.columns
 
-            value = result["disorder.DISORDER_P_0"].iloc[0]
+            value = result["DISORDER_DISORDER_P_MEAN_0"].iloc[0]
             assert np.isfinite(value)
             assert 0.0 <= value <= 1.0
 
@@ -225,9 +225,9 @@ class TestDisorderWindowAggregationTranslation:
             result = fs.compute_orf_windows_v2(rna_record, orf=(0, 27), window_nt=27, step_nt=27)
 
             assert result.shape[0] == 1
-            assert "disorder.DISORDER_P_0" in result.columns
+            assert "DISORDER_DISORDER_P_MEAN_0" in result.columns
 
-            value = result["disorder.DISORDER_P_0"].iloc[0]
+            value = result["DISORDER_DISORDER_P_MEAN_0"].iloc[0]
             assert np.isfinite(value)
             assert 0.0 <= value <= 1.0
 
@@ -276,8 +276,8 @@ class TestDisorderWindowAggregationTranslation:
             )
 
             # Both should produce same value
-            dna_value = dna_result["disorder.DISORDER_P_0"].iloc[0]
-            rna_value = rna_result["disorder.DISORDER_P_0"].iloc[0]
+            dna_value = dna_result["DISORDER_DISORDER_P_MEAN_0"].iloc[0]
+            rna_value = rna_result["DISORDER_DISORDER_P_MEAN_0"].iloc[0]
 
             assert np.isfinite(dna_value)
             assert np.isfinite(rna_value)

@@ -77,9 +77,7 @@ class TestWindowMFEFeature:
         ):
             feature = WindowMFEFeature(window_starts=[0, 10, 20], window_size=15)
             # Use 40 bp sequence so all windows fit
-            record = SeqRecord(
-                Seq("ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT"), id="test"
-            )  # 40 bp
+            record = SeqRecord(Seq("ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT"), id="test")  # 40 bp
 
             result = feature(record)
 
@@ -200,9 +198,7 @@ class TestWindowMFEFeature:
             # Request only 3 specific windows out of many possible
             feature = WindowMFEFeature(window_starts=[5, 15, 25], window_size=10)
             # 50 bp sequence could have many windows, but we request only 3
-            record = SeqRecord(
-                Seq("ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTAC"), id="test"
-            )
+            record = SeqRecord(Seq("ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTAC"), id="test")
 
             result = feature(record)
 

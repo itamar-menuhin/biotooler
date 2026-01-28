@@ -328,9 +328,7 @@ class TestComputeWindowIndices:
         from biotooler.core.windowing import compute_window_indices
 
         # 15 nt = 5 codons, window size 9 nt, step 3 nt
-        indices = compute_window_indices(
-            15, window_size=9, step=3, position_space="codon"
-        )
+        indices = compute_window_indices(15, window_size=9, step=3, position_space="codon")
 
         assert len(indices) == 3
         assert indices[0] == (0, 9)
@@ -373,9 +371,7 @@ class TestComputeWindowIndices:
         from biotooler.core.windowing import compute_window_indices
 
         # 10 residues, window size 5, step 1
-        indices = compute_window_indices(
-            10, window_size=5, step=1, position_space="residue"
-        )
+        indices = compute_window_indices(10, window_size=5, step=1, position_space="residue")
 
         # Should get windows at positions 0, 1, 2, 3, 4, 5
         assert len(indices) == 6
@@ -391,9 +387,7 @@ class TestComputeWindowIndices:
         from biotooler.core.windowing import compute_window_indices
 
         # Step 2 (not multiple of 3) should work for residue space
-        indices = compute_window_indices(
-            10, window_size=4, step=2, position_space="residue"
-        )
+        indices = compute_window_indices(10, window_size=4, step=2, position_space="residue")
 
         assert len(indices) == 4
         assert indices[0] == (0, 4)
@@ -457,9 +451,7 @@ class TestComputeWindowIndices:
         from biotooler.core.windowing import compute_window_indices
 
         with pytest.raises(ValueError, match="position_space must be"):
-            compute_window_indices(
-                15, window_size=9, step=3, position_space="invalid"
-            )
+            compute_window_indices(15, window_size=9, step=3, position_space="invalid")
 
     def test_empty_result_when_window_too_large(self):
         """Test empty result when window size exceeds sequence length."""
@@ -475,9 +467,7 @@ class TestComputeWindowIndices:
         """Test single window when it exactly fits the sequence."""
         from biotooler.core.windowing import compute_window_indices
 
-        indices = compute_window_indices(
-            9, window_size=9, step=3, position_space="codon"
-        )
+        indices = compute_window_indices(9, window_size=9, step=3, position_space="codon")
 
         assert len(indices) == 1
         assert indices[0] == (0, 9)
@@ -529,9 +519,7 @@ class TestComputeWindowIndexArrays:
         """Test that output_space=None keeps residue indices."""
         from biotooler.core.windowing import compute_window_index_arrays
 
-        arrays = compute_window_index_arrays(
-            10, window_size=3, step=2, position_space="residue"
-        )
+        arrays = compute_window_index_arrays(10, window_size=3, step=2, position_space="residue")
 
         assert len(arrays) == 4
         assert arrays[0].tolist() == [0, 1, 2]

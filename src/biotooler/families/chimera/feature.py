@@ -118,21 +118,15 @@ class ChimeraFeature:
             # cARS/PScARS algorithms work on DNA sequences, not proteins
             # Get CDS strings from the reference set
             try:
-                self.reference_seqs = reference_set.cds_strings(
-                    require_multiple_of_three=False
-                )
+                self.reference_seqs = reference_set.cds_strings(require_multiple_of_three=False)
                 self._sequence_type = "cds"
             except Exception as e:
-                raise ValueError(
-                    f"reference_set cannot provide CDS sequences: {e}"
-                ) from e
+                raise ValueError(f"reference_set cannot provide CDS sequences: {e}") from e
         elif reference_seqs is not None:
             self.reference_seqs = reference_seqs
             self._sequence_type = "cds"
         else:
-            raise ValueError(
-                "Either reference_seqs or reference_set must be provided"
-            )
+            raise ValueError("Either reference_seqs or reference_set must be provided")
 
         self.algorithm = algorithm
         self.max_len = max_len
@@ -169,7 +163,7 @@ class ChimeraFeature:
         """
         feature_name = f"{self.algorithm}_score"
         return {
-            feature_name: AggregationSpec(aggregation_fn=np.mean),
+            feature_name: AggregationSpec(name="MEAN", aggregation_fn=np.mean),
         }
 
     def _get_chimera_functions(self):
@@ -227,9 +221,7 @@ class ChimeraFeature:
         if self._suffix_array is None:
             ref_cod = nt2codon(self._normalized_refs)
             # Include position-specific data if using PScARS
-            self._suffix_array = build_suffix_array(
-                ref_cod, pos_spec=("PS" in self.algorithm)
-            )
+            self._suffix_array = build_suffix_array(ref_cod, pos_spec=("PS" in self.algorithm))
 
         # Convert target sequence to codon representation
         target_cod = nt2codon([target_seq])
@@ -293,9 +285,7 @@ class ChimeraFeature:
         if self._suffix_array is None:
             ref_cod = nt2codon(self._normalized_refs)
             # Include position-specific data if using PScARS
-            self._suffix_array = build_suffix_array(
-                ref_cod, pos_spec=("PS" in self.algorithm)
-            )
+            self._suffix_array = build_suffix_array(ref_cod, pos_spec=("PS" in self.algorithm))
 
         # Convert target sequence to codon representation
         target_cod = nt2codon([target_seq])

@@ -63,9 +63,7 @@ class TestIDRPredWindowMeanMatchesManual:
         record.annotations["molecule_type"] = "DNA"
 
         # Compute single window covering entire sequence
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 36), window_nt=36, step_nt=36
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 36), window_nt=36, step_nt=36)
 
         # Verify output shape
         assert result.shape[0] == 1, "Expected single-row (wide format)"
@@ -76,9 +74,9 @@ class TestIDRPredWindowMeanMatchesManual:
         assert result["orf_end"].iloc[0] == 36
 
         # Verify computed value matches expected value
-        assert "idrpred.IDRPRED_IDR_0" in result.columns
+        assert "IDRPRED_IDRPRED_IDR_MEAN_0" in result.columns
         np.testing.assert_allclose(
-            result["idrpred.IDRPRED_IDR_0"].iloc[0],
+            result["IDRPRED_IDRPRED_IDR_MEAN_0"].iloc[0],
             expected_mean,
             rtol=1e-10,
             err_msg="Window aggregation doesn't match manual calculation",
@@ -115,13 +113,11 @@ class TestIDRPredWindowMeanMatchesManual:
         record.annotations["molecule_type"] = "DNA"
 
         # Single window covering entire sequence
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 30), window_nt=30, step_nt=30
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 30), window_nt=30, step_nt=30)
 
         # Verify computed value
         np.testing.assert_allclose(
-            result["idrpred.IDRPRED_IDR_0"].iloc[0],
+            result["IDRPRED_IDRPRED_IDR_MEAN_0"].iloc[0],
             expected_mean,
             rtol=1e-10,
         )
@@ -146,13 +142,11 @@ class TestIDRPredWindowMeanMatchesManual:
         record.annotations["molecule_type"] = "DNA"
 
         # Single window covering entire sequence
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 24), window_nt=24, step_nt=24
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 24), window_nt=24, step_nt=24)
 
         # All IDR means should be 1.0
-        assert "idrpred.IDRPRED_IDR_0" in result.columns
-        np.testing.assert_allclose(result["idrpred.IDRPRED_IDR_0"].iloc[0], 1.0, rtol=1e-10)
+        assert "IDRPRED_IDRPRED_IDR_MEAN_0" in result.columns
+        np.testing.assert_allclose(result["IDRPRED_IDRPRED_IDR_MEAN_0"].iloc[0], 1.0, rtol=1e-10)
 
     def test_idrpred_window_mean_no_idr(self, monkeypatch):
         """Test window aggregation with no IDR positions (all 0s)."""
@@ -174,13 +168,11 @@ class TestIDRPredWindowMeanMatchesManual:
         record.annotations["molecule_type"] = "DNA"
 
         # Single window covering entire sequence
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 24), window_nt=24, step_nt=24
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 24), window_nt=24, step_nt=24)
 
         # All IDR means should be 0.0
-        assert "idrpred.IDRPRED_IDR_0" in result.columns
-        np.testing.assert_allclose(result["idrpred.IDRPRED_IDR_0"].iloc[0], 0.0, rtol=1e-10)
+        assert "IDRPRED_IDRPRED_IDR_MEAN_0" in result.columns
+        np.testing.assert_allclose(result["IDRPRED_IDRPRED_IDR_MEAN_0"].iloc[0], 0.0, rtol=1e-10)
 
 
 class TestIDRPredTranslationPathWindowing:
@@ -218,16 +210,12 @@ class TestIDRPredTranslationPathWindowing:
         # DNA path
         dna_record = SeqRecord(Seq(dna_seq), id="test_dna")
         dna_record.annotations["molecule_type"] = "DNA"
-        dna_result = fs.compute_orf_windows_v2(
-            dna_record, orf=(0, 27), window_nt=27, step_nt=27
-        )
+        dna_result = fs.compute_orf_windows_v2(dna_record, orf=(0, 27), window_nt=27, step_nt=27)
 
         # RNA path
         rna_record = SeqRecord(Seq(rna_seq), id="test_rna")
         rna_record.annotations["molecule_type"] = "RNA"
-        rna_result = fs.compute_orf_windows_v2(
-            rna_record, orf=(0, 27), window_nt=27, step_nt=27
-        )
+        rna_result = fs.compute_orf_windows_v2(rna_record, orf=(0, 27), window_nt=27, step_nt=27)
 
         # Both should have same columns
         assert set(dna_result.columns) == set(rna_result.columns)
@@ -276,23 +264,19 @@ class TestIDRPredTranslationPathWindowing:
         # DNA path
         dna_record = SeqRecord(Seq(dna_seq), id="test_dna")
         dna_record.annotations["molecule_type"] = "DNA"
-        dna_result = fs.compute_orf_windows_v2(
-            dna_record, orf=(0, 15), window_nt=15, step_nt=15
-        )
+        dna_result = fs.compute_orf_windows_v2(dna_record, orf=(0, 15), window_nt=15, step_nt=15)
 
         # RNA path
         rna_record = SeqRecord(Seq(rna_seq), id="test_rna")
         rna_record.annotations["molecule_type"] = "RNA"
-        rna_result = fs.compute_orf_windows_v2(
-            rna_record, orf=(0, 15), window_nt=15, step_nt=15
-        )
+        rna_result = fs.compute_orf_windows_v2(rna_record, orf=(0, 15), window_nt=15, step_nt=15)
 
         # Verify both produce same result
-        assert "idrpred.IDRPRED_IDR_0" in dna_result.columns
-        assert "idrpred.IDRPRED_IDR_0" in rna_result.columns
+        assert "IDRPRED_IDRPRED_IDR_MEAN_0" in dna_result.columns
+        assert "IDRPRED_IDRPRED_IDR_MEAN_0" in rna_result.columns
 
-        dna_val = dna_result["idrpred.IDRPRED_IDR_0"].iloc[0]
-        rna_val = rna_result["idrpred.IDRPRED_IDR_0"].iloc[0]
+        dna_val = dna_result["IDRPRED_IDRPRED_IDR_MEAN_0"].iloc[0]
+        rna_val = rna_result["IDRPRED_IDRPRED_IDR_MEAN_0"].iloc[0]
 
         np.testing.assert_allclose(dna_val, rna_val, rtol=1e-10)
 
@@ -323,16 +307,14 @@ class TestIDRPredTranslationPathWindowing:
         dna_record = SeqRecord(Seq(dna_seq), id="test")
         dna_record.annotations["molecule_type"] = "DNA"
 
-        result = fs.compute_orf_windows_v2(
-            dna_record, orf=(0, 24), window_nt=24, step_nt=24
-        )
+        result = fs.compute_orf_windows_v2(dna_record, orf=(0, 24), window_nt=24, step_nt=24)
 
         # Should have single window at 0
-        assert "idrpred.IDRPRED_IDR_0" in result.columns
+        assert "IDRPRED_IDRPRED_IDR_MEAN_0" in result.columns
 
         # Verify calculation
         np.testing.assert_allclose(
-            result["idrpred.IDRPRED_IDR_0"].iloc[0], expected_mean, rtol=1e-10
+            result["IDRPRED_IDRPRED_IDR_MEAN_0"].iloc[0], expected_mean, rtol=1e-10
         )
 
 
@@ -355,9 +337,7 @@ class TestIDRPredWindowOutputFormat:
         record = SeqRecord(Seq(dna_seq), id="test")
         record.annotations["molecule_type"] = "DNA"
 
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 15), window_nt=15, step_nt=15
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 15), window_nt=15, step_nt=15)
 
         # Should be single row (wide format)
         assert result.shape[0] == 1
@@ -379,15 +359,13 @@ class TestIDRPredWindowOutputFormat:
         record.annotations["molecule_type"] = "DNA"
 
         # Single full-length window at nt position 0
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 15), window_nt=15, step_nt=15
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 15), window_nt=15, step_nt=15)
 
         # Check column naming pattern
-        assert "idrpred.IDRPRED_IDR_0" in result.columns
+        assert "IDRPRED_IDRPRED_IDR_MEAN_0" in result.columns
 
         # Verify no unexpected columns
-        feature_cols = [c for c in result.columns if c.startswith("idrpred.")]
+        feature_cols = [c for c in result.columns if c.startswith("IDRPRED_")]
         assert len(feature_cols) == 1
 
     def test_metadata_columns_present(self, monkeypatch):
@@ -406,9 +384,7 @@ class TestIDRPredWindowOutputFormat:
         record = SeqRecord(Seq(dna_seq), id="test_record")
         record.annotations["molecule_type"] = "DNA"
 
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 15), window_nt=15, step_nt=15
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 15), window_nt=15, step_nt=15)
 
         # Check metadata columns
         assert "record_id" in result.columns

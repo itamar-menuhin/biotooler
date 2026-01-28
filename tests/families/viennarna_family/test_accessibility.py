@@ -153,9 +153,10 @@ class TestViennaRNAAccessibilityNormalization:
 
         # Results should be identical after normalization
         np.testing.assert_array_almost_equal(
-            dna_result["PU"], rna_result["PU"],
+            dna_result["PU"],
+            rna_result["PU"],
             decimal=10,
-            err_msg="DNA and RNA sequences should produce identical results"
+            err_msg="DNA and RNA sequences should produce identical results",
         )
 
     def test_lowercase_sequences_handled(self):
@@ -174,9 +175,10 @@ class TestViennaRNAAccessibilityNormalization:
 
         # Results should be identical
         np.testing.assert_array_almost_equal(
-            lower_result["PU"], upper_result["PU"],
+            lower_result["PU"],
+            upper_result["PU"],
             decimal=10,
-            err_msg="Lowercase and uppercase sequences should produce identical results"
+            err_msg="Lowercase and uppercase sequences should produce identical results",
         )
 
 
@@ -226,8 +228,10 @@ class TestViennaRNAAccessibilityWindowAggregation:
             )
             actual_mean = windowed_result[col_name].iloc[0]
             np.testing.assert_almost_equal(
-                actual_mean, expected_mean, decimal=10,
-                err_msg=f"Window starting at {start} has incorrect aggregation"
+                actual_mean,
+                expected_mean,
+                decimal=10,
+                err_msg=f"Window starting at {start} has incorrect aggregation",
             )
 
     def test_partial_window_aggregation(self):
@@ -261,8 +265,10 @@ class TestViennaRNAAccessibilityWindowAggregation:
             expected_mean = np.mean(partial_window_slice)
             actual_mean = windowed_result["viennarna.PU_9"].iloc[0]
             np.testing.assert_almost_equal(
-                actual_mean, expected_mean, decimal=10,
-                err_msg="Partial window has incorrect aggregation"
+                actual_mean,
+                expected_mean,
+                decimal=10,
+                err_msg="Partial window has incorrect aggregation",
             )
 
     def test_single_window_covers_full_sequence(self):
@@ -292,8 +298,10 @@ class TestViennaRNAAccessibilityWindowAggregation:
         expected_mean = np.mean(pu_vector)
         actual_mean = windowed_result[col_name].iloc[0]
         np.testing.assert_almost_equal(
-            actual_mean, expected_mean, decimal=10,
-            err_msg="Single window aggregation doesn't match full vector mean"
+            actual_mean,
+            expected_mean,
+            decimal=10,
+            err_msg="Single window aggregation doesn't match full vector mean",
         )
 
 
@@ -382,8 +390,10 @@ class TestViennaRNAAccessibilityPositions:
         # Values at the specified positions should match full computation
         for pos in positions:
             np.testing.assert_almost_equal(
-                pu_full[pos], pu_positions[pos], decimal=10,
-                err_msg=f"Position {pos} value differs between full and sparse computation"
+                pu_full[pos],
+                pu_positions[pos],
+                decimal=10,
+                err_msg=f"Position {pos} value differs between full and sparse computation",
             )
 
     def test_positions_argument_preserves_all_values(self):
@@ -410,8 +420,10 @@ class TestViennaRNAAccessibilityPositions:
 
         # All values should match exactly
         np.testing.assert_array_almost_equal(
-            pu_full, pu_positions, decimal=10,
-            err_msg="Full computation should be identical regardless of positions argument"
+            pu_full,
+            pu_positions,
+            decimal=10,
+            err_msg="Full computation should be identical regardless of positions argument",
         )
 
 

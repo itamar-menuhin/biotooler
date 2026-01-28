@@ -200,9 +200,7 @@ class TestIDRPredLongestRunCases:
         feature = IDRPredDerivedScalars()
         record = SeqRecord(Seq("MKALVSWGRPQM"), id="test")
         # Two runs: length 2 and length 4
-        record.annotations["IDRPRED_IDR"] = np.array(
-            [0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0]
-        )
+        record.annotations["IDRPRED_IDR"] = np.array([0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0])
         result = feature(record)
 
         assert result["IDRPRED_LONGEST_IDR_LEN"] == 4
@@ -320,9 +318,7 @@ class TestIDRPredSegmentCountCases:
         feature = IDRPredDerivedScalars()
         record = SeqRecord(Seq("MKALVSWGRPQM"), id="test")
         # Three segments: [1-2], [5-6], [10]
-        record.annotations["IDRPRED_IDR"] = np.array(
-            [0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0]
-        )
+        record.annotations["IDRPRED_IDR"] = np.array([0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0])
         result = feature(record)
 
         assert result["IDRPRED_NUM_IDR_SEGMENTS"] == 3
@@ -502,9 +498,7 @@ class TestIDRPredDerivedScalarsIntegration:
         feature = IDRPredDerivedScalars()
         record = SeqRecord(Seq("M" * 15), id="test")
         # Pattern: 5 segments of length 2 each with single gaps
-        record.annotations["IDRPRED_IDR"] = np.array(
-            [1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0]
-        )
+        record.annotations["IDRPRED_IDR"] = np.array([1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0])
         result = feature(record)
 
         # 10 out of 15 in IDRs
@@ -521,9 +515,7 @@ class TestIDRPredDerivedScalarsIntegration:
         feature = IDRPredDerivedScalars()
         record = SeqRecord(Seq("M" * 15), id="test")
         # Pattern: two segments with large gap
-        record.annotations["IDRPRED_IDR"] = np.array(
-            [1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
-        )
+        record.annotations["IDRPRED_IDR"] = np.array([1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
         result = feature(record)
 
         # 10 out of 15 in IDRs

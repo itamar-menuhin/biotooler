@@ -281,9 +281,7 @@ class TestIntegration:
         regions = parse_tsv_regions(tsv_output)
         mask = regions_to_mask(regions, seq_length=15)
 
-        expected = np.array(
-            [1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0], dtype=np.float64
-        )
+        expected = np.array([1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0], dtype=np.float64)
         np.testing.assert_array_equal(mask, expected)
 
     def test_parse_and_convert_no_idrs(self):

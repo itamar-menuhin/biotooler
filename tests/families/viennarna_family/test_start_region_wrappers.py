@@ -19,9 +19,7 @@ class TestWindowMFEStartRegion:
         """Test that we can import and instantiate the wrapper."""
         from biotooler.families.viennarna.start_region_mfe import WindowMFEStartRegion
 
-        wrapper = WindowMFEStartRegion(
-            region_start=0, region_end=30, window_size=15, step=10
-        )
+        wrapper = WindowMFEStartRegion(region_start=0, region_end=30, window_size=15, step=10)
         assert wrapper is not None
         assert wrapper.region_start == 0
         assert wrapper.region_end == 30
@@ -34,35 +32,25 @@ class TestWindowMFEStartRegion:
 
         # Negative region_start
         with pytest.raises(ValueError, match="region_start must be non-negative"):
-            WindowMFEStartRegion(
-                region_start=-1, region_end=30, window_size=15, step=10
-            )
+            WindowMFEStartRegion(region_start=-1, region_end=30, window_size=15, step=10)
 
         # region_end <= region_start
         with pytest.raises(ValueError, match="region_end must be greater than region_start"):
-            WindowMFEStartRegion(
-                region_start=30, region_end=30, window_size=15, step=10
-            )
+            WindowMFEStartRegion(region_start=30, region_end=30, window_size=15, step=10)
         with pytest.raises(ValueError, match="region_end must be greater than region_start"):
-            WindowMFEStartRegion(
-                region_start=30, region_end=20, window_size=15, step=10
-            )
+            WindowMFEStartRegion(region_start=30, region_end=20, window_size=15, step=10)
 
         # Non-positive window_size
         with pytest.raises(ValueError, match="window_size must be positive"):
             WindowMFEStartRegion(region_start=0, region_end=30, window_size=0, step=10)
         with pytest.raises(ValueError, match="window_size must be positive"):
-            WindowMFEStartRegion(
-                region_start=0, region_end=30, window_size=-5, step=10
-            )
+            WindowMFEStartRegion(region_start=0, region_end=30, window_size=-5, step=10)
 
         # Non-positive step
         with pytest.raises(ValueError, match="step must be positive"):
             WindowMFEStartRegion(region_start=0, region_end=30, window_size=15, step=0)
         with pytest.raises(ValueError, match="step must be positive"):
-            WindowMFEStartRegion(
-                region_start=0, region_end=30, window_size=15, step=-5
-            )
+            WindowMFEStartRegion(region_start=0, region_end=30, window_size=15, step=-5)
 
     def test_wrapper_equals_manual_underlying_feature(self):
         """Test that wrapper results equal manually calling WindowMFEFeature."""
@@ -106,9 +94,7 @@ class TestWindowMFEStartRegion:
         record = SeqRecord(Seq(sequence), id="test")
 
         # Test case 1: step=10, region 0-30 -> windows at 0, 10, 20
-        wrapper = WindowMFEStartRegion(
-            region_start=0, region_end=30, window_size=15, step=10
-        )
+        wrapper = WindowMFEStartRegion(region_start=0, region_end=30, window_size=15, step=10)
         result = wrapper(record)
         assert "MFE_0" in result
         assert "MFE_10" in result
@@ -117,9 +103,7 @@ class TestWindowMFEStartRegion:
         assert len(result) == 3
 
         # Test case 2: step=5, region 10-25 -> windows at 10, 15, 20
-        wrapper = WindowMFEStartRegion(
-            region_start=10, region_end=25, window_size=10, step=5
-        )
+        wrapper = WindowMFEStartRegion(region_start=10, region_end=25, window_size=10, step=5)
         result = wrapper(record)
         assert "MFE_10" in result
         assert "MFE_15" in result
@@ -136,9 +120,7 @@ class TestWindowMFEStartRegion:
         record = SeqRecord(Seq(sequence), id="test")
 
         # Region that would generate windows extending beyond sequence
-        wrapper = WindowMFEStartRegion(
-            region_start=0, region_end=40, window_size=20, step=15
-        )
+        wrapper = WindowMFEStartRegion(region_start=0, region_end=40, window_size=20, step=15)
         result = wrapper(record)
 
         # Window at 0 (0-20) fits
@@ -157,9 +139,7 @@ class TestWindowMFEStartRegion:
 
         # When region_start=10, region_end=11, step=100 -> range(10, 11, 100) = [10]
         # This produces one window at position 10
-        wrapper = WindowMFEStartRegion(
-            region_start=10, region_end=11, window_size=10, step=100
-        )
+        wrapper = WindowMFEStartRegion(region_start=10, region_end=11, window_size=10, step=100)
         result = wrapper(record)
 
         # One window at position 10 should be included (10 < 11)
@@ -170,9 +150,7 @@ class TestWindowMFEStartRegion:
         from biotooler.families.viennarna.start_region_mfe import WindowMFEStartRegion
 
         # All parameters are required - this should work
-        wrapper = WindowMFEStartRegion(
-            region_start=0, region_end=30, window_size=15, step=10
-        )
+        wrapper = WindowMFEStartRegion(region_start=0, region_end=30, window_size=15, step=10)
         assert wrapper.region_start == 0
         assert wrapper.region_end == 30
         assert wrapper.window_size == 15
@@ -185,9 +163,7 @@ class TestWindowMFEStartRegion:
         sequence = "ACGTACGTACGTACGTACGTACGTACGTACGT"
         record = SeqRecord(Seq(sequence), id="test")
 
-        wrapper = WindowMFEStartRegion(
-            region_start=0, region_end=20, window_size=10, step=5
-        )
+        wrapper = WindowMFEStartRegion(region_start=0, region_end=20, window_size=10, step=5)
         result = wrapper(record)
 
         # Check that keys follow the stable pattern MFE_<start>
@@ -198,9 +174,7 @@ class TestWindowMFEStartRegion:
         """Test that wrapper can be imported from __init__."""
         from biotooler.families.viennarna import WindowMFEStartRegion
 
-        wrapper = WindowMFEStartRegion(
-            region_start=0, region_end=30, window_size=15, step=10
-        )
+        wrapper = WindowMFEStartRegion(region_start=0, region_end=30, window_size=15, step=10)
         assert wrapper.region_start == 0
 
     def test_get_features_includes_wrapper(self):
@@ -221,9 +195,7 @@ class TestAccessibilityStartRegion:
             AccessibilityStartRegion,
         )
 
-        wrapper = AccessibilityStartRegion(
-            region_start=0, region_end=30, window_size=15, step=10
-        )
+        wrapper = AccessibilityStartRegion(region_start=0, region_end=30, window_size=15, step=10)
         assert wrapper is not None
         assert wrapper.region_start == 0
         assert wrapper.region_end == 30
@@ -238,27 +210,19 @@ class TestAccessibilityStartRegion:
 
         # Negative region_start
         with pytest.raises(ValueError, match="region_start must be non-negative"):
-            AccessibilityStartRegion(
-                region_start=-1, region_end=30, window_size=15, step=10
-            )
+            AccessibilityStartRegion(region_start=-1, region_end=30, window_size=15, step=10)
 
         # region_end <= region_start
         with pytest.raises(ValueError, match="region_end must be greater than region_start"):
-            AccessibilityStartRegion(
-                region_start=30, region_end=30, window_size=15, step=10
-            )
+            AccessibilityStartRegion(region_start=30, region_end=30, window_size=15, step=10)
 
         # Non-positive window_size
         with pytest.raises(ValueError, match="window_size must be positive"):
-            AccessibilityStartRegion(
-                region_start=0, region_end=30, window_size=0, step=10
-            )
+            AccessibilityStartRegion(region_start=0, region_end=30, window_size=0, step=10)
 
         # Non-positive step
         with pytest.raises(ValueError, match="step must be positive"):
-            AccessibilityStartRegion(
-                region_start=0, region_end=30, window_size=15, step=0
-            )
+            AccessibilityStartRegion(region_start=0, region_end=30, window_size=15, step=0)
 
     def test_wrapper_equals_manual_underlying_feature(self):
         """Test that wrapper results equal manually calling ViennaRNAAccessibility + aggregation."""
@@ -320,9 +284,7 @@ class TestAccessibilityStartRegion:
         record = SeqRecord(Seq(sequence), id="test")
 
         # Test case 1: step=10, region 0-30 -> windows at 0, 10, 20
-        wrapper = AccessibilityStartRegion(
-            region_start=0, region_end=30, window_size=15, step=10
-        )
+        wrapper = AccessibilityStartRegion(region_start=0, region_end=30, window_size=15, step=10)
         result = wrapper(record)
         assert "PU_0" in result
         assert "PU_10" in result
@@ -331,9 +293,7 @@ class TestAccessibilityStartRegion:
         assert len(result) == 3
 
         # Test case 2: step=5, region 10-25 -> windows at 10, 15, 20
-        wrapper = AccessibilityStartRegion(
-            region_start=10, region_end=25, window_size=10, step=5
-        )
+        wrapper = AccessibilityStartRegion(region_start=10, region_end=25, window_size=10, step=5)
         result = wrapper(record)
         assert "PU_10" in result
         assert "PU_15" in result
@@ -352,9 +312,7 @@ class TestAccessibilityStartRegion:
         record = SeqRecord(Seq(sequence), id="test")
 
         # Region that would generate windows extending beyond sequence
-        wrapper = AccessibilityStartRegion(
-            region_start=0, region_end=40, window_size=20, step=15
-        )
+        wrapper = AccessibilityStartRegion(region_start=0, region_end=40, window_size=20, step=15)
         result = wrapper(record)
 
         # Window at 0 (0-20) fits
@@ -375,9 +333,7 @@ class TestAccessibilityStartRegion:
 
         # Region with region_start >= len(sequence) produces no windows
         # Window starts at position beyond sequence should be skipped
-        wrapper = AccessibilityStartRegion(
-            region_start=50, region_end=60, window_size=10, step=5
-        )
+        wrapper = AccessibilityStartRegion(region_start=50, region_end=60, window_size=10, step=5)
         result = wrapper(record)
 
         assert result == {}
@@ -415,9 +371,7 @@ class TestAccessibilityStartRegion:
         )
 
         # All parameters are required - this should work
-        wrapper = AccessibilityStartRegion(
-            region_start=0, region_end=30, window_size=15, step=10
-        )
+        wrapper = AccessibilityStartRegion(region_start=0, region_end=30, window_size=15, step=10)
         assert wrapper.region_start == 0
         assert wrapper.region_end == 30
         assert wrapper.window_size == 15
@@ -432,9 +386,7 @@ class TestAccessibilityStartRegion:
         sequence = "ACGUACGUACGUACGUACGUACGUACGUACGU"
         record = SeqRecord(Seq(sequence), id="test")
 
-        wrapper = AccessibilityStartRegion(
-            region_start=0, region_end=20, window_size=10, step=5
-        )
+        wrapper = AccessibilityStartRegion(region_start=0, region_end=20, window_size=10, step=5)
         result = wrapper(record)
 
         # Check that keys follow the stable pattern PU_<start>
@@ -445,9 +397,7 @@ class TestAccessibilityStartRegion:
         """Test that wrapper can be imported from __init__."""
         from biotooler.families.viennarna import AccessibilityStartRegion
 
-        wrapper = AccessibilityStartRegion(
-            region_start=0, region_end=30, window_size=15, step=10
-        )
+        wrapper = AccessibilityStartRegion(region_start=0, region_end=30, window_size=15, step=10)
         assert wrapper.region_start == 0
 
     def test_get_features_includes_wrapper(self):
@@ -469,9 +419,7 @@ class TestAccessibilityStartRegion:
         sequence = "ACGUACGUACGUACGUACGUACGUACGUACGU"
         record = SeqRecord(Seq(sequence), id="test")
 
-        wrapper = AccessibilityStartRegion(
-            region_start=0, region_end=30, window_size=15, step=10
-        )
+        wrapper = AccessibilityStartRegion(region_start=0, region_end=30, window_size=15, step=10)
         result = wrapper(record)
 
         # All values should be probabilities

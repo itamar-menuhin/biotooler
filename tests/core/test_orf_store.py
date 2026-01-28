@@ -131,7 +131,7 @@ class TestAttachOrfAndGetOrf:
         with pytest.raises(
             KeyError,
             match=r"ORF not found in record 'my_seq': no annotation with key 'custom\.key'\. "
-                  r"Use attach_orf\(\) to store an ORF first\."
+            r"Use attach_orf\(\) to store an ORF first\.",
         ):
             get_orf(record, key="custom.key")
 
@@ -182,7 +182,7 @@ class TestAttachOrfAndGetOrf:
 
         with pytest.raises(
             ValueError,
-            match=r"ORF operations are only supported for DNA/RNA sequences, not protein sequences"
+            match=r"ORF operations are only supported for DNA/RNA sequences, not protein sequences",
         ):
             attach_orf(record, orf)
 

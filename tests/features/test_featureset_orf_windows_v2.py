@@ -22,13 +22,11 @@ class ToyResidueFeature:
     def vector_keys(self) -> dict[str, AggregationSpec]:
         """Return aggregation specs for each feature key."""
         return {
-            "gc": AggregationSpec(aggregation_fn=np.mean),
-            "count": AggregationSpec(aggregation_fn=np.sum),
+            "gc": AggregationSpec(name="MEAN", aggregation_fn=np.mean),
+            "count": AggregationSpec(name="SUM", aggregation_fn=np.sum),
         }
 
-    def compute_vector(
-        self, record: SeqRecord, **kwargs
-    ) -> dict[str, np.ndarray]:
+    def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
         """Compute per-residue GC indicator and count."""
         seq = str(record.seq).upper()
         positions = kwargs.get("positions", None)
@@ -60,13 +58,11 @@ class ToyCodonFeature:
     def vector_keys(self) -> dict[str, AggregationSpec]:
         """Return aggregation specs for each feature key."""
         return {
-            "start_a": AggregationSpec(aggregation_fn=np.mean),
-            "codon_index": AggregationSpec(aggregation_fn=np.sum),
+            "start_a": AggregationSpec(name="MEAN", aggregation_fn=np.mean),
+            "codon_index": AggregationSpec(name="SUM", aggregation_fn=np.sum),
         }
 
-    def compute_vector(
-        self, record: SeqRecord, **kwargs
-    ) -> dict[str, np.ndarray]:
+    def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
         """Compute per-codon features."""
         seq = str(record.seq).upper()
         num_codons = len(seq) // 3
@@ -74,15 +70,11 @@ class ToyCodonFeature:
 
         if positions is not None:
             # Compute only for requested codon positions
-            start_a = np.array(
-                [1.0 if seq[i * 3] == "A" else 0.0 for i in positions]
-            )
+            start_a = np.array([1.0 if seq[i * 3] == "A" else 0.0 for i in positions])
             codon_index = np.array(positions, dtype=float)
         else:
             # Compute for all codons (backward compatibility)
-            start_a = np.array(
-                [1.0 if seq[i * 3] == "A" else 0.0 for i in range(num_codons)]
-            )
+            start_a = np.array([1.0 if seq[i * 3] == "A" else 0.0 for i in range(num_codons)])
             codon_index = np.arange(num_codons, dtype=float)
 
         return {
@@ -99,9 +91,7 @@ class TestFeatureSetOrfWindowsV2Basic:
         fs = FeatureSet(ToyResidueFeature(), name="test")
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 15), window_nt=9, step_nt=3)
 
         assert result.shape[0] == 1  # Single row
         assert result.shape[1] > 3  # Has metadata + feature columns
@@ -111,9 +101,7 @@ class TestFeatureSetOrfWindowsV2Basic:
         fs = FeatureSet(ToyResidueFeature(), name="test")
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="test_id")
 
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 15), window_nt=9, step_nt=3)
 
         assert "record_id" in result.columns
         assert "orf_start" in result.columns
@@ -127,26 +115,22 @@ class TestFeatureSetOrfWindowsV2Basic:
         fs = FeatureSet(ToyResidueFeature(), name="gc_feat")
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 15), window_nt=9, step_nt=3)
 
-        # Should have columns like gc_feat.gc_0, gc_feat.gc_3, gc_feat.gc_6
-        assert "gc_feat.gc_0" in result.columns
-        assert "gc_feat.gc_3" in result.columns
-        assert "gc_feat.gc_6" in result.columns
-        assert "gc_feat.count_0" in result.columns
-        assert "gc_feat.count_3" in result.columns
-        assert "gc_feat.count_6" in result.columns
+        # Should have columns like GC_FEAT_gc_MEAN_0, GC_FEAT_gc_MEAN_3, GC_FEAT_gc_MEAN_6
+        assert "GC_FEAT_gc_MEAN_0" in result.columns
+        assert "GC_FEAT_gc_MEAN_3" in result.columns
+        assert "GC_FEAT_gc_MEAN_6" in result.columns
+        assert "GC_FEAT_count_SUM_0" in result.columns
+        assert "GC_FEAT_count_SUM_3" in result.columns
+        assert "GC_FEAT_count_SUM_6" in result.columns
 
     def test_column_ordering_metadata_first(self):
         """Test that metadata columns come before feature columns."""
         fs = FeatureSet(ToyResidueFeature(), name="test")
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 15), window_nt=9, step_nt=3)
 
         cols = list(result.columns)
         # First three should be metadata
@@ -163,9 +147,7 @@ class TestFeatureSetOrfWindowsV2Basic:
         fs = FeatureSet(simple_feature, name="test")
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        with pytest.raises(
-            ValueError, match="does not implement PositionalFeature protocol"
-        ):
+        with pytest.raises(ValueError, match="does not implement PositionalFeature protocol"):
             fs.compute_orf_windows_v2(record, orf=(0, 15), window_nt=9, step_nt=3)
 
 
@@ -183,19 +165,17 @@ class TestFeatureSetOrfWindowsV2ResidueSpace:
         #   6-15: CCCGGGTTT -> [1,1,1,1,1,1,0,0,0] -> mean = 6/9 ≈ 0.667
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 15), window_nt=9, step_nt=3)
 
         # Check GC mean aggregation
-        assert abs(result["test.gc_0"].iloc[0] - 4 / 9) < 1e-10
-        assert abs(result["test.gc_3"].iloc[0] - 6 / 9) < 1e-10
-        assert abs(result["test.gc_6"].iloc[0] - 6 / 9) < 1e-10
+        assert abs(result["TEST_gc_MEAN_0"].iloc[0] - 4 / 9) < 1e-10
+        assert abs(result["TEST_gc_MEAN_3"].iloc[0] - 6 / 9) < 1e-10
+        assert abs(result["TEST_gc_MEAN_6"].iloc[0] - 6 / 9) < 1e-10
 
         # Check count sum aggregation (should be window size)
-        assert result["test.count_0"].iloc[0] == 9.0
-        assert result["test.count_3"].iloc[0] == 9.0
-        assert result["test.count_6"].iloc[0] == 9.0
+        assert result["TEST_count_SUM_0"].iloc[0] == 9.0
+        assert result["TEST_count_SUM_3"].iloc[0] == 9.0
+        assert result["TEST_count_SUM_6"].iloc[0] == 9.0
 
     def test_residue_feature_partial_windows(self):
         """Test residue features with partial windows."""
@@ -210,11 +190,11 @@ class TestFeatureSetOrfWindowsV2ResidueSpace:
         )
 
         # Should only have columns for windows 0 and 3
-        feature_cols = [c for c in result.columns if c.startswith("test.")]
+        feature_cols = [c for c in result.columns if c.startswith("TEST_")]
         assert len(feature_cols) == 4  # 2 windows × 2 keys
-        assert "test.gc_0" in result.columns
-        assert "test.gc_3" in result.columns
-        assert "test.gc_6" not in result.columns
+        assert "TEST_gc_MEAN_0" in result.columns
+        assert "TEST_gc_MEAN_3" in result.columns
+        assert "TEST_gc_MEAN_6" not in result.columns
 
     def test_residue_feature_with_drop_partial_false(self):
         """Test residue features include partial windows when drop_partial=False."""
@@ -226,14 +206,14 @@ class TestFeatureSetOrfWindowsV2ResidueSpace:
         )
 
         # Should have windows 0, 3, 6, 9, 12
-        assert "test.gc_0" in result.columns
-        assert "test.gc_3" in result.columns
-        assert "test.gc_6" in result.columns
-        assert "test.gc_9" in result.columns
-        assert "test.gc_12" in result.columns
+        assert "TEST_gc_MEAN_0" in result.columns
+        assert "TEST_gc_MEAN_3" in result.columns
+        assert "TEST_gc_MEAN_6" in result.columns
+        assert "TEST_gc_MEAN_9" in result.columns
+        assert "TEST_gc_MEAN_12" in result.columns
 
         # Window at 12 has only 2 nt (14-12=2), so count should be 2
-        assert result["test.count_12"].iloc[0] == 2.0
+        assert result["TEST_count_SUM_12"].iloc[0] == 2.0
 
 
 class TestFeatureSetOrfWindowsV2CodonSpace:
@@ -255,19 +235,17 @@ class TestFeatureSetOrfWindowsV2CodonSpace:
         #                                   -> codon_index sum = 2+3+4 = 9
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 15), window_nt=9, step_nt=3)
 
         # Check start_a mean aggregation
-        assert abs(result["test.start_a_0"].iloc[0] - 2 / 3) < 1e-10
-        assert abs(result["test.start_a_3"].iloc[0] - 1 / 3) < 1e-10
-        assert abs(result["test.start_a_6"].iloc[0] - 0.0) < 1e-10
+        assert abs(result["TEST_start_a_MEAN_0"].iloc[0] - 2 / 3) < 1e-10
+        assert abs(result["TEST_start_a_MEAN_3"].iloc[0] - 1 / 3) < 1e-10
+        assert abs(result["TEST_start_a_MEAN_6"].iloc[0] - 0.0) < 1e-10
 
         # Check codon_index sum aggregation
-        assert result["test.codon_index_0"].iloc[0] == 3.0
-        assert result["test.codon_index_3"].iloc[0] == 6.0
-        assert result["test.codon_index_6"].iloc[0] == 9.0
+        assert result["TEST_codon_index_SUM_0"].iloc[0] == 3.0
+        assert result["TEST_codon_index_SUM_3"].iloc[0] == 6.0
+        assert result["TEST_codon_index_SUM_6"].iloc[0] == 9.0
 
     def test_codon_feature_partial_windows(self):
         """Test codon features handle partial windows correctly."""
@@ -282,12 +260,12 @@ class TestFeatureSetOrfWindowsV2CodonSpace:
         )
 
         # Should have 4 windows
-        feature_cols = [c for c in result.columns if c.startswith("test.")]
+        feature_cols = [c for c in result.columns if c.startswith("TEST_")]
         assert len(feature_cols) == 8  # 4 windows × 2 keys
-        assert "test.start_a_0" in result.columns
-        assert "test.start_a_3" in result.columns
-        assert "test.start_a_6" in result.columns
-        assert "test.start_a_9" in result.columns
+        assert "TEST_start_a_MEAN_0" in result.columns
+        assert "TEST_start_a_MEAN_3" in result.columns
+        assert "TEST_start_a_MEAN_6" in result.columns
+        assert "TEST_start_a_MEAN_9" in result.columns
 
 
 class TestFeatureSetOrfWindowsV2OrfResolution:
@@ -298,9 +276,7 @@ class TestFeatureSetOrfWindowsV2OrfResolution:
         fs = FeatureSet(ToyResidueFeature(), name="test")
         record = SeqRecord(Seq("NNNNATGAAACCCGGGTTTNNNN"), id="seq1")
 
-        result = fs.compute_orf_windows_v2(
-            record, orf=(4, 19), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(4, 19), window_nt=9, step_nt=3)
 
         assert result["orf_start"].iloc[0] == 4
         assert result["orf_end"].iloc[0] == 19
@@ -310,9 +286,7 @@ class TestFeatureSetOrfWindowsV2OrfResolution:
         fs = FeatureSet(ToyResidueFeature(), name="test")
         record = SeqRecord(Seq("ATGAAATAGATGCCCTAGTAA"), id="seq1")
 
-        result = fs.compute_orf_windows_v2(
-            record, orf_index=0, window_nt=6, step_nt=3
-        )
+        result = fs.compute_orf_windows_v2(record, orf_index=0, window_nt=6, step_nt=3)
 
         # First candidate should be (0, 9)
         assert result["orf_start"].iloc[0] == 0
@@ -347,9 +321,7 @@ class TestFeatureSetOrfWindowsV2Validation:
         record = SeqRecord(Seq("MKLVLS"), id="protein1")
         record.annotations["molecule_type"] = "protein"
 
-        with pytest.raises(
-            ValueError, match="only supported for DNA/RNA sequences, not protein"
-        ):
+        with pytest.raises(ValueError, match="only supported for DNA/RNA sequences, not protein"):
             fs.compute_orf_windows_v2(record, orf=(0, 6), window_nt=3, step_nt=3)
 
     def test_step_not_multiple_of_3_raises_error(self):
@@ -379,7 +351,7 @@ class TestFeatureSetOrfWindowsV2EmptyCases:
         assert "record_id" in result.columns
         assert "orf_start" in result.columns
         assert "orf_end" in result.columns
-        assert len([c for c in result.columns if c.startswith("test.")]) == 0
+        assert len([c for c in result.columns if c.startswith("TEST_")]) == 0
 
 
 class TestFeatureSetOrfWindowsV2Sorting:
@@ -392,11 +364,9 @@ class TestFeatureSetOrfWindowsV2Sorting:
         long_seq = "ATG" + "AAA" * 20  # 63 nt
         record = SeqRecord(Seq(long_seq), id="seq1")
 
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 63), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 63), window_nt=9, step_nt=3)
 
-        feature_cols = [c for c in result.columns if c.startswith("test.")]
+        feature_cols = [c for c in result.columns if c.startswith("TEST_")]
 
         # The columns should be sorted by feature key, then by window_start
         # Since ToyResidueFeature has "count" and "gc" keys (alphabetically sorted),
@@ -423,21 +393,19 @@ class TestFeatureSetOrfWindowsV2Sorting:
         fs = FeatureSet(ToyResidueFeature(), name="test")
         record = SeqRecord(Seq("ATGAAACCCGGGTTT"), id="seq1")
 
-        result = fs.compute_orf_windows_v2(
-            record, orf=(0, 15), window_nt=9, step_nt=3
-        )
+        result = fs.compute_orf_windows_v2(record, orf=(0, 15), window_nt=9, step_nt=3)
 
-        feature_cols = [c for c in result.columns if c.startswith("test.")]
+        feature_cols = [c for c in result.columns if c.startswith("TEST_")]
 
         # Features: "count" and "gc" (alphabetically: count < gc)
         # Windows: 0, 3, 6
         # Expected order: count_0, count_3, count_6, gc_0, gc_3, gc_6
         expected = [
-            "test.count_0",
-            "test.count_3",
-            "test.count_6",
-            "test.gc_0",
-            "test.gc_3",
-            "test.gc_6",
+            "TEST_count_SUM_0",
+            "TEST_count_SUM_3",
+            "TEST_count_SUM_6",
+            "TEST_gc_MEAN_0",
+            "TEST_gc_MEAN_3",
+            "TEST_gc_MEAN_6",
         ]
         assert feature_cols == expected

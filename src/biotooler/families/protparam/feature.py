@@ -164,6 +164,7 @@ class ProtParamFeature(ProteinFamilyFeature):
             Dictionary mapping feature names to AggregationSpec objects that define
             how per-residue values should be aggregated into window values.
         """
+
         # Custom aggregation function for molecular weight that accounts for peptide bonds
         def aggregate_molecular_weight(values: np.ndarray) -> float:
             """Aggregate molecular weights accounting for water loss in peptide bonds.
@@ -179,14 +180,14 @@ class ProtParamFeature(ProteinFamilyFeature):
             return float(total)
 
         return {
-            "aromaticity": AggregationSpec(aggregation_fn=np.mean),
-            "gravy": AggregationSpec(aggregation_fn=np.mean),
-            "molecular_weight": AggregationSpec(aggregation_fn=aggregate_molecular_weight),
+            "aromaticity": AggregationSpec(name="MEAN", aggregation_fn=np.mean),
+            "gravy": AggregationSpec(name="MEAN", aggregation_fn=np.mean),
+            "molecular_weight": AggregationSpec(
+                name="SUM", aggregation_fn=aggregate_molecular_weight
+            ),
         }
 
-    def compute_vector(
-        self, record: SeqRecord, **kwargs
-    ) -> dict[str, np.ndarray]:
+    def compute_vector(self, record: SeqRecord, **kwargs) -> dict[str, np.ndarray]:
         """Compute per-residue feature values for the entire protein sequence.
 
         This method computes per-residue values for decomposable ProtParam metrics,
@@ -229,9 +230,7 @@ class ProtParamFeature(ProteinFamilyFeature):
 
         # GRAVY: Kyte-Doolittle hydropathy values
         # Use 0.0 for unknown amino acids (though ProteinAnalysis would error on them)
-        gravy_vec = np.array(
-            [ProtParamData.kd.get(protein_seq[i], 0.0) for i in position_indices]
-        )
+        gravy_vec = np.array([ProtParamData.kd.get(protein_seq[i], 0.0) for i in position_indices])
         vectors["gravy"] = gravy_vec
 
         # Molecular weight: per-residue weights

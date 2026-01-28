@@ -97,12 +97,12 @@ class TestCodonBiasWindowing:
         expected_6 = cai.get_score(test_seq, slice=slice(6, 15))
 
         # Check results
-        assert "cb.CAI_0" in result.columns
-        assert "cb.CAI_3" in result.columns
-        assert "cb.CAI_6" in result.columns
-        assert abs(result["cb.CAI_0"].iloc[0] - expected_0) < 1e-6
-        assert abs(result["cb.CAI_3"].iloc[0] - expected_3) < 1e-6
-        assert abs(result["cb.CAI_6"].iloc[0] - expected_6) < 1e-6
+        assert "CB_CAI_0" in result.columns
+        assert "CB_CAI_3" in result.columns
+        assert "CB_CAI_6" in result.columns
+        assert abs(result["CB_CAI_0"].iloc[0] - expected_0) < 1e-6
+        assert abs(result["CB_CAI_3"].iloc[0] - expected_3) < 1e-6
+        assert abs(result["CB_CAI_6"].iloc[0] - expected_6) < 1e-6
 
     def test_rolling_matches_baseline_for_models_with_weights(self):
         """Test that rolling computation matches baseline for models with weights."""
@@ -128,9 +128,9 @@ class TestCodonBiasWindowing:
         expected_6 = cai.get_score(test_seq[6:15])
 
         # Check with tolerance (incremental may have small floating point differences)
-        assert abs(result["cb.CAI_0"].iloc[0] - expected_0) < 1e-3
-        assert abs(result["cb.CAI_3"].iloc[0] - expected_3) < 1e-3
-        assert abs(result["cb.CAI_6"].iloc[0] - expected_6) < 1e-3
+        assert abs(result["CB_CAI_0"].iloc[0] - expected_0) < 1e-3
+        assert abs(result["CB_CAI_3"].iloc[0] - expected_3) < 1e-3
+        assert abs(result["CB_CAI_6"].iloc[0] - expected_6) < 1e-3
 
     def test_rolling_falls_back_to_baseline_if_weights_unavailable(self):
         """Test that models without weights fall back to baseline in rolling mode."""
@@ -152,14 +152,14 @@ class TestCodonBiasWindowing:
         result = fs.compute_orf_windows(record, orf=(0, 30), window_nt=9, step_nt=3)
 
         # Verify results are computed
-        assert "cb.ENC_0" in result.columns
-        assert "cb.ENC_3" in result.columns
-        assert "cb.ENC_6" in result.columns
+        assert "CB_ENC_0" in result.columns
+        assert "CB_ENC_3" in result.columns
+        assert "CB_ENC_6" in result.columns
 
         # Check values are reasonable (ENC typically ranges from 20 to 61)
-        assert 20 <= result["cb.ENC_0"].iloc[0] <= 61
-        assert 20 <= result["cb.ENC_3"].iloc[0] <= 61
-        assert 20 <= result["cb.ENC_6"].iloc[0] <= 61
+        assert 20 <= result["CB_ENC_0"].iloc[0] <= 61
+        assert 20 <= result["CB_ENC_3"].iloc[0] <= 61
+        assert 20 <= result["CB_ENC_6"].iloc[0] <= 61
 
 
 class TestCodonBiasValidation:
@@ -175,9 +175,7 @@ class TestCodonBiasValidation:
         protein_record = SeqRecord(Seq("MKALVSWGR"), id="protein")
         protein_record.annotations["molecule_type"] = "protein"
 
-        with pytest.raises(
-            ValueError, match="Codon bias features apply only to DNA/RNA sequences"
-        ):
+        with pytest.raises(ValueError, match="Codon bias features apply only to DNA/RNA sequences"):
             feature(protein_record)
 
     def test_rna_u_to_t_conversion(self):
@@ -256,12 +254,12 @@ class TestCodonBiasMultipleModels:
         result = fs.compute_orf_windows(record, orf=(0, 30), window_nt=12, step_nt=6)
 
         # Check all models produced output
-        assert "cb.CAI_0" in result.columns
-        assert "cb.ENC_0" in result.columns
-        assert "cb.FOP_0" in result.columns
-        assert "cb.CAI_6" in result.columns
-        assert "cb.ENC_6" in result.columns
-        assert "cb.FOP_6" in result.columns
+        assert "CB_CAI_0" in result.columns
+        assert "CB_ENC_0" in result.columns
+        assert "CB_FOP_0" in result.columns
+        assert "CB_CAI_6" in result.columns
+        assert "CB_ENC_6" in result.columns
+        assert "CB_FOP_6" in result.columns
 
     def test_window_naming_uses_absolute_start_index(self):
         """Test that window suffixes use absolute nucleotide start position."""
@@ -277,11 +275,11 @@ class TestCodonBiasMultipleModels:
 
         # Check column names use absolute start positions
         # Should have windows at positions 0, 3, 6, 9, 12
-        assert "cb.CAI_0" in result.columns
-        assert "cb.CAI_3" in result.columns
-        assert "cb.CAI_6" in result.columns
-        assert "cb.CAI_9" in result.columns
-        assert "cb.CAI_12" in result.columns
+        assert "CB_CAI_0" in result.columns
+        assert "CB_CAI_3" in result.columns
+        assert "CB_CAI_6" in result.columns
+        assert "CB_CAI_9" in result.columns
+        assert "CB_CAI_12" in result.columns
 
 
 class TestCodonBiasEdgeCases:
@@ -300,9 +298,9 @@ class TestCodonBiasEdgeCases:
         result = fs.compute_orf_windows(record, orf=(0, 9), window_nt=9, step_nt=3)
 
         # Should have only one window at position 0
-        feature_cols = [c for c in result.columns if c.startswith("cb.CAI_")]
+        feature_cols = [c for c in result.columns if c.startswith("CB_CAI_")]
         assert len(feature_cols) == 1
-        assert "cb.CAI_0" in result.columns
+        assert "CB_CAI_0" in result.columns
 
     def test_lowercase_sequence(self):
         """Test that lowercase sequences are handled correctly."""
@@ -401,9 +399,7 @@ class TestCodonBiasFromReference:
         """Test resolving score abbreviations."""
         from biotooler.core.reference_sequences import ReferenceSequenceSet
 
-        ref_set = ReferenceSequenceSet(
-            cds={"gene1": "ATGATGATGATGATGATGATG"}
-        )
+        ref_set = ReferenceSequenceSet(cds={"gene1": "ATGATGATGATGATGATGATG"})
 
         # Use various abbreviations
         feature = CodonBiasFeature.from_reference(ref_set, ["CAI", "ENC", "FOP"])
@@ -418,9 +414,7 @@ class TestCodonBiasFromReference:
         """Test resolving full class names."""
         from biotooler.core.reference_sequences import ReferenceSequenceSet
 
-        ref_set = ReferenceSequenceSet(
-            cds={"gene1": "ATGATGATGATGATGATGATG"}
-        )
+        ref_set = ReferenceSequenceSet(cds={"gene1": "ATGATGATGATGATGATGATG"})
 
         # Use full class names
         feature = CodonBiasFeature.from_reference(
@@ -437,9 +431,7 @@ class TestCodonBiasFromReference:
         """Test resolving class objects."""
         from biotooler.core.reference_sequences import ReferenceSequenceSet
 
-        ref_set = ReferenceSequenceSet(
-            cds={"gene1": "ATGATGATGATGATGATGATG"}
-        )
+        ref_set = ReferenceSequenceSet(cds={"gene1": "ATGATGATGATGATGATGATG"})
 
         # Use class objects
         feature = CodonBiasFeature.from_reference(
@@ -458,9 +450,7 @@ class TestCodonBiasFromReference:
         """Test providing custom names."""
         from biotooler.core.reference_sequences import ReferenceSequenceSet
 
-        ref_set = ReferenceSequenceSet(
-            cds={"gene1": "ATGATGATGATGATGATGATG"}
-        )
+        ref_set = ReferenceSequenceSet(cds={"gene1": "ATGATGATGATGATGATGATG"})
 
         # Provide custom names
         feature = CodonBiasFeature.from_reference(
@@ -474,9 +464,7 @@ class TestCodonBiasFromReference:
         """Test passing kwargs to score constructors."""
         from biotooler.core.reference_sequences import ReferenceSequenceSet
 
-        ref_set = ReferenceSequenceSet(
-            cds={"gene1": "ATGATGATGATGATGATGATG"}
-        )
+        ref_set = ReferenceSequenceSet(cds={"gene1": "ATGATGATGATGATGATGATG"})
 
         # Pass kwargs for CAI
         feature = CodonBiasFeature.from_reference(
@@ -506,9 +494,7 @@ class TestCodonBiasFromReference:
         """Test that invalid score identifier raises clear error."""
         from biotooler.core.reference_sequences import ReferenceSequenceSet
 
-        ref_set = ReferenceSequenceSet(
-            cds={"gene1": "ATGATGATGATGATGATGATG"}
-        )
+        ref_set = ReferenceSequenceSet(cds={"gene1": "ATGATGATGATGATGATGATG"})
 
         # Use invalid identifier
         with pytest.raises(ValueError, match="Cannot resolve score identifier"):
@@ -518,9 +504,7 @@ class TestCodonBiasFromReference:
         """Test that ENC works without ref_seq (doesn't require reference)."""
         from biotooler.core.reference_sequences import ReferenceSequenceSet
 
-        ref_set = ReferenceSequenceSet(
-            cds={"gene1": "ATGATGATGATGATGATGATG"}
-        )
+        ref_set = ReferenceSequenceSet(cds={"gene1": "ATGATGATGATGATGATGATG"})
 
         # ENC doesn't require ref_seq
         feature = CodonBiasFeature.from_reference(ref_set, ["ENC"])
@@ -537,9 +521,7 @@ class TestCodonBiasFromReference:
         """Test mixing abbreviations, class names, and class objects."""
         from biotooler.core.reference_sequences import ReferenceSequenceSet
 
-        ref_set = ReferenceSequenceSet(
-            cds={"gene1": "ATGATGATGATGATGATGATG"}
-        )
+        ref_set = ReferenceSequenceSet(cds={"gene1": "ATGATGATGATGATGATGATG"})
 
         # Mix different score identifier types
         feature = CodonBiasFeature.from_reference(

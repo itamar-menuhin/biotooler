@@ -46,8 +46,7 @@ class FeatureSet:
     def __init__(
         self,
         features: (
-            Callable[[SeqRecord], FeatureOutput]
-            | dict[str, Callable[[SeqRecord], FeatureOutput]]
+            Callable[[SeqRecord], FeatureOutput] | dict[str, Callable[[SeqRecord], FeatureOutput]]
         ),
         *,
         name: str = "features",
@@ -140,7 +139,7 @@ class FeatureSet:
                     # Emit features for this window
                     features = feat_fn.emit(state)  # type: ignore[union-attr]
                     for key, value in features.items():
-                        col_name = f"{self.name}.{key}_{window_start}"
+                        col_name = f"{self.name.upper()}_{key}_{window_start}"
                         feature_data[col_name] = value
             else:
                 # Use fallback path for non-incremental features
@@ -148,7 +147,7 @@ class FeatureSet:
                     window_start = window.annotations[window_start_key]
                     features = feat_fn(window)
                     for key, value in features.items():
-                        col_name = f"{self.name}.{key}_{window_start}"
+                        col_name = f"{self.name.upper()}_{key}_{window_start}"
                         feature_data[col_name] = value
 
     def _format_wide_dataframe(
@@ -176,18 +175,31 @@ class FeatureSet:
         # 2. Feature columns sorted by (feature_key, window_start numeric or suffix)
         feature_cols = [c for c in df.columns if c not in metadata_cols]
 
+        # Sort with error handling for malformed column names
+        def sort_key(col: str) -> tuple[str, float]:
+            """Sort key for feature columns.
+
+            Handles both numeric suffixes (e.g., FAMILY_KEY_0) and GLOBAL suffix.
+            GLOBAL is treated as a large number to sort after all numeric windows.
+            """
         # Sort with handling for both numeric suffixes (e.g., _0, _3) and
         # text suffixes (e.g., _GLOBAL)
-        def sort_key(col: str) -> tuple[str, int]:
             parts = col.rsplit("_", 1)
             if len(parts) != 2:
                 # No underscore found - sort by column name only
-                return (col, 0)
+                return (col, 0.0)
+
+            # Check if last part is GLOBAL
+            if parts[1] == "GLOBAL":
+                # GLOBAL sorts after all numeric windows
+                return (parts[0], float("inf"))
+
+            # Try to parse as numeric window position
             try:
-                return (parts[0], int(parts[1]))
+                return (parts[0], float(parts[1]))
             except ValueError:
-                # Can't parse as int (e.g., _GLOBAL suffix) - sort by full name
-                return (col, 0)
+                # Can't parse as int - sort by full name
+                return (col, 0.0)
 
         feature_cols.sort(key=sort_key)
 
@@ -353,10 +365,15 @@ class FeatureSet:
                         # without get_vector). For features like CodonBiasFeature,
                         # check if names/outputs match vector_keys
                         is_mixed = False
-                        if has_incremental and hasattr(feat_fn, 'names'):
+                        if has_incremental and hasattr(feat_fn, "names"):
                             # CodonBiasFeature case: check if all model names are in vector_keys
-                            names = getattr(feat_fn, 'names', [])
+                            names = getattr(feat_fn, "names", [])
                             if names and set(names) != set(vector_keys.keys()):
+                                is_mixed = True
+
+                        # Also check if feature explicitly prefers incremental windowing
+                        if has_incremental and hasattr(feat_fn, "prefer_incremental_windowing"):
+                            if getattr(feat_fn, "prefer_incremental_windowing", False):
                                 is_mixed = True
 
                         if is_mixed:
@@ -415,9 +432,7 @@ class FeatureSet:
 
                 # Generate window boundaries using the shared indexing helper
                 # Map PositionSpace enum to string for the helper function
-                position_space_str = (
-                    "codon" if position_space == PositionSpace.CODON else "residue"
-                )
+                position_space_str = "codon" if position_space == PositionSpace.CODON else "residue"
 
                 # Get window boundaries in nucleotide space
                 window_boundaries = compute_window_indices(
@@ -454,8 +469,8 @@ class FeatureSet:
                         # Apply aggregation function
                         aggregated_value = agg_spec.aggregation_fn(window_values)
 
-                        # Store with column name format: {name}.{key}_{window_start_nt}
-                        col_name = f"{self.name}.{key}_{window_start_nt}"
+                        # Store with column name format: {FAMILY}_{key}_{AGG}_{window_start_nt}
+                        col_name = f"{self.name.upper()}_{key}_{agg_spec.name}_{window_start_nt}"
                         feature_data[col_name] = aggregated_value
 
         # Process non-positional features using legacy path
@@ -561,7 +576,7 @@ class FeatureSet:
             ...         return PositionSpace.RESIDUE
             ...     @property
             ...     def vector_keys(self):
-            ...         return {"gc": AggregationSpec(aggregation_fn=np.mean)}
+            ...         return {"gc": AggregationSpec(name="MEAN", aggregation_fn=np.mean)}
             ...     def compute_vector(self, record, **kwargs):
             ...         seq = str(record.seq).upper()
             ...         gc_vector = np.array([1.0 if b in 'GC' else 0.0 for b in seq])
@@ -655,9 +670,7 @@ class FeatureSet:
 
             # Generate window boundaries using the shared indexing helper
             # Map PositionSpace enum to string for the helper function
-            position_space_str = (
-                "codon" if position_space == PositionSpace.CODON else "residue"
-            )
+            position_space_str = "codon" if position_space == PositionSpace.CODON else "residue"
 
             # Get window boundaries in nucleotide space
             window_boundaries = compute_window_indices(
@@ -727,10 +740,9 @@ class FeatureSet:
                     # Apply aggregation function
                     aggregated_value = agg_spec.aggregation_fn(window_values)
 
-                    # Store with column name format: {name}.{key}_{window_start_nt}
-                    col_name = f"{self.name}.{key}_{window_start_nt}"
+                    # Store with column name format: {FAMILY}_{key}_{AGG}_{window_start_nt}
+                    col_name = f"{self.name.upper()}_{key}_{agg_spec.name}_{window_start_nt}"
                     feature_data[col_name] = aggregated_value
-
 
         # Format as wide DataFrame using shared helper
         return self._format_wide_dataframe(
@@ -938,7 +950,7 @@ class FeatureSet:
             features = feat_fn(region_record)
             for key, value in features.items():
                 # Use _GLOBAL suffix instead of window index
-                col_name = f"{self.name}.{key}_GLOBAL"
+                col_name = f"{self.name.upper()}_{key}_GLOBAL"
                 feature_data[col_name] = value
 
         # Format as wide DataFrame using shared helper
@@ -1101,8 +1113,8 @@ class FeatureSet:
                 # Apply aggregation function over the entire vector
                 aggregated_value = agg_spec.aggregation_fn(vector)
 
-                # Store with _GLOBAL suffix
-                col_name = f"{self.name}.{key}_GLOBAL"
+                # Store with _GLOBAL suffix including aggregation name
+                col_name = f"{self.name.upper()}_{key}_{agg_spec.name}_GLOBAL"
                 feature_data[col_name] = aggregated_value
 
         # Format as wide DataFrame using shared helper

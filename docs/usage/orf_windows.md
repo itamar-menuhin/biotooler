@@ -41,14 +41,14 @@ result = fs.compute_orf_windows(
 # Result is a single-row DataFrame
 print(result.shape)  # (1, 6)
 
-# Columns: record_id, orf_start, orf_end, gc.gc_content_0, gc.gc_content_3, gc.gc_content_6
+# Columns: record_id, orf_start, orf_end, GC_gc_content_0, GC_gc_content_3, GC_gc_content_6
 print(result.columns.tolist())
-# ['record_id', 'orf_start', 'orf_end', 'gc.gc_content_0', 'gc.gc_content_3', 'gc.gc_content_6']
+# ['record_id', 'orf_start', 'orf_end', 'GC_gc_content_0', 'GC_gc_content_3', 'GC_gc_content_6']
 
 # Access feature values
-print(result['gc.gc_content_0'].iloc[0])  # GC content of first window (positions 0-8)
-print(result['gc.gc_content_3'].iloc[0])  # GC content of second window (positions 3-11)
-print(result['gc.gc_content_6'].iloc[0])  # GC content of third window (positions 6-14)
+print(result['GC_gc_content_0'].iloc[0])  # GC content of first window (positions 0-8)
+print(result['GC_gc_content_3'].iloc[0])  # GC content of second window (positions 3-11)
+print(result['GC_gc_content_6'].iloc[0])  # GC content of third window (positions 6-14)
 ```
 
 ## ORF Resolution
@@ -167,10 +167,10 @@ result = fs.compute_orf_windows(record, orf=(0, 15), window_nt=9, step_nt=3)
 
 # Result has multiple feature columns for each window
 # Columns are sorted by feature name, then window position:
-# features.a_count_0, features.a_count_3, features.a_count_6,
-# features.gc_count_0, features.gc_count_3, features.gc_count_6,
-# features.length_0, features.length_3, features.length_6,
-# features.t_count_0, features.t_count_3, features.t_count_6
+# FEATURES_a_count_0, FEATURES_a_count_3, FEATURES_a_count_6,
+# FEATURES_gc_count_0, FEATURES_gc_count_3, FEATURES_gc_count_6,
+# FEATURES_length_0, FEATURES_length_3, FEATURES_length_6,
+# FEATURES_t_count_0, FEATURES_t_count_3, FEATURES_t_count_6
 ```
 
 ## Output Format
@@ -185,7 +185,7 @@ The output is always a **single-row DataFrame** with:
 2. **Feature columns** (deterministically sorted):
    - Format: `{featureset_name}.{feature_key}_{window_start}`
    - Sorted by: feature key alphabetically, then window_start numerically
-   - Example: `gc.gc_content_0`, `gc.gc_content_3`, `gc.gc_content_6`
+   - Example: `GC_gc_content_0`, `GC_gc_content_3`, `GC_gc_content_6`
 
 ## Partial Windows
 
@@ -210,7 +210,7 @@ result = fs.compute_orf_windows(
 )
 # Only windows at positions 0 and 3 (both size 9)
 print([c for c in result.columns if c.startswith('counts.')])
-# ['counts.length_0', 'counts.length_3']
+# ['COUNTS_length_0', 'COUNTS_length_3']
 
 # With drop_partial=False: include partial windows
 result = fs.compute_orf_windows(
@@ -218,7 +218,7 @@ result = fs.compute_orf_windows(
 )
 # Windows at positions 0, 3, 6, 9, 12 (last ones are partial)
 print([c for c in result.columns if c.startswith('counts.')])
-# ['counts.length_0', 'counts.length_3', 'counts.length_6', 'counts.length_9', 'counts.length_12']
+# ['COUNTS_length_0', 'COUNTS_length_3', 'COUNTS_length_6', 'COUNTS_length_9', 'COUNTS_length_12']
 ```
 
 ## Error Handling

@@ -51,13 +51,13 @@ result = fs.compute_windows(
 # Result is a single-row DataFrame
 print(result.shape)  # (1, 6)
 
-# Columns: record_id, region_start, region_end, gc.gc_content_0, gc.gc_content_3, gc.gc_content_6
+# Columns: record_id, region_start, region_end, GC_gc_content_0, GC_gc_content_3, GC_gc_content_6
 print(result.columns.tolist())
-# ['record_id', 'region_start', 'region_end', 'gc.gc_content_0', 'gc.gc_content_3', 'gc.gc_content_6']
+# ['record_id', 'region_start', 'region_end', 'GC_gc_content_0', 'GC_gc_content_3', 'GC_gc_content_6']
 
 # Access feature values
-print(result['gc.gc_content_0'].iloc[0])  # GC content of first window (positions 0-5)
-print(result['gc.gc_content_3'].iloc[0])  # GC content of second window (positions 3-8)
+print(result['GC_gc_content_0'].iloc[0])  # GC content of first window (positions 0-5)
+print(result['GC_gc_content_3'].iloc[0])  # GC content of second window (positions 3-8)
 ```
 
 ## Working with Protein Sequences
@@ -77,8 +77,8 @@ result = fs.compute_windows(
 )
 
 # Creates windows at positions 0, 1, 2, 3, 4
-print([c for c in result.columns if c.startswith('gc.')])
-# ['gc.gc_content_0', 'gc.gc_content_1', 'gc.gc_content_2', 'gc.gc_content_3', 'gc.gc_content_4']
+print([c for c in result.columns if c.startswith('GC_')])
+# ['GC_gc_content_0', 'GC_gc_content_1', 'GC_gc_content_2', 'GC_gc_content_3', 'GC_gc_content_4']
 ```
 
 ## Using the Region Parameter
@@ -119,13 +119,27 @@ print(result.shape)  # (1, N) - single row, N columns
 
 ### Column Naming
 
-Columns follow this pattern: `{set_name}.{feature_key}_{window_start}`
+Columns follow this pattern: `{FAMILY}_{feature_key}_{window_start}`
+
+For non-incremental/incremental features (without aggregation specification):
+- Family name is uppercased
+- Feature key preserves its original case
+- Window start is the position
 
 ```python
 fs = FeatureSet(compute_multi_feature, name="stats")
 result = fs.compute_windows(record, window_size=6, step=3)
 
-# Columns: stats.gc_content_0, stats.gc_content_3, stats.length_0, stats.length_3, etc.
+# Columns: STATS_gc_content_0, STATS_gc_content_3, STATS_length_0, STATS_length_3, etc.
+```
+
+For positional features (with aggregation specification):
+- Pattern: `{FAMILY}_{feature_key}_{AGG}_{window_start}`
+- AGG is the aggregation name (MEAN, GEOMEAN, SUM, MAX, etc.)
+
+```python
+# Example: DISORDER_METAPREDICT_FRAC_IDR_MEAN_0
+# Example: CODON_BIAS_CAI_GEOMEAN_0
 ```
 
 ### Column Ordering
@@ -137,8 +151,8 @@ Columns are deterministically ordered:
 ```python
 # Example ordering:
 # ['record_id', 'region_start', 'region_end',
-#  'stats.gc_content_0', 'stats.gc_content_3', 'stats.gc_content_6',  # gc_content sorted
-#  'stats.length_0', 'stats.length_3', 'stats.length_6']               # then length
+#  'STATS_gc_content_0', 'STATS_gc_content_3', 'STATS_gc_content_6',  # gc_content sorted
+#  'STATS_length_0', 'STATS_length_3', 'STATS_length_6']               # then length
 ```
 
 ## Handling Partial Windows
@@ -226,9 +240,9 @@ fs = FeatureSet(compute_stats, name="stats")
 result = fs.compute_windows(record, window_size=6, step=3)
 
 # Features are grouped by key in column ordering:
-# stats.at_count_0, stats.at_count_3, stats.at_count_6,
-# stats.gc_count_0, stats.gc_count_3, stats.gc_count_6,
-# stats.length_0, stats.length_3, stats.length_6
+# STATS_at_count_0, STATS_at_count_3, STATS_at_count_6,
+# STATS_gc_count_0, STATS_gc_count_3, STATS_gc_count_6,
+# STATS_length_0, STATS_length_3, STATS_length_6
 ```
 
 ## Common Use Cases

@@ -315,16 +315,12 @@ def compute_window_indices(
 
     # Validate position_space
     if position_space not in ("codon", "residue"):
-        raise ValueError(
-            f"position_space must be 'codon' or 'residue', got {position_space!r}"
-        )
+        raise ValueError(f"position_space must be 'codon' or 'residue', got {position_space!r}")
 
     # Enforce codon alignment for codon space
     if position_space == "codon":
         if step % 3 != 0:
-            raise ValueError(
-                f"For codon position space, step must be a multiple of 3, got {step}"
-            )
+            raise ValueError(f"For codon position space, step must be a multiple of 3, got {step}")
         if start_offset % 3 != 0:
             raise ValueError(
                 f"For codon position space, start_offset must be a multiple of 3, "

@@ -67,9 +67,7 @@ def test_get_features_raises_import_error_without_pychimera():
 
     # Check the error message contains the required information
     error_message = str(exc_info.value)
-    assert "pychimera" in error_message.lower(), (
-        "Error message should mention pychimera"
-    )
+    assert "pychimera" in error_message.lower(), "Error message should mention pychimera"
     assert 'pip install "biotooler[chimera]"' in error_message, (
         "Error message should include installation instructions"
     )
