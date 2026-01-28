@@ -54,12 +54,25 @@ def ensure_protein_record(
 
     Returns:
         SeqRecord containing protein sequence with preserved id and description.
-        If translation was performed, adds annotations about translation details.
+        If translation was performed, adds annotations about translation details:
+        - translation_performed: True if DNA/RNA was translated
+        - translation_table: NCBI genetic code table number used
+        - translation_source: "DNA" or "RNA"
+        - translation_region: (start, end) tuple of the requested region to translate.
+          Note: If the region length is not divisible by 3, trailing bases are
+          trimmed before translation, but this annotation reflects the original
+          requested region.
+        - translation_region_source: How the region was determined
 
     Raises:
         ValueError: If on_internal_stop="error" and internal stop codons are found,
             or if orf_policy has an invalid value
         KeyError: If molecule_type annotation is missing from record
+
+    Notes:
+        Partial codons (when sequence length is not divisible by 3) are automatically
+        trimmed before translation to avoid BiopythonWarning. This is consistent with
+        standard translation behavior where incomplete codons at the end are ignored.
 
     Examples:
         >>> from Bio.Seq import Seq
@@ -164,6 +177,12 @@ def ensure_protein_record(
     # Normalize RNA U->T for translation (Biopython expects DNA for translate)
     if mol_type.upper() == "RNA":
         region_seq = region_seq.replace("U", "T")
+
+    # Trim sequence to a multiple of 3 to avoid partial codon warnings
+    # Partial codons at the end are simply dropped (consistent with standard translation)
+    remainder = len(region_seq) % 3
+    if remainder:
+        region_seq = region_seq[: len(region_seq) - remainder]
 
     # Translate using Biopython
     # Use to_stop=False to translate through stops
