@@ -105,13 +105,13 @@ class CodonBiasFeature:
     @property
     def prefer_incremental_windowing(self) -> bool:
         """Indicate that this feature prefers incremental windowing in compute_orf_windows.
-        
+
         CodonBiasFeature implements both positional and incremental interfaces.
         For compute_orf_windows (legacy), we prefer incremental to maintain backward
         compatibility with column naming (CB_CAI_0 instead of CB_CAI_GEOMEAN_0).
         For compute_orf_windows_v2 (explicit positional), the positional interface
         is used as intended.
-        
+
         Returns:
             True to indicate preference for incremental windowing path
         """
@@ -130,7 +130,7 @@ class CodonBiasFeature:
             - FOP: np.mean (proportion/frequency metric)
             - RSCU, RCBS, CPB: np.mean (for scores without get_vector, fallback to legacy)
             - ENC: Not applicable (no get_vector support, uses legacy incremental path)
-            
+
         Note:
             For compute_orf_windows (legacy), this feature is treated as "mixed" if any
             model lacks get_vector, forcing it to use the incremental path.

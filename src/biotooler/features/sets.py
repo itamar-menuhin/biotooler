@@ -370,7 +370,7 @@ class FeatureSet:
                             names = getattr(feat_fn, "names", [])
                             if names and set(names) != set(vector_keys.keys()):
                                 is_mixed = True
-                        
+
                         # Also check if feature explicitly prefers incremental windowing
                         if has_incremental and hasattr(feat_fn, "prefer_incremental_windowing"):
                             if getattr(feat_fn, "prefer_incremental_windowing", False):
