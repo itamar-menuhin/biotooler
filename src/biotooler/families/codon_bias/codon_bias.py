@@ -12,7 +12,7 @@ from Bio.SeqRecord import SeqRecord
 
 from biotooler.core.lazy_import import lazy_import
 from biotooler.core.seq_utils import get_seq_str
-from biotooler.features.aggregation import AggregationSpec, PositionSpace, geometric_mean
+from biotooler.features.aggregation import AggregationSpec, PositionSpace
 
 if TYPE_CHECKING:
     from biotooler.core.reference_sequences import ReferenceSequenceSet
