@@ -131,35 +131,37 @@ class TestEnsureProteinRecordORFHandling:
     def test_explicit_orf(self):
         """Test translation with explicit ORF."""
         # Full sequence: NNNNATGAAAGCCNNN
-        # ORF region [4:15] = ATGAAAGCC -> MKA
+        # ORF region [4:13] = ATGAAAGCC (9 bases, 3 codons) -> MKA
         dna = SeqRecord(Seq("NNNNATGAAAGCCNNN"), id="test")
         dna.annotations["molecule_type"] = "DNA"
 
-        result = ensure_protein_record(dna, orf=(4, 15))
+        result = ensure_protein_record(dna, orf=(4, 13))
 
         assert str(result.seq) == "MKA"
-        assert result.annotations["translation_region"] == (4, 15)
+        assert result.annotations["translation_region"] == (4, 13)
         assert result.annotations["translation_region_source"] == "explicit_orf"
 
     def test_attached_orf(self):
         """Test translation with attached ORF."""
+        # ORF region [4:13] = ATGAAAGCC (9 bases, 3 codons) -> MKA
         dna = SeqRecord(Seq("NNNNATGAAAGCCNNN"), id="test")
         dna.annotations["molecule_type"] = "DNA"
-        dna = attach_orf(dna, (4, 15))
+        dna = attach_orf(dna, (4, 13))
 
         result = ensure_protein_record(dna)
 
         assert str(result.seq) == "MKA"
-        assert result.annotations["translation_region"] == (4, 15)
+        assert result.annotations["translation_region"] == (4, 13)
         assert result.annotations["translation_region_source"] == "attached_orf"
 
     def test_explicit_orf_overrides_attached(self):
         """Test that explicit ORF overrides attached ORF."""
+        # Attached ORF [4:13] = ATGAAAGCC -> MKA (9 bases, 3 codons)
+        # Explicit ORF [16:22] = CTGGTG -> LV (6 bases, 2 codons)
         dna = SeqRecord(Seq("NNNNATGAAAGCCNNNCTGGTG"), id="test")
         dna.annotations["molecule_type"] = "DNA"
-        dna = attach_orf(dna, (4, 15))  # MKA
+        dna = attach_orf(dna, (4, 13))  # MKA
 
-        # Explicit ORF [16:22] = CTGGTG -> LV
         result = ensure_protein_record(dna, orf=(16, 22))
 
         assert str(result.seq) == "LV"
@@ -168,14 +170,16 @@ class TestEnsureProteinRecordORFHandling:
 
     def test_use_orf_if_present_false(self):
         """Test that use_orf_if_present=False ignores attached ORF."""
-        dna = SeqRecord(Seq("NNNNATGAAAGCCNNN"), id="test")
+        # Use a sequence with length divisible by 3 to avoid partial codon trimming
+        # 18 bases = 6 codons
+        dna = SeqRecord(Seq("NNNNATGAAAGCCNNNAA"), id="test")
         dna.annotations["molecule_type"] = "DNA"
-        dna = attach_orf(dna, (4, 15))
+        dna = attach_orf(dna, (4, 13))
 
         result = ensure_protein_record(dna, use_orf_if_present=False)
 
         # Should translate full sequence (with N's causing issues or being ambiguous)
-        # Full sequence frame 0: NNNNATGAAAGCCNNN -> XMKAX (N translates to X typically)
+        # Full sequence frame 0: NNNNATGAAAGCCNNNAA -> XMKAXN (N translates to X typically)
         assert result.annotations["translation_region"] == (0, len(dna.seq))
         assert result.annotations["translation_region_source"] == "full_sequence_frame0"
 
@@ -231,8 +235,33 @@ class TestEnsureProteinRecordEdgeCases:
         dna.annotations["molecule_type"] = "DNA"
 
         result = ensure_protein_record(dna)
-        # 2 bases: incomplete codon, may translate to empty or partial
-        assert len(result.seq) == 0  # Incomplete codon results in empty protein
+        # 2 bases: incomplete codon, trimmed to 0 bases, results in empty protein
+        assert len(result.seq) == 0
+
+    def test_partial_codon_trimming(self):
+        """Test that partial codons are trimmed during translation.
+
+        Sequences with length not divisible by 3 have trailing bases trimmed
+        to avoid BiopythonWarning. This is consistent with standard translation
+        behavior where incomplete codons at the end are ignored.
+        """
+        # 7 bases: ATG GCT + 1 extra base -> should translate 6 bases -> MK
+        dna7 = SeqRecord(Seq("ATGAAAA"), id="test7")
+        dna7.annotations["molecule_type"] = "DNA"
+        result7 = ensure_protein_record(dna7)
+        assert str(result7.seq) == "MK"  # ATG + AAA = MK, trailing A trimmed
+
+        # 8 bases: ATG GCT + 2 extra bases -> should translate 6 bases -> MK
+        dna8 = SeqRecord(Seq("ATGAAAAA"), id="test8")
+        dna8.annotations["molecule_type"] = "DNA"
+        result8 = ensure_protein_record(dna8)
+        assert str(result8.seq) == "MK"  # ATG + AAA = MK, trailing AA trimmed
+
+        # 9 bases: ATG AAA GCC -> should translate all 9 bases -> MKA
+        dna9 = SeqRecord(Seq("ATGAAAGCC"), id="test9")
+        dna9.annotations["molecule_type"] = "DNA"
+        result9 = ensure_protein_record(dna9)
+        assert str(result9.seq) == "MKA"  # All 9 bases translated
 
     def test_preserves_id_and_description(self):
         """Test that ID and description are preserved."""
